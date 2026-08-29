@@ -638,10 +638,26 @@ button:disabled {
   font-size: 13px;
 }
 
+/* ===== 票据 17 — 牌桌全屏容器（对齐原型 table-ui.html 的 body 结构） ===== */
+/* 进入牌桌后：去掉 app-root 的居中留白，牌桌占满视口、body 不滚动 */
+body:has(.table-root) {
+  overflow: hidden;
+}
+
+.app-root:has(> .table-root) {
+  padding: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
 .table-root {
-  max-width: 980px;
+  width: 100%;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 16px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .table-phase-bar {
@@ -848,4 +864,883 @@ button:disabled {
 
 .app-error .btn {
   margin-left: 12px;
+}
+
+/* ===== 票据 17 — 四向实体牌桌（对齐原型 prototypes/table-ui.html） ===== */
+/* 暗色三基色变量已在 :root 声明（--blood/--dark/--gold/--bg/--panel/--panel2/--line/--text/--muted/--ok/--back）。 */
+
+/* ---- 顶栏 ---- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  flex: none;
+}
+
+.turnInfo {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.turnInfo b {
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.phases {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.ph {
+  flex: 1;
+  min-width: 52px;
+  text-align: center;
+  padding: 6px 4px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--panel2);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.ph.done {
+  opacity: 0.45;
+}
+
+.ph.cur {
+  background: var(--blood);
+  color: #fff;
+}
+
+.goal {
+  font-size: 13px;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+/* ---- 牌桌：中心黑市 + 四向座位 ---- */
+.tableWrap {
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+}
+
+.table {
+  height: 100%;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "top    top    top"
+    "left   center right"
+    "me     me     me";
+}
+
+.center {
+  grid-area: center;
+  border-radius: 14px;
+  border: 1.5px dashed var(--dark);
+  background: radial-gradient(ellipse at center, #2a1c1d 0%, #201516 70%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  min-height: 0;
+}
+
+.zoneTitle {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  gap: 14px;
+}
+
+.zoneTitle b {
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.marketSlots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* 黑市卡：浅底 + 分类边框色；购买阶段可点高亮 */
+.bm-card {
+  width: 72px;
+  height: 100px;
+  border-radius: 8px;
+  background: #efe6dd;
+  color: #2a1e1c;
+  border: 2.5px solid var(--dark);
+  position: relative;
+  padding: 5px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  line-height: 1.3;
+  text-align: left;
+}
+
+.bm-card.buyable {
+  cursor: pointer;
+}
+
+.bm-card.buyable:hover {
+  outline: 3px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.bm-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.bm-card .bmName {
+  font-size: 11px;
+  font-weight: 500;
+  color: #583c42;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bm-card .bmSub {
+  flex: 1;
+  color: #5a4a48;
+  font-size: 9px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.bm-card .bmPrice {
+  position: absolute;
+  bottom: 4px;
+  left: 5px;
+  right: 5px;
+  display: flex;
+  justify-content: space-between;
+  color: #2a1e1c;
+}
+
+.bm-card .bonus {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--blood);
+  color: #fff;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #ff8a90;
+}
+
+.bm-card.empty {
+  background: transparent;
+  border: 1.5px dashed var(--line);
+  color: transparent;
+}
+
+/* 分类边框色：subtype 映射（强化芯片/秘密交易/道具 → 紫/红/金；其余 → 蓝） */
+.cat-chip {
+  border-color: #7a2d8a;
+}
+.cat-deal {
+  border-color: #8a2d3d;
+}
+.cat-item {
+  border-color: #c98a1b;
+}
+.cat-generic {
+  border-color: #2d6a8a;
+}
+
+/* ---- 座位 ---- */
+.seat {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.seatTop {
+  grid-area: top;
+}
+
+.seatLeft {
+  grid-area: left;
+  width: 158px;
+}
+
+.seatRight {
+  grid-area: right;
+  width: 158px;
+}
+
+.seatMe {
+  grid-area: me;
+}
+
+.seatInfo {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: none;
+}
+
+.seat .seatInfo.active {
+  border-color: var(--gold);
+}
+
+.seatInfo.empty-seat {
+  color: var(--muted);
+  font-size: 12px;
+  justify-content: center;
+}
+
+.seatInfo .name {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.badge {
+  font-size: 10px;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+.badge.flip {
+  color: var(--muted);
+  border-color: var(--muted);
+}
+
+.endedTag {
+  font-size: 10px;
+  color: var(--ok);
+  border: 1px solid var(--ok);
+  border-radius: 6px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  animation: endIn 0.3s ease-out;
+}
+
+@keyframes endIn {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.stat {
+  display: flex;
+  gap: 9px;
+  font-size: 11px;
+  color: var(--muted);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.stat b {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.chipIcon {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--blood);
+  border: 1.5px solid #ff8a90;
+  display: inline-block;
+  vertical-align: -1px;
+}
+
+.ticketIcon {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--gold);
+  display: inline-block;
+  vertical-align: -1px;
+}
+
+.charCard {
+  width: 30px;
+  height: 42px;
+  border-radius: 5px;
+  flex: none;
+  cursor: pointer;
+  background: linear-gradient(160deg, #5a2b30, #3c2226);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.2;
+  padding: 2px;
+}
+
+.charCard:active {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.handBacks {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.mini-back {
+  width: 14px;
+  height: 20px;
+  border-radius: 3px;
+  background: var(--back);
+  border: 1px solid var(--line);
+  display: inline-block;
+}
+
+.moreBacks {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* 出牌区：位于座位与中央之间（玩家"面前"） */
+.playZone {
+  flex: 1;
+  min-height: 56px;
+  border-radius: 10px;
+  border: 1px dashed var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px;
+  position: relative;
+  overflow: visible;
+}
+
+.playZone .pwho {
+  position: absolute;
+  top: 2px;
+  left: 8px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.playZone .emptyHint {
+  font-size: 11px;
+  color: #5a4a48;
+}
+
+/* 左右座位的出牌区横向窄、纵向高，牌旋转 */
+.seatLeft .playZone,
+.seatRight .playZone {
+  flex-direction: column;
+}
+
+.playZone .card.small {
+  width: 40px;
+  height: 57px;
+  font-size: 13px;
+}
+
+.rot90 {
+  transform: rotate(90deg);
+}
+.rot180 {
+  transform: rotate(180deg);
+}
+.rot-90 {
+  transform: rotate(-90deg);
+}
+
+/* ---- 个人操作台 ---- */
+.console {
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  padding: 6px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: none;
+}
+
+.consoleBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.consoleBar .name {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.actions .autoText {
+  font-size: 12px;
+  color: var(--muted);
+  align-self: center;
+  white-space: nowrap;
+}
+
+.hintRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.actionHint {
+  font-size: 14px;
+  color: var(--gold);
+  flex: 1;
+  min-width: 0;
+}
+
+.endInfo {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.endInfo b {
+  color: var(--ok);
+  font-weight: 500;
+}
+
+.consoleMain {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.piles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: none;
+  justify-content: flex-start;
+}
+
+.pile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.pile b {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.pileStack {
+  width: 22px;
+  height: 32px;
+  border-radius: 4px;
+  background: var(--back);
+  border: 1px solid var(--line);
+  position: relative;
+  flex: none;
+}
+
+.pileStack.discard {
+  background: #33201f;
+}
+
+.pileStack.deleted {
+  background: #2c2130;
+  border-color: #7a2d8a;
+}
+
+.pileStack::after {
+  content: "";
+  position: absolute;
+  inset: -2px auto auto 2px;
+  width: 22px;
+  height: 32px;
+  border-radius: 4px;
+  background: inherit;
+  border: inherit;
+  z-index: -1;
+  opacity: 0.6;
+}
+
+.pileItems {
+  align-items: flex-start;
+}
+
+.pileLabel {
+  line-height: 1.6;
+}
+
+.items {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.itemCard {
+  background: #2c2130;
+  border: 1px solid #7a2d8a;
+  border-radius: 7px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #d8c0e0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.emptyItems {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.handRow {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 2px;
+  min-height: 86px;
+  align-items: flex-end;
+  flex: 1;
+}
+
+.handRow .card {
+  width: 48px;
+  height: 68px;
+  font-size: 15px;
+  padding: 0;
+}
+
+.handRow .card .suit {
+  font-size: 12px;
+}
+
+.handRow .card {
+  transition: transform 0.12s;
+}
+
+.handRow .card.sel {
+  transform: translateY(-8px);
+}
+
+.handRow .emptyHint {
+  color: #5a4a48;
+  font-size: 12px;
+  align-self: center;
+}
+
+/* ---- 对局结束 ---- */
+.endPanel {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.endTitle {
+  font-size: 28px;
+  color: var(--gold);
+  letter-spacing: 6px;
+  margin: 0 0 12px;
+}
+
+.endWinner {
+  font-size: 16px;
+  color: var(--text);
+  margin: 0 0 20px;
+}
+
+.logPanel {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top-width: 0;
+  padding: 8px 14px 10px;
+  text-align: left;
+  max-height: 64px;
+  overflow-y: auto;
+  flex: none;
+}
+
+.endPanel .logPanel {
+  border-top-width: 1px;
+  border-radius: 10px;
+  max-width: 520px;
+  padding: 12px 14px;
+  max-height: 46vh;
+}
+
+.panelTitle {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.logline {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 3px 0;
+  border-bottom: 1px dashed var(--line);
+  line-height: 1.6;
+}
+
+.logMeta {
+  color: var(--gold);
+}
+
+/* ---- 断点：窄屏 ---- */
+@media (max-width: 860px) {
+  .seatLeft,
+  .seatRight {
+    width: 118px;
+  }
+
+  .bm-card {
+    width: 58px;
+    height: 84px;
+  }
+
+  .handRow .card {
+    width: 42px;
+    height: 60px;
+  }
+
+  .stat {
+    gap: 6px;
+  }
+}
+
+/* 横屏手机：宽度够但高度紧张（如 965x440），按高度压缩 */
+@media (max-height: 560px) {
+  .topbar {
+    padding: 3px 8px;
+    gap: 8px;
+  }
+
+  .ph {
+    min-width: 38px;
+    padding: 4px 2px;
+    font-size: 11px;
+  }
+
+  .goal {
+    font-size: 12px;
+  }
+
+  .tableWrap {
+    padding: 4px;
+  }
+
+  .table {
+    gap: 5px;
+  }
+
+  .seatLeft,
+  .seatRight {
+    width: 118px;
+  }
+
+  .seat {
+    gap: 3px;
+  }
+
+  .seatInfo {
+    padding: 3px 7px;
+    gap: 6px;
+    border-radius: 8px;
+  }
+
+  .seatInfo .name {
+    font-size: 12px;
+  }
+
+  .badge,
+  .endedTag {
+    font-size: 9px;
+    padding: 0 4px;
+  }
+
+  .stat {
+    gap: 5px;
+    font-size: 10px;
+  }
+
+  .chipIcon,
+  .ticketIcon {
+    width: 10px;
+    height: 10px;
+  }
+
+  .charCard {
+    width: 24px;
+    height: 34px;
+    font-size: 8px;
+  }
+
+  .mini-back {
+    width: 11px;
+    height: 16px;
+  }
+
+  .handBacks {
+    gap: 1px;
+  }
+
+  .center {
+    gap: 3px;
+    padding: 5px;
+  }
+
+  .bm-card {
+    width: 54px;
+    height: 76px;
+    font-size: 9px;
+    padding: 4px;
+  }
+
+  .bm-card .bmName {
+    font-size: 10px;
+  }
+
+  .bm-card .bonus {
+    width: 15px;
+    height: 15px;
+    font-size: 9px;
+  }
+
+  .playZone {
+    min-height: 44px;
+    gap: 4px;
+    padding: 3px;
+  }
+
+  .playZone .pwho {
+    font-size: 9px;
+  }
+
+  .playZone .emptyHint {
+    font-size: 10px;
+  }
+
+  .playZone .card.small {
+    width: 32px;
+    height: 46px;
+    font-size: 11px;
+  }
+
+  .console {
+    padding: 4px 8px 6px;
+    gap: 3px;
+  }
+
+  .consoleBar .name {
+    font-size: 13px;
+  }
+
+  .actions .btn {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-height: 38px;
+  }
+
+  .handRow {
+    min-height: 62px;
+    gap: 6px;
+  }
+
+  .handRow .card {
+    width: 36px;
+    height: 52px;
+    font-size: 13px;
+  }
+
+  .consoleMain {
+    gap: 8px;
+  }
+
+  .pile {
+    padding: 4px 7px;
+    font-size: 10px;
+  }
+
+  .pileStack {
+    width: 18px;
+    height: 26px;
+  }
+
+  .pileStack::after {
+    width: 18px;
+    height: 26px;
+  }
+
+  .zoneTitle {
+    font-size: 10px;
+    gap: 8px;
+  }
+
+  .actionHint {
+    font-size: 12px;
+  }
 }
