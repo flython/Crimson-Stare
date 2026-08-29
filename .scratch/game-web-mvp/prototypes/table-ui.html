@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>血色牌局 · 牌桌交互原型（假数据）</title>
+<style>
+  :root{
+    --blood:#e9404b; --dark:#583c42; --gold:#ffc840;
+    --bg:#17100f; --panel:#241a1b; --panel2:#2e2223; --line:#4a3537;
+    --text:#f2e6e2; --muted:#a89694; --ok:#6fbf73; --back:#3c1418;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    display:flex; flex-direction:column; overflow:hidden; touch-action:manipulation;
+  }
+  button{font-family:inherit; cursor:pointer; border:none; border-radius:8px;}
+  /* ===== 顶栏：回合+阶段条 ===== */
+  #topbar{display:flex; align-items:center; gap:14px; padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap;}
+  #turnInfo{font-size:13px; color:var(--muted); white-space:nowrap;}
+  #turnInfo b{color:var(--gold); font-weight:500;}
+  #phases{display:flex; gap:4px; flex:1; overflow-x:auto;}
+  .ph{
+    flex:1; min-width:52px; text-align:center; padding:7px 4px; border-radius:8px;
+    font-size:12px; color:var(--muted); background:var(--panel2); border:1px solid transparent; white-space:nowrap;
+  }
+  .ph.done{opacity:.45;}
+  .ph.cur{background:var(--blood); color:#fff;}
+  #goal{font-size:13px; color:var(--gold); white-space:nowrap;}
+  /* ===== 主区 ===== */
+  #main{flex:1; display:grid; grid-template-columns:150px 1fr 150px; gap:10px; padding:10px; min-height:0;}
+  .side{display:flex; flex-direction:column; gap:10px; min-width:0;}
+  .opp{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px;
+    display:flex; flex-direction:column; gap:8px; flex:1; min-height:0;
+  }
+  .opp.active{border-color:var(--gold);}
+  .opp .name{font-size:13px; display:flex; justify-content:space-between; align-items:center;}
+  .badge{font-size:11px; color:var(--gold); border:1px solid var(--gold); border-radius:6px; padding:1px 6px;}
+  .badge.flip{color:var(--muted); border-color:var(--muted);}
+  .stat{display:flex; gap:10px; font-size:12px; color:var(--muted);}
+  .stat b{color:var(--text); font-weight:500;}
+  .chipRow{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--muted);}
+  .chipIcon{width:14px;height:14px;border-radius:50%;background:var(--blood);border:1.5px solid #ff8a90;display:inline-block;flex:none;}
+  .ticketIcon{width:14px;height:14px;border-radius:3px;background:var(--gold);display:inline-block;flex:none;}
+  .backs{display:flex; flex-wrap:wrap; gap:3px;}
+  .mini-back{width:16px;height:23px;border-radius:3px;background:var(--back);border:1px solid var(--line);}
+  .mini-face{width:16px;height:23px;border-radius:3px;background:#efe6dd;color:#2a1e1c;font-size:9px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);}
+  /* ===== 中央：黑市+出牌区 ===== */
+  #center{display:flex; flex-direction:column; gap:8px; min-width:0; min-height:0;}
+  .zoneTitle{font-size:12px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;}
+  #market{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:8px 10px;}
+  #marketSlots{display:flex; gap:8px; justify-content:center; flex-wrap:wrap;}
+  .bm-card{
+    width:76px; height:106px; border-radius:8px; background:#efe6dd; color:#2a1e1c;
+    border:2.5px solid var(--cat-econ); position:relative; padding:5px; flex:none;
+    display:flex; flex-direction:column; font-size:10px; line-height:1.3;
+  }
+  .bm-card.sel{outline:3px solid var(--gold); outline-offset:1px;}
+  .bm-card .bmName{font-size:11px; font-weight:500; color:#583c42;}
+  .bm-card .bmEff{flex:1; color:#5a4a48; overflow:hidden;}
+  .bm-card .bmPrice{position:absolute; bottom:4px; left:5px; right:5px; display:flex; justify-content:space-between; align-items:center; color:#2a1e1c;}
+  .bm-card .bonus{position:absolute; top:-7px; right:-7px; width:18px; height:18px; border-radius:50%; background:var(--blood); color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center; border:1.5px solid #ff8a90;}
+  .bm-card.empty{background:transparent; border:1.5px dashed var(--line);}
+  .cat-econ{border-color:#c98a1b;} .cat-del{border-color:#7a2d8a;} .cat-tol{border-color:#2d6a8a;} .cat-inter{border-color:#8a2d3d;} .cat-combo{border-color:#3d8a2d;}
+  /* 出牌区 */
+  #playZone{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:8px 10px; display:flex; flex-direction:column; gap:8px; min-height:0;}
+  #playSlots{display:flex; gap:14px; justify-content:center; align-items:center; flex-wrap:wrap;}
+  .pcard{display:flex; flex-direction:column; align-items:center; gap:3px;}
+  .pcard .who{font-size:10px; color:var(--muted);}
+  .pcard .combo{font-size:11px; color:var(--gold);}
+  /* ===== 卡牌通用 ===== */
+  .card{
+    width:58px; height:82px; border-radius:7px; background:#efe6dd; color:#2a1e1c;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-size:18px; font-weight:500; border:1px solid var(--line); position:relative; flex:none;
+    user-select:none; -webkit-user-select:none;
+  }
+  .card .suit{font-size:14px; line-height:1;}
+  .card.red{color:#b03340;}
+  .card.joker{background:#3c2a2c; color:var(--gold); font-size:12px;}
+  .card.chip::after{
+    content:"◆"; position:absolute; top:2px; right:4px; font-size:9px; color:#7a2d8a;
+  }
+  .card.back{background:var(--back); color:transparent;}
+  .card.sel{outline:3px solid var(--gold); outline-offset:1px; transform:translateY(-8px);}
+  .card.dim{opacity:.4;}
+  .card.small{width:44px; height:62px; font-size:14px;}
+  /* ===== 底部：自己区域 ===== */
+  #bottom{background:var(--panel); border-top:1px solid var(--line); padding:8px 12px 12px; display:flex; flex-direction:column; gap:8px;}
+  #meBar{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+  #meBar .name{font-size:14px; display:flex; align-items:center; gap:8px;}
+  #actionHint{font-size:12px; color:var(--gold); flex:1; min-width:120px;}
+  #actions{display:flex; gap:8px; flex-wrap:wrap;}
+  .btn{
+    background:var(--blood); color:#fff; padding:10px 18px; font-size:14px; min-height:44px;
+  }
+  .btn:disabled{background:var(--panel2); color:var(--muted);}
+  .btn.ghost{background:var(--panel2); color:var(--text); border:1px solid var(--line);}
+  .btn.gold{background:var(--gold); color:#3a2a10;}
+  #handRow{display:flex; gap:8px; overflow-x:auto; padding:6px 2px 2px; min-height:96px; align-items:flex-end;}
+  #handRow .card{transition:transform .12s;}
+  /* ===== 宣告面板 ===== */
+  .overlay{position:fixed; inset:0; background:rgba(0,0,0,.65); display:none; align-items:center; justify-content:center; z-index:50; padding:16px;}
+  .overlay.show{display:flex;}
+  .modal{background:var(--panel); border:1px solid var(--gold); border-radius:14px; padding:18px; max-width:480px; width:100%; max-height:88vh; overflow-y:auto;}
+  .modal h3{font-size:15px; color:var(--gold); font-weight:500; margin-bottom:10px;}
+  .modal .stepTag{font-size:11px; color:var(--muted); margin-bottom:8px;}
+  .declareQueue{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;}
+  .dq{font-size:12px; padding:4px 10px; border-radius:8px; background:var(--panel2); color:var(--muted); border:1px solid var(--line);}
+  .dq.cur{background:var(--blood); color:#fff;}
+  .dq.done{opacity:.5;}
+  .optGrid{display:flex; flex-wrap:wrap; gap:8px; margin:10px 0;}
+  .opt{background:var(--panel2); border:1px solid var(--line); color:var(--text); padding:10px 14px; border-radius:8px; font-size:13px; min-height:44px;}
+  .opt.sel{border-color:var(--gold); color:var(--gold);}
+  .logline{font-size:12px; color:var(--muted); padding:3px 0; border-bottom:1px dashed var(--line);}
+  /* ===== 提示浮层 ===== */
+  #toast{position:fixed; top:14px; left:50%; transform:translateX(-50%); background:var(--gold); color:#3a2a10; padding:8px 18px; border-radius:8px; font-size:13px; display:none; z-index:99;}
+  @media (max-width:720px){
+    #main{grid-template-columns:110px 1fr 110px; gap:6px; padding:6px;}
+    .card{width:48px;height:68px;font-size:15px;}
+    .bm-card{width:64px;height:90px;}
+  }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <span id="turnInfo">第 <b id="turnNo">3</b> 回合</span>
+  <div id="phases"></div>
+  <span id="goal">目标 16 票</span>
+</div>
+
+<div id="main">
+  <div class="side" id="leftSide"></div>
+  <div id="center">
+    <div id="market">
+      <div class="zoneTitle"><span>黑市（点卡片购买）</span><span>购买阶段结束时最右两格 +1 血筹</span></div>
+      <div id="marketSlots"></div>
+    </div>
+    <div id="playZone">
+      <div class="zoneTitle"><span>出牌区</span><span id="playHint"></span></div>
+      <div id="playSlots"></div>
+    </div>
+  </div>
+  <div class="side" id="rightSide"></div>
+</div>
+
+<div id="bottom">
+  <div id="meBar">
+    <span class="name">你 · 矿工 <span class="badge">临时特权证</span></span>
+    <span class="chipRow"><span class="chipIcon"></span><b id="meChips">7</b> 血筹</span>
+    <span class="chipRow"><span class="ticketIcon"></span><b id="meTickets">8</b> 票</span>
+    <span id="actionHint"></span>
+    <div id="actions"></div>
+  </div>
+  <div id="handRow"></div>
+</div>
+
+<!-- 宣告面板 -->
+<div class="overlay" id="declareOverlay">
+  <div class="modal">
+    <h3>对决 · 宣告</h3>
+    <div class="declareQueue" id="dq"></div>
+    <div id="declareBody"></div>
+  </div>
+</div>
+<!-- 删牌面板 -->
+<div class="overlay" id="deleteOverlay">
+  <div class="modal">
+    <h3>删牌阶段</h3>
+    <div class="stepTag">本回合免费删 1 张；之后每删 1 张付 2 血筹</div>
+    <div id="deleteBody" class="optGrid"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
+      <button class="btn ghost" onclick="closeModal('deleteOverlay')">不删了</button>
+    </div>
+  </div>
+</div>
+<!-- 芯片插入面板 -->
+<div class="overlay" id="chipOverlay">
+  <div class="modal">
+    <h3>插入强化芯片：<span id="chipName"></span></h3>
+    <div class="stepTag">从弃牌区选 1 张牌插入（每张牌限 1 块芯片，点数改后须在 2-14）</div>
+    <div id="chipBody" class="optGrid"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ================= 假数据 ================= */
+const SUIT_CH = {S:"♠",H:"♥",D:"♦",C:"♣"};
+const CAT = {econ:"经济",del:"删牌",tol:"容错",inter:"互动",combo:"牌型"};
+const PHASES = ["抽牌","换牌","出牌","对决","结算","购买","删牌","重整"];
+
+let S = {
+  turn:3, phase:1, /* index into PHASES */
+  me:{chips:7,tickets:8,swap:3,flipped:false},
+  passIdx:0, /* 自己持证 */
+  opps:[
+    {name:"特型演员",chips:5,tickets:8,swap:2,pass:false,handCount:6,flipped:false,active:false},
+  ],
+  market:[
+    {id:"bm1",name:"血筹镀层(夺)",cat:"econ",price:3,bonus:1,eff:"对决阶段：抢夺任意玩家1血筹"},
+    {id:"bm2",name:"限流阀-2",cat:"tol",price:3,bonus:0,eff:"插入：一张牌点数永久-2"},
+    {id:"bm3",name:"廉价销毁",cat:"del",price:3,bonus:0,eff:"秘密交易：从弃牌区删除2张牌"},
+    {id:"bm4",name:"荷官证",cat:"inter",price:6,bonus:1,eff:"查看黑市牌堆顶3张，选1张购买"},
+    {id:"bm5",name:"皮下密信",cat:"econ",price:2,bonus:1,eff:"备用道具：获得2血筹"},
+  ],
+  hand:[
+    {id:"h1",r:9,s:"S"},{id:"h2",r:9,s:"H"},{id:"h3",r:9,s:"D"},{id:"h4",r:9,s:"C"},
+    {id:"h5",r:3,s:"H"},{id:"h6",r:3,s:"D"},
+  ],
+  discard:[{id:"d1",r:2,s:"S"},{id:"d2",r:7,s:"C"},{id:"d3",r:11,s:"H"},{id:"d4",r:13,s:"D"},{id:"d5",r:5,s:"C"}],
+  play:[], selHand:new Set(), declared:{},
+  handId:100,
+};
+
+/* ================= 渲染 ================= */
+function el(id){return document.getElementById(id);}
+function toast(msg){const t=el("toast");t.textContent=msg;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",1600);}
+
+function renderPhases(){
+  el("phases").innerHTML = PHASES.map((p,i)=>
+    `<button class="ph ${i===S.phase?'cur':i<S.phase?'done':''}" onclick="gotoPhase(${i})">${p}</button>`).join("");
+  el("turnNo").textContent = S.turn;
+}
+function gotoPhase(i){
+  S.phase=i; S.selHand.clear(); S.play=[];
+  if(i===3) S.declared={};
+  renderAll();
+}
+
+function oppHtml(o){
+  return `<div class="opp ${o.pass?'':''}">
+    <div class="name">${o.name} ${o.pass?'<span class="badge">特权证</span>':''}${o.flipped?'<span class="badge flip">已翻面</span>':''}</div>
+    <div class="stat"><span>筹 <b>${o.chips}</b></span><span>票 <b>${o.tickets}</b></span><span>换牌 <b>${o.swap}</b></span></div>
+    <div class="backs">${'<div class="mini-back"></div>'.repeat(o.handCount)}</div>
+  </div>`;
+}
+function renderSides(){
+  el("leftSide").innerHTML = oppHtml(S.opps[0]);
+  el("rightSide").innerHTML = `<div class="opp">
+    <div class="name">牌堆</div>
+    <div class="backs">${'<div class="mini-back"></div>'.repeat(18)}</div>
+    <div style="font-size:11px;color:var(--muted);">弃牌堆：${S.discard.length} 张（对他人不可见）</div>
+  </div>`;
+}
+
+function bmCardHtml(c,i){
+  if(!c) return `<div class="bm-card empty"></div>`;
+  return `<div class="bm-card cat-${c.cat}" onclick="tapMarket(${i})">
+    ${c.bonus?`<div class="bonus">${c.bonus}</div>`:""}
+    <div class="bmName">${c.name}</div>
+    <div class="bmEff">${c.eff}</div>
+    <div class="bmPrice"><span>${c.price}筹</span><span>${CAT[c.cat]}</span></div>
+  </div>`;
+}
+function renderMarket(){ el("marketSlots").innerHTML = S.market.map(bmCardHtml).join(""); }
+
+function cardHtml(c, sel, small, extra){
+  const red = c.s==="H"||c.s==="D";
+  return `<div class="card ${red?'red':''} ${c.joker?'joker':''} ${c.chip?'chip':''} ${sel?'sel':''} ${small?'small':''} ${extra||''}" onclick="${c.onclick||''}">
+    ${c.joker ? "JOKER" : `<div class="suit">${SUIT_CH[c.s]}</div><div>${c.r}</div>`}
+  </div>`;
+}
+function renderPlay(){
+  const cur = PHASES[S.phase];
+  el("playHint").textContent = cur==="出牌" ? "暗扣出牌后统一亮出" : cur==="对决" ? "已亮牌 · 宣告中" : "";
+  if(S.play.length===0){ el("playSlots").innerHTML = `<span style="color:var(--muted);font-size:12px;">（空）</span>`; return; }
+  el("playSlots").innerHTML = S.play.map(p=>
+    `<div class="pcard"><div class="who">${p.who}</div>${cardHtml(p.card,false,true)}<div class="combo">${p.combo||""}</div></div>`).join("");
+}
+
+function renderHand(){
+  const cur = PHASES[S.phase];
+  el("handRow").innerHTML = S.hand.map(c=>
+    cardHtml({...c, onclick:`tapHand('${c.id}')`}, S.selHand.has(c.id) && (cur==="换牌"||cur==="出牌"))).join("");
+}
+
+function renderMe(){
+  el("meChips").textContent=S.me.chips; el("meTickets").textContent=S.me.tickets;
+  renderActions();
+}
+function renderActions(){
+  const cur = PHASES[S.phase];
+  const A = el("actions"); const n = S.selHand.size;
+  const H = {
+    "抽牌": `<button class="btn ghost" disabled>自动抽至 6 张</button>`,
+    "换牌": `<button class="btn" ${n<1||n>3?"disabled":""} onclick="doSwap()">换牌（弃${n||0}抽${n||0}）</button>
+             <button class="btn ghost" onclick="doStopSwap()">停止（剩${S.me.swap}次换${S.me.swap}筹）</button>`,
+    "出牌": `<button class="btn" ${n!==5?"disabled":""} onclick="doPlay()">暗扣出牌（${n}/5）</button>`,
+    "对决": `<button class="btn gold" onclick="openDeclare()">开始宣告</button>`,
+    "结算": `<button class="btn ghost" onclick="toast('系统自动结算：你第1名 +4票，对手第2名 +4筹')">自动结算（演示）</button>`,
+    "购买": `<button class="btn ghost" onclick="doFlip()">跳过并翻面</button>`,
+    "删牌": `<button class="btn gold" onclick="openDelete()">删除弃牌区牌</button>`,
+    "重整": `<button class="btn" onclick="toast('牌库与弃牌堆已重洗（演示）')">重洗牌库</button>
+             <button class="btn ghost" onclick="meChips(2)">不重洗 +2血筹</button>`,
+  };
+  A.innerHTML = H[cur]||"";
+  el("actionHint").textContent = {
+    "换牌":`点选手牌后换牌（≤3张），剩余次数 ${S.me.swap}`,
+    "出牌":`点选 5 张组成最大牌型`,
+    "购买":`点上方黑市卡购买；已购可继续，跳过则翻面`,
+    "删牌":`每回合免费 1 张，之后 2 筹/张`,
+  }[cur]||"";
+}
+
+function renderAll(){renderPhases();renderSides();renderMarket();renderPlay();renderHand();renderMe();}
+
+/* ================= 交互 ================= */
+function tapHand(id){
+  const cur = PHASES[S.phase];
+  if(cur!=="换牌"&&cur!=="出牌"){toast("当前阶段不需要选手牌");return;}
+  if(S.selHand.has(id)) S.selHand.delete(id);
+  else if(cur==="出牌"&&S.selHand.size>=5) toast("最多选 5 张");
+  else S.selHand.add(id);
+  renderHand(); renderActions();
+}
+function fakeDraw(n){
+  const suits=["S","H","D","C"];
+  for(let i=0;i<n;i++){
+    S.hand.push({id:"h"+(S.handId++), r:2+Math.floor(Math.random()*13), s:suits[Math.floor(Math.random()*4)]});
+  }
+}
+function doSwap(){
+  const ids=[...S.selHand];
+  S.hand=S.hand.filter(c=>!S.selHand.has(c.id));
+  S.discard.push(...S.hand.length?[]:[]);
+  fakeDraw(ids.length); S.me.swap--; S.selHand.clear();
+  toast(`已弃 ${ids.length} 张并补抽`);
+  renderAll();
+}
+function doStopSwap(){
+  S.me.chips+=S.me.swap; toast(`停止换牌，${S.me.swap} 次兑成血筹`); S.me.swap=0; gotoPhase(2);
+}
+function doPlay(){
+  const picked=S.hand.filter(c=>S.selHand.has(c.id));
+  S.play=picked.map(c=>({who:"你(暗扣)",card:{...c,back:true}}));
+  S.hand=S.hand.filter(c=>!S.selHand.has(c.id));
+  S.selHand.clear(); gotoPhase(3);
+  toast("已暗扣，等待对手出牌…");
+  setTimeout(()=>{ /* 对手也出牌 */
+    S.play.push({who:"特型演员(暗扣)",card:{r:"?",s:"S",back:true}});
+    renderAll();
+  },700);
+}
+function tapMarket(i){
+  if(PHASES[S.phase]!=="购买"){toast("购买阶段才能买黑市牌");return;}
+  const c=S.market[i]; if(!c)return;
+  if(S.me.chips<c.price){toast(`血筹不足：需 ${c.price}`);return;}
+  S.me.chips-=c.price+c.bonus*0-0; S.me.chips+=c.bonus;
+  if(c.id==="bm2"){ /* 芯片演示 */ openChip(c); return; }
+  toast(`已购「${c.name}」${c.bonus?`，并取走叠加的 ${c.bonus} 筹`:""}（效果结算）`);
+  S.market[i]=null; shiftMarket(); renderAll();
+}
+function shiftMarket(){
+  const pool=[{id:"bm6",name:"黑客充值",cat:"econ",price:4,bonus:0,eff:"获得3血筹"},{id:"bm7",name:"偷天换日",cat:"inter",price:5,bonus:0,eff:"与任意玩家随机交换1张手牌"}];
+  for(let i=0;i<S.market.length;i++){
+    if(!S.market[i]){
+      for(let j=i;j<S.market.length-1;j++) S.market[j]=S.market[j+1];
+      S.market[S.market.length-1]=pool.shift()||null;
+    }
+  }
+}
+function doFlip(){ S.me.flipped=true; toast("已翻面，本回合不可再购买"); gotoPhase(6); }
+function meChips(n){S.me.chips+=n;toast(`+${n} 血筹`);renderMe();}
+
+/* 删牌 */
+function openDelete(){
+  const body=el("deleteBody");
+  body.innerHTML = S.discard.map((c,i)=>
+    `<button class="opt" onclick="pickDelete(${i},this)">${SUIT_CH[c.s]}${c.r} <span style="color:var(--muted);font-size:11px;">（第1张免费）</span></button>`).join("");
+  window._del=[];
+  el("deleteOverlay").classList.add("show");
+}
+function pickDelete(i,btn){
+  if(window._del.includes(i)) {window._del=window._del.filter(x=>x!==i);btn.classList.remove("sel");return;}
+  window._del.push(i); btn.classList.add("sel");
+  const cost=Math.max(0,window._del.length-1)*2;
+  btn.insertAdjacentHTML("beforeend", cost?` <span style="color:var(--blood)">-${cost}筹</span>`:"");
+}
+el("deleteOverlay").addEventListener("click",e=>{
+  if(e.target.id==="deleteOverlay"&&window._del){
+    const cost=Math.max(0,window._del.length-1)*2;
+    if(cost>S.me.chips){toast("血筹不足");return;}
+    S.me.chips-=cost;
+    S.discard=S.discard.filter((_,i)=>!window._del.includes(i));
+    toast(`删除 ${window._del.length} 张${cost?`（付 ${cost} 筹）`:"（免费）"}`);
+    renderAll();
+  }
+});
+function closeModal(id){el(id).classList.remove("show");}
+
+/* 芯片插入演示 */
+function openChip(c){
+  el("chipName").textContent=c.name;
+  const body=el("chipBody");
+  body.innerHTML=S.discard.map((d,i)=>{
+    const target = d.r-2; /* 限流阀-2 */
+    return `<button class="opt ${target<2?"dim":""}" ${target<2?"disabled":""} onclick="doChip(${i},${target})">${SUIT_CH[d.s]}${d.r} → ${SUIT_CH[d.s]}${target}</button>`;
+  }).join("");
+  el("chipOverlay").classList.add("show");
+}
+function doChip(i,target){
+  const d=S.discard[i]; d.r=target; d.chip=true;
+  S.market=S.market.map(x=>x&&x.id==="bm2"?null:x); shiftMarket();
+  closeModal("chipOverlay"); toast(`芯片已插入 ${SUIT_CH[d.s]}${d.r}（不可替换）`); renderAll();
+}
+
+/* 宣告（半结构化排队演示） */
+function openDeclare(){
+  /* 亮牌 */
+  S.play[0].card=S.hand.length?S.play[0].card:{r:9,s:"S"};
+  const mine=S.hand.slice(0,5);
+  S.play=[{who:"你",card:{r:9,s:"S"},combo:"四条 39点"},{who:"特型演员",card:{r:10,s:"C"},combo:"葫芦 46点"}];
+  renderAll();
+  const q=el("dq");
+  q.innerHTML=["你","特型演员"].map((n,i)=>`<span class="dq ${i===0?"cur":""}">${i+1}. ${n}</span>`).join("");
+  const body=el("declareBody");
+  body.innerHTML=`
+    <div class="stepTag">宣告步骤 1/3 · JOKER 赋值（逐张）</div>
+    <div style="display:flex;gap:6px;align-items:center;">${cardHtml({r:null,joker:true})}<span style="font-size:12px;color:var(--muted);">→ 视为</span>
+      <div class="optGrid" style="margin:0;">
+        <button class="opt" onclick="declareStep(1)">♠10（补成四条9）</button>
+        <button class="opt" onclick="declareStep(1)">♠9（凑五条，但缺花色）</button>
+      </div>
+    </div>`;
+  el("declareOverlay").classList.add("show");
+}
+function declareStep(step){
+  const body=el("declareBody");
+  if(step===1) body.innerHTML=`
+    <div class="stepTag">宣告步骤 2/3 · 角色技能</div>
+    <div class="optGrid">
+      <button class="opt" onclick="declareStep(2)">发动：「对决阶段你的2视为JOKER」</button>
+      <button class="opt" onclick="declareStep(2)">不发动</button>
+    </div>`;
+  else if(step===2) body.innerHTML=`
+    <div class="stepTag">宣告步骤 3/3 · 强化芯片</div>
+    <div class="optGrid">
+      <button class="opt" onclick="declareStep(3)">发动「血筹镀层(夺)」→ 抢对手1筹</button>
+      <button class="opt" onclick="declareStep(3)">无可用芯片</button>
+    </div>`;
+  else {
+    body.innerHTML=`<div class="logline">你的宣告完成 → 轮到特型演员（顺时针）</div>
+      <div class="logline">特型演员：四张10 + JOKER视为10 → 葫芦 46点，胜出</div>
+      <div class="logline">结算：他夺魁获得特权证 +4票；你第2名 +4筹</div>`;
+    setTimeout(()=>{closeModal("declareOverlay"); gotoPhase(4); S.me.chips+=4; toast("结算完成（演示流程）");},1400);
+  }
+}
+
+/* 启动 */
+renderAll();
+</script>
+</body>
+</html>
