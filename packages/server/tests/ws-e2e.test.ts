@@ -371,3 +371,44 @@ describe("WS 房间与协议（票据 15）", () => {
     void snapB;
   });
 });
+
+describe("leaveRoom（票据 16）", () => {
+  it("房主离开未开始房间：全体收到 leftRoom，房主可再建房", async () => {
+    const a = await TestClient.connect(url, "房主");
+    const b = await TestClient.connect(url, "成员");
+    clients.push(a, b);
+    a.send({ type: "createRoom", mode: "easy" });
+    const roomMsg = (await a.recv("roomState")) as RoomMsg;
+    b.send({ type: "joinRoom", roomId: roomMsg.room.roomId });
+    await b.recv("roomState");
+    await a.recv("roomState");
+
+    a.send({ type: "leaveRoom" });
+    const leftA = await a.recv("leftRoom");
+    const leftB = await b.recv("leftRoom");
+    expect(leftA.type).toBe("leftRoom");
+    expect(leftB.type).toBe("leftRoom");
+
+    // 房主可再建房
+    a.send({ type: "createRoom", mode: "easy" });
+    const room2 = (await a.recv("roomState")) as RoomMsg;
+    expect(room2.room.roomId).toBeTruthy();
+  });
+
+  it("非房主离开未开始房间：房间保留，房主侧成员减少", async () => {
+    const a = await TestClient.connect(url, "房主");
+    const b = await TestClient.connect(url, "成员");
+    clients.push(a, b);
+    a.send({ type: "createRoom", mode: "easy" });
+    const roomMsg = (await a.recv("roomState")) as RoomMsg;
+    b.send({ type: "joinRoom", roomId: roomMsg.room.roomId });
+    await b.recv("roomState");
+    await a.recv("roomState");
+
+    b.send({ type: "leaveRoom" });
+    const leftB = await b.recv("leftRoom");
+    expect(leftB.type).toBe("leftRoom");
+    const roomAfter = (await a.recv("roomState")) as RoomMsg;
+    expect(roomAfter.room.players.length).toBe(1);
+  });
+});

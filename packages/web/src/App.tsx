@@ -84,6 +84,12 @@ export default function App() {
             setYou(msg.you);
             setStage("table");
             break;
+          case "leftRoom":
+            // 已离开/房间解散：回大厅（可再建房）
+            setRoom(null);
+            setSnap(null);
+            setStage("lobby");
+            break;
           case "error":
             setError(msg.message);
             break;
@@ -108,6 +114,17 @@ export default function App() {
 
   function onResolve(choice: string | string[]) {
     clientRef.current?.sendResolvePrompt(choice);
+  }
+
+  /** 断开连接并返回模式选择（退出房间/退出大厅出口，票据 16） */
+  function disconnect() {
+    clientRef.current?.close();
+    clientRef.current = null;
+    setRoom(null);
+    setSnap(null);
+    setYou("");
+    setError("");
+    setStage("mode");
   }
 
   return (
@@ -162,6 +179,9 @@ export default function App() {
             <button type="button" className="btn gold" onClick={connect}>
               连接
             </button>
+            <button type="button" className="btn" onClick={disconnect}>
+              返回
+            </button>
           </div>
         </div>
       ) : null}
@@ -173,6 +193,8 @@ export default function App() {
           onCreate={() => send({ type: "createRoom", mode: "easy" })}
           onJoin={(roomId) => send({ type: "joinRoom", roomId })}
           onStart={() => send({ type: "startGame" })}
+          onLeave={() => send({ type: "leaveRoom" })}
+          onDisconnect={disconnect}
         />
       ) : null}
 

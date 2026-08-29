@@ -47,13 +47,15 @@ export type ClientMessage =
   | { type: "startGame" }
   | { type: "action"; action: Omit<Action, "playerId"> }
   | { type: "resolvePrompt"; choice: string | string[] }
-  | { type: "reconnect"; token: string };
+  | { type: "reconnect"; token: string }
+  | { type: "leaveRoom" };
 
 /** 服务端 → 客户端消息 */
 export type ServerMessage =
   | { type: "welcome"; playerId: string; token: string }
   | { type: "roomState"; room: RoomView }
   | { type: "snapshot"; state: object; you: string }
+  | { type: "leftRoom"; reason: "ownerLeft" | "left" | "roomClosed" }
   | { type: "error"; code: string; message: string };
 
 /** 大厅视角的房间（web lobby 渲染） */
@@ -190,6 +192,21 @@ export class Room {
     if (seat) {
       seat.socket = null;
       seat.connected = false;
+    }
+  }
+
+  /** 移除座位（未开始房间的离开）；返回移除后房间是否已空 */
+  removeSeat(playerId: string): boolean {
+    const idx = this.seats.findIndex((s) => s.playerId === playerId);
+    if (idx !== -1) this.seats.splice(idx, 1);
+    return this.seats.length === 0;
+  }
+
+  /** 关闭房间（解散时调用）：清定时器并广播解散通知 */
+  close(reason: "ownerLeft" | "roomClosed"): void {
+    this.clearTimers();
+    for (const seat of this.seats) {
+      if (seat.socket) send(seat.socket, { type: "leftRoom", reason });
     }
   }
 
@@ -392,6 +409,9 @@ export class RoomManager {
         case "resolvePrompt":
           this.handleResolvePrompt(socket, msg.choice);
           return;
+        case "leaveRoom":
+          this.handleLeaveRoom(socket);
+          return;
         default: {
           const exhaustive: never = msg;
           send(socket, { type: "error", code: "UNKNOWN_TYPE", message: `未知消息类型: ${JSON.stringify(exhaustive)}` });
@@ -481,6 +501,41 @@ export class RoomManager {
     room.addSeat(identity, socket);
     this.playerRooms.set(identity.playerId, room.id);
     room.broadcastRoomState();
+  }
+
+  /**
+   * 离开房间（票据 16）：
+   * - 对局已开始 → 等同断开（座位保留 + 托管继续，可重连恢复）
+   * - 未开始且房主离开 → 解散房间（通知全体 leftRoom）
+   * - 未开始且非房主离开 → 移出座位，广播成员更新
+   */
+  private handleLeaveRoom(socket: WebSocket): void {
+    const identity = this.requireIdentity(socket);
+    const room = this.roomOf(identity);
+    if (!room) {
+      send(socket, { type: "error", code: "NOT_IN_ROOM", message: "你不在任何房间中" });
+      return;
+    }
+    if (room.started) {
+      room.detach(identity.playerId);
+      room.broadcastRoomState();
+      return;
+    }
+    const wasOwner = room.ownerId === identity.playerId;
+    const empty = room.removeSeat(identity.playerId);
+    this.playerRooms.delete(identity.playerId);
+    if (wasOwner) {
+      this.rooms.delete(room.id);
+      room.close("ownerLeft");
+      send(socket, { type: "leftRoom", reason: "ownerLeft" });
+    } else if (empty) {
+      this.rooms.delete(room.id);
+      room.close("roomClosed");
+      send(socket, { type: "leftRoom", reason: "left" });
+    } else {
+      send(socket, { type: "leftRoom", reason: "left" });
+      room.broadcastRoomState();
+    }
   }
 
   private handleStartGame(socket: WebSocket): void {

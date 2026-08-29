@@ -11,9 +11,13 @@ export interface LobbyProps {
   onCreate: () => void;
   onJoin: (roomId: string) => void;
   onStart: () => void;
+  /** 离开当前房间（票据 16：房主离开=解散） */
+  onLeave: () => void;
+  /** 断开连接并返回模式选择 */
+  onDisconnect: () => void;
 }
 
-export default function Lobby({ room, myPlayerId, onCreate, onJoin, onStart }: LobbyProps) {
+export default function Lobby({ room, myPlayerId, onCreate, onJoin, onStart, onLeave, onDisconnect }: LobbyProps) {
   const [roomId, setRoomId] = useState("");
   const [joining, setJoining] = useState(false);
 
@@ -46,6 +50,11 @@ export default function Lobby({ room, myPlayerId, onCreate, onJoin, onStart }: L
             加入房间
           </button>
         </div>
+        <div className="lobby-actions">
+          <button type="button" className="btn" onClick={onDisconnect}>
+            断开连接
+          </button>
+        </div>
       </div>
     );
   }
@@ -74,11 +83,19 @@ export default function Lobby({ room, myPlayerId, onCreate, onJoin, onStart }: L
           <button type="button" className="btn gold" disabled={room.players.length < 2} onClick={onStart}>
             开始游戏{room.players.length < 2 ? "（至少 2 人）" : ""}
           </button>
+          <button type="button" className="btn" onClick={onLeave}>
+            解散房间
+          </button>
         </div>
       ) : room.started ? (
         <p className="lobby-note">对局进行中…</p>
       ) : (
-        <p className="lobby-note">等待房主开始…</p>
+        <div className="lobby-actions">
+          <p className="lobby-note">等待房主开始…</p>
+          <button type="button" className="btn" onClick={onLeave}>
+            离开房间
+          </button>
+        </div>
       )}
     </div>
   );

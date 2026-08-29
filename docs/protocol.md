@@ -22,6 +22,7 @@ server ↔ web 的通信契约。02 号票据定稿的引擎抽象（`reduce` �
 | `action` | `{ action }` | 提交引擎 Action（换牌/出牌/购买/删除/重整等，形状由 engine `Action` 类型定义）。`playerId` 由 server 从连接身份注入，客户端不携带 |
 | `resolvePrompt` | `{ choice }` | **交互挂起选择（15 号票据定稿）**：`choice` 为 `string`（choosePlayer）或 `string[]`（chooseCard，牌 id 数组）。`playerId` 同样由 server 从连接推断，映射为引擎 `{ type:"resolvePrompt"; playerId; choice }` Action |
 | `reconnect` | `{ token }` | 断线后重连。与 `hello` 携带 token 等价：server 按 token 恢复身份 → 绑定原座位 → 补发 roomState + 快照 |
+| `leaveRoom` | `{}` | **离开房间（16 号票据）**：对局未开始 → 移出座位（房主离开 = 解散房间，全体收到 `leftRoom`）；对局已开始 → 等同断开（座位保留 + 托管继续，可重连恢复） |
 
 > 注：v1 草案中的 `updateConfig`（房主改配置）未实现，MVP 建房时一次性定配置；`ready` 语义由引擎 `ready` Action 承担（`action` 消息）。
 
@@ -32,6 +33,7 @@ server ↔ web 的通信契约。02 号票据定稿的引擎抽象（`reduce` �
 | `welcome` | `{ playerId, token }` | hello 应答，token 由客户端持久化到 localStorage |
 | `roomState` | `{ room }` | 房间 lobby 状态（成员/配置/座位/开始与结束标记），成员进出/开局时全房间广播 |
 | `snapshot` | `{ state, you }` | 全量裁剪快照。`you` 是观察者座位号（playerId），客户端据此渲染"我的视角"；`state` 为 `redactState(state, you)` 输出，含 `pendingPrompt`（目标玩家见完整候选，他人见 `{ kind, waitingFor, promptText }`）与 `log` |
+| `leftRoom` | `{ reason }` | **已离开房间（16 号票据）**：`reason` 为 `"left"`（主动离开）/ `"ownerLeft"`（房主离开，房间解散）/ `"roomClosed"`。收到后客户端回大厅，可再建房 |
 | `error` | `{ code, message }` | Action 非法 / 未轮到你 / 房间不存在等。错误码见下表 |
 
 ### 错误码

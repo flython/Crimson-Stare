@@ -20,6 +20,7 @@ export type ServerMessage =
   | { type: "welcome"; playerId: string; token: string }
   | { type: "roomState"; room: RoomView }
   | { type: "snapshot"; state: SnapState; you: string }
+  | { type: "leftRoom"; reason: "ownerLeft" | "left" | "roomClosed" }
   | { type: "error"; code: string; message: string };
 
 /** 裁剪后快照（redactState 输出，web 渲染数据源） */
