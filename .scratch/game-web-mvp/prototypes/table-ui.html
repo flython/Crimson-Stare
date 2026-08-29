@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>血色牌局 · 牌桌交互原型 v2（假数据）</title>
+<html lang="zh-CN" data-page-node-id="OivXyCNAUw9DO7Uh0NMsCR">
+<head data-page-node-id="wGU78iMkfdaFyXzgHX8B0Z">
+<meta charset="UTF-8" data-page-node-id="VHqmWPAxd1tUrQgDuHIHmI">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" data-page-node-id="yoB1xTxHgQ068LN34GM7MC">
+<title>血色牌局 · 牌桌交互原型 v3（假数据）</title>
 <style>
   :root{
     --blood:#e9404b; --dark:#583c42; --gold:#ffc840;
@@ -28,6 +28,20 @@
   .ph.done{opacity:.45;}
   .ph.cur{background:var(--blood); color:#fff;}
   #goal{font-size:13px; color:var(--gold); white-space:nowrap;}
+
+  /* ===== 阶段同步推进（v3） ===== */
+  .ph{cursor:default;}
+  .endedTag{font-size:10px; color:var(--ok); border:1px solid var(--ok); border-radius:6px; padding:1px 5px; white-space:nowrap; animation:endIn .3s ease-out;}
+  @keyframes endIn{from{transform:scale(.5);opacity:0;}to{transform:none;opacity:1;}}
+  #phaseTrans{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:120; pointer-events:none; background:rgba(10,6,6,.6); backdrop-filter:blur(2px);}
+  #phaseTrans .ptBox{border:2px solid var(--blood); border-radius:20px; padding:34px 64px; text-align:center;
+    background:linear-gradient(160deg, rgba(88,60,66,.95), rgba(23,16,15,.97));
+    box-shadow:0 0 80px rgba(233,64,75,.4); animation:ptIn .35s ease-out;}
+  #phaseTrans .ptName{font-size:54px; font-weight:600; color:var(--gold); letter-spacing:10px; text-shadow:0 0 28px rgba(233,64,75,.9);}
+  #phaseTrans .ptTurn{font-size:15px; color:var(--text); margin-top:10px; letter-spacing:3px;}
+  @keyframes ptIn{from{transform:scale(.7);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .endCount{font-size:11px; color:var(--muted); white-space:nowrap;}
+  .endCount b{color:var(--ok); font-weight:500;}
 
   /* ===== 牌桌：中心黑市 + 四向座位 ===== */
   #tableWrap{flex:1; min-height:0; padding:8px;}
@@ -183,89 +197,96 @@
   }
 </style>
 </head>
-<body>
-<div id="topbar">
-  <span id="turnInfo">第 <b id="turnNo">3</b> 回合</span>
-  <div id="phases"></div>
-  <span id="goal">目标 16 票</span>
+<body data-page-node-id="qyEmPWUY2jnNcIMau6LKK2">
+<div id="topbar" data-page-node-id="Az0a2mjev9hydTEGGrMAqE">
+  <span id="turnInfo" data-page-node-id="7v9U8dttOIOIsTzCyySNFv">第 <b id="turnNo" data-page-node-id="YTNcpYHBUeIOSjHmdLMoTA">3</b> 回合</span>
+  <div id="phases" data-page-node-id="uz7cD51IYrz0HV9FnP0sro"></div>
+  <span id="goal" data-page-node-id="55Xu4IMYVsWwqL6jxIrAXm">目标 16 票</span>
 </div>
 
-<div id="tableWrap">
-  <div id="table">
+<div id="tableWrap" data-page-node-id="DQapwIFEMM7PEsDoPaV7BM">
+  <div id="table" data-page-node-id="OHKZQrqjrpp6B5iZM5rWrp">
     <!-- 上方座位 -->
-    <div class="seat" id="seatTop">
-      <div class="seatInfo" id="infoTop"></div>
-      <div class="playZone" id="playTop"></div>
+    <div class="seat" id="seatTop" data-page-node-id="dIUOYuD8ohpMMMziaiJCaP">
+      <div class="seatInfo" id="infoTop" data-page-node-id="Wr7oIjuC39z01WhRJploPz"></div>
+      <div class="playZone" id="playTop" data-page-node-id="G3VH00foDu9g4W2AHhcqbb"></div>
     </div>
     <!-- 左 / 右座位 -->
-    <div class="seat" id="seatLeft">
-      <div class="playZone" id="playLeft"></div>
-      <div class="seatInfo" id="infoLeft"></div>
+    <div class="seat" id="seatLeft" data-page-node-id="nIl1cIfPJ4ueDFe7ishszx">
+      <div class="playZone" id="playLeft" data-page-node-id="gfCUbksqCdPNxAvRpHlBsP"></div>
+      <div class="seatInfo" id="infoLeft" data-page-node-id="YuD7V5jtXDHDUrFBc5XFDz"></div>
     </div>
-    <div class="seat" id="seatRight">
-      <div class="playZone" id="playRight"></div>
-      <div class="seatInfo" id="infoRight"></div>
+    <div class="seat" id="seatRight" data-page-node-id="42YchJAGjGqrF8vlBGu9X2">
+      <div class="playZone" id="playRight" data-page-node-id="gxnhrr7Yefcd92xLdLtUjO"></div>
+      <div class="seatInfo" id="infoRight" data-page-node-id="19FQJx1s0zGxcNYskngvk8"></div>
     </div>
     <!-- 中央黑市 -->
-    <div id="center">
-      <div class="zoneTitle"><span><b>黑 市</b>（购买阶段点卡片购买）</span><span id="supplyInfo"></span></div>
-      <div id="marketSlots"></div>
-      <div class="zoneTitle"><span>购买阶段结束时最右两格叠加 1 血筹</span></div>
+    <div id="center" data-page-node-id="bMl80VDeLPin1Se9sxWHAt">
+      <div class="zoneTitle" data-page-node-id="SQ4hWewFh8p89fbxl9GIc4"><span data-page-node-id="nZ2AcOflLV2lNHTeAwWilX"><b data-page-node-id="NusO9UbLnH6TUnwtIUFT8b">黑 市</b>（购买阶段点卡片购买）</span><span id="supplyInfo" data-page-node-id="G5jtOLClAvgT0KkROQjwro"></span></div>
+      <div id="marketSlots" data-page-node-id="UbpBWId0W6VuaAuYYKWiJj"></div>
+      <div class="zoneTitle" data-page-node-id="rA54fKUogQinDsK1ztz0Sx"><span data-page-node-id="G03MzGEhgi5K74OTD5eEn0">购买阶段结束时最右两格叠加 1 血筹</span></div>
     </div>
     <!-- 我：出牌区在前（朝向中央），信息在后 -->
-    <div class="seat" id="seatMe">
-      <div class="playZone" id="playMe"></div>
-      <div class="seatInfo" id="infoMe"></div>
+    <div class="seat" id="seatMe" data-page-node-id="lcoPSeGjAwDIpI2RHamySS">
+      <div class="playZone" id="playMe" data-page-node-id="iMxssbVuPmk0UrWz4F7GFF"></div>
+      <div class="seatInfo" id="infoMe" data-page-node-id="B8lT8H7SUYkaN7VXECB5mc"></div>
     </div>
   </div>
 </div>
 
 <!-- 个人操作台 -->
-<div id="console">
-  <div id="consoleBar">
-    <span class="name">你 · 矿工 <span class="badge">临时特权证</span></span>
-    <span id="actionHint"></span>
-    <div id="actions"></div>
+<div id="console" data-page-node-id="HowPJyYaDiszFQ9N5DDJZU">
+  <div id="consoleBar" data-page-node-id="NnPxxbqul0DuyY7oPeyVpS">
+    <span class="name" data-page-node-id="aYiAADelNunbOOKzJsoE96">你 · 矿工 <span class="badge" data-page-node-id="zgrEFEvwVn9NxwOqYTiX8N">临时特权证</span></span>
+    <span id="actionHint" data-page-node-id="jofQOKCIB98o6MRNmYsuVT"></span>
+    <div id="actions" data-page-node-id="Xc5KmneGBfgnG1PXFPwgbe"></div>
   </div>
-  <div id="consoleMain">
-    <div id="piles">
-      <div class="pile"><div class="pileStack"></div><span>牌堆 <b id="deckCnt">41</b></span></div>
-      <div class="pile"><div class="pileStack discard"></div><span>弃牌堆 <b id="discardCnt">5</b></span></div>
-      <div class="pile" style="align-items:flex-start;"><span style="line-height:1.6;">道具区</span><div id="items"></div></div>
+  <div id="consoleMain" data-page-node-id="Z0xDAtLyYkUTJRnG4MKOaL">
+    <div id="piles" data-page-node-id="P1WpiRIE37e65dpTNJt0gb">
+      <div class="pile" data-page-node-id="WeE3ZZNAu8UuKp60ED0EKx"><div class="pileStack" data-page-node-id="00oouTPbJTNMSdLISF5NVT"></div><span data-page-node-id="9Mb1zj2cL2ZjVGppFMgUBY">牌堆 <b id="deckCnt" data-page-node-id="bvYjg1QIUoXoMdst83ouer">41</b></span></div>
+      <div class="pile" data-page-node-id="Xr4H9ZL6OS0x4Ma8ZtJ8MC"><div class="pileStack discard" data-page-node-id="zW9TbycbKGRDS2gqKr2T4l"></div><span data-page-node-id="b1HHFEFKP8DyF5RwPmCQ6V">弃牌堆 <b id="discardCnt" data-page-node-id="hIBBG4WDaAbchnyCM2PIpI">5</b></span></div>
+      <div class="pile" style="align-items:flex-start;" data-page-node-id="s39uq55uuaO6TXVSBwklAm"><span style="line-height:1.6;" data-page-node-id="16ogMMy4zBwNG2XWuenG44">道具区</span><div id="items" data-page-node-id="lIijfKOmN6M4HLURf4LEQD"></div></div>
     </div>
-    <div id="handRow"></div>
+    <div id="handRow" data-page-node-id="rmWlXbFDWzvCcIC5xdhIPi"></div>
   </div>
 </div>
 
 <!-- 宣告面板 -->
-<div class="overlay" id="declareOverlay">
-  <div class="modal">
-    <h3>对决 · 宣告</h3>
-    <div class="declareQueue" id="dq"></div>
-    <div id="declareBody"></div>
+<div class="overlay" id="declareOverlay" data-page-node-id="WQp4a0i1tp9ryQSSvzrEge">
+  <div class="modal" data-page-node-id="0yowabvcX3fFLbMVJ0rzvX">
+    <h3 data-page-node-id="fHrknAwk41HrqDfPh0mQ71">对决 · 宣告</h3>
+    <div class="declareQueue" id="dq" data-page-node-id="Okhxa8cNhNuEJLFsXzOu1x"></div>
+    <div id="declareBody" data-page-node-id="wdOKwakRIaJFgfChx8XBrt"></div>
   </div>
 </div>
 <!-- 删牌面板 -->
-<div class="overlay" id="deleteOverlay">
-  <div class="modal">
-    <h3>删牌阶段</h3>
-    <div class="stepTag">本回合免费删 1 张；之后每删 1 张付 2 血筹</div>
-    <div id="deleteBody" class="optGrid"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
-      <button class="btn ghost" onclick="closeModal('deleteOverlay')">不删了</button>
+<div class="overlay" id="deleteOverlay" data-page-node-id="wGBt3B41ixFqp24ORQApoe">
+  <div class="modal" data-page-node-id="f3MIxn5qIQIhHGAjfS9sl5">
+    <h3 data-page-node-id="oQI57gehdkKqhX92z5orFe">删牌阶段</h3>
+    <div class="stepTag" data-page-node-id="JuckU7tpARuutI6NmfAEOg">本回合免费删 1 张；之后每删 1 张付 2 血筹</div>
+    <div id="deleteBody" class="optGrid" data-page-node-id="ZNglo5y5scafad3vCUnsmF"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;" data-page-node-id="QFZ1JG6F6VhHcC3tsI4Lvd">
+      <button class="btn ghost" onclick="closeModal('deleteOverlay')" data-page-node-id="84joecFTlzmu0j3cEMVTLF">不删了</button>
     </div>
   </div>
 </div>
 <!-- 芯片插入面板 -->
-<div class="overlay" id="chipOverlay">
-  <div class="modal">
-    <h3>插入强化芯片：<span id="chipName"></span></h3>
-    <div class="stepTag">从弃牌区选 1 张牌插入（每张牌限 1 块芯片，点数改后须在 2-14）</div>
-    <div id="chipBody" class="optGrid"></div>
+<div class="overlay" id="chipOverlay" data-page-node-id="Fmvc1FNbZmxfMZuZ0Ci8sU">
+  <div class="modal" data-page-node-id="0i1xI3UioUwcYsgLUSktPr">
+    <h3 data-page-node-id="SelkZyqytGi4XkGIJMYxZP">插入强化芯片：<span id="chipName" data-page-node-id="C5M8VGzoGC6FEZvKmx3hUr"></span></h3>
+    <div class="stepTag" data-page-node-id="302RgjEWkJ7K9WEep8fy60">从弃牌区选 1 张牌插入（每张牌限 1 块芯片，点数改后须在 2-14）</div>
+    <div id="chipBody" class="optGrid" data-page-node-id="LEe3F9B9UmqTkC3yOfSzEG"></div>
   </div>
 </div>
 
-<div id="toast"></div>
+<div id="phaseTrans" data-page-node-id="ptv3overlay">
+  <div class="ptBox" data-page-node-id="ptv3box">
+    <div class="ptName" data-page-node-id="ptv3name"></div>
+    <div class="ptTurn" data-page-node-id="ptv3turn"></div>
+  </div>
+</div>
+
+<div id="toast" data-page-node-id="s3csU9UICTXMoJl6iAoDZp"></div>
 
 <script>
 /* ================= 假数据 ================= */
@@ -281,7 +302,8 @@ const SEATS = [
 ];
 
 let S = {
-  turn:3, phase:1,
+  turn:3, phase:0,
+  ended:{me:false, top:false, left:false, right:false},
   me:{chips:7, tickets:8, swap:2, swapMax:3, deck:41, flipped:false, pass:true},
   opps:{
     top:  {name:"特型演员", char:"特型演员", chips:5, tickets:8, swap:1, swapMax:3, deck:38, handCount:6, flipped:false, pass:false},
@@ -313,20 +335,100 @@ function toast(msg){const t=el("toast");t.textContent=msg;t.style.display="block
 
 /* ================= 渲染 ================= */
 function renderPhases(){
+  /* 阶段由程序控制：步进条只读，不可点击 */
   el("phases").innerHTML = PHASES.map((p,i)=>
-    `<button class="ph ${i===S.phase?'cur':i<S.phase?'done':''}" onclick="gotoPhase(${i})">${p}</button>`).join("");
+    `<div class="ph ${i===S.phase?'cur':i<S.phase?'done':''}">${p}</div>`).join("");
   el("turnNo").textContent = S.turn;
 }
-function gotoPhase(i){
-  S.phase=i; S.selHand.clear(); S.play={};
+
+/* ===== 阶段同步推进引擎（v3） ===== */
+const SEAT_ALL = ["me","top","left","right"];
+function setEnded(seat, v){
+  if(S.ended[seat]===v) return;
+  S.ended[seat]=v;
+  renderSeats();
+  renderActions();
+}
+function endedCount(){ return SEAT_ALL.filter(s=>S.ended[s]).length; }
+/* 玩家点击"结束阶段"→ 自己打上结束标记；其他玩家（模拟）陆续打上 */
+function endPhase(seat){
+  if(window._transing || S.ended[seat]) return;
+  setEnded(seat,true);
+  if(seat==="me"){
+    toast("已结束本阶段，等待其他玩家…");
+    SEATS.forEach(st=>{
+      setTimeout(()=>{ if(!window._transing) setEnded(st.id,true); }, 600+Math.random()*1500);
+    });
+  }
+}
+/* 全员结束后自动推进到下一阶段 */
+setInterval(()=>{
+  if(window._transing) return;
+  if(SEAT_ALL.every(s=>S.ended[s])) advancePhase();
+},400);
+function advancePhase(){
+  window._transing = true;
+  let np = S.phase+1, nt = S.turn;
+  if(np>=PHASES.length){ np=0; nt++; }
+  S.turn=nt; S.phase=np;
+  S.ended={me:false, top:false, left:false, right:false};
+  S.selHand.clear();
+  if(np===0||np===2||np===3) S.play={};
   renderAll();
+  showPhaseTrans(np, nt, ()=>{
+    window._transing = false;
+    phaseStartAfter(np);
+    renderActions();
+  });
+}
+/* 阶段转场强提示：大字居中 → 自动缩小飞入顶部回合指示器，无需交互 */
+function showPhaseTrans(phase, turn, done){
+  const ov = el("phaseTrans");
+  const box = ov.querySelector(".ptBox");
+  ov.querySelector(".ptName").textContent = PHASES[phase]+"阶段";
+  ov.querySelector(".ptTurn").textContent = "第 "+turn+" 回合";
+  ov.style.display="flex";
+  box.style.transition="none";
+  box.style.transform="scale(1)"; box.style.opacity="1";
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    setTimeout(()=>{
+      const cur = document.querySelectorAll("#phases .ph")[phase];
+      if(cur){
+        const r=cur.getBoundingClientRect(), ir=box.getBoundingClientRect();
+        const dx=(r.left+r.width/2)-(ir.left+ir.width/2);
+        const dy=(r.top+r.height/2)-(ir.top+ir.height/2);
+        const sc=Math.max(.1, r.height/ir.height);
+        box.style.transition="transform .65s cubic-bezier(.5,0,.6,1), opacity .65s";
+        box.style.transform=`translate(${dx}px,${dy}px) scale(${sc})`;
+        box.style.opacity="0.12";
+      } else { box.style.opacity="0"; }
+      setTimeout(()=>{ ov.style.display="none"; done&&done(); }, 680);
+    }, 950);
+  }));
+}
+/* 阶段开始的自动行为（转场结束后触发） */
+function phaseStartAfter(p){
+  const cur = PHASES[p];
+  if(cur==="抽牌"){
+    if(S.hand.length<6){ fakeDraw(6-S.hand.length); renderAll(); }
+    toast("已自动抽至手牌上限 6 张");
+  }
+  if(cur==="结算") toast("系统自动结算：奖励与特权证流转已完成");
+  if(cur==="对决"){
+    for(const st of SEATS){
+      if(!S.play[st.id]) S.play[st.id]={cards:[{r:"?",s:"S",back:true},{r:"?",s:"H",back:true},{r:"?",s:"D",back:true},{r:"?",s:"C",back:true},{r:"?",s:"S",back:true}], revealed:false, combo:""};
+    }
+    renderSeats();
+    toast("全员已亮牌，点「开始宣告」进入宣告");
+  }
 }
 
-function seatInfoHtml(o, extra){
+function seatInfoHtml(o, extra, ended){
   const sw = `${o.swap}/${o.swapMax}`;
   return `<div class="charCard">${o.char}</div>
     <div class="name">${o.name}
       ${o.pass?'<span class="badge">特权证</span>':''}${o.flipped?'<span class="badge flip">已翻面</span>':''}
+      ${ended?'<span class="endedTag">✓ 已结束</span>':''}
     </div>
     <div class="stat">
       <span><span class="ticketIcon"></span> 票 <b>${o.tickets}</b>/${GOAL}</span>
@@ -340,11 +442,12 @@ function renderSeats(){
   for(const st of SEATS){
     const o = S.opps[st.id];
     el("info"+cap(st.id)).innerHTML = seatInfoHtml(o,
-      `<span>手牌</span><span class="handBacks">${'<div class="mini-back"></div>'.repeat(o.handCount)}</span>`);
+      `<span>手牌</span><span class="handBacks">${'<div class="mini-back"></div>'.repeat(o.handCount)}</span>`,
+      S.ended[st.id]);
     renderPlayZone(st.id, o.name, st.rot);
   }
   el("infoMe").innerHTML = seatInfoHtml(S.me,
-    `<span>手牌 <b>${S.hand.length}</b></span>`);
+    `<span>手牌 <b>${S.hand.length}</b></span>`, S.ended.me);
   renderPlayZone("me", "你(暗扣)", "");
   el("supplyInfo").textContent = `供应堆 ${S.supply} 张`;
 }
@@ -406,31 +509,51 @@ function useItem(id){
 function renderActions(){
   const cur = PHASES[S.phase];
   const n = S.selHand.size;
+  const ended = S.ended.me;
+  const endBtn = ended
+    ? `<span class="endCount">已结束 · 等待其他玩家 <b>${endedCount()}</b>/4</span>`
+    : `<button class="btn gold" onclick="endPhase('me')">结束阶段</button>
+       <span class="endCount">全员结束后自动进入下一阶段 <b>${endedCount()}</b>/4</span>`;
   const H = {
-    "抽牌": `<button class="btn ghost" disabled>自动抽至 6 张</button>`,
+    "抽牌": `${endBtn}`,
     "换牌": `<button class="btn" ${n<1||n>3||S.me.swap<1?"disabled":""} onclick="doSwap()">换牌（弃${n||0}抽${n||0}）</button>
-             <button class="btn ghost" onclick="doStopSwap()">停止（剩${S.me.swap}次换${S.me.swap}筹）</button>`,
-    "出牌": `<button class="btn" ${n!==5?"disabled":""} onclick="doPlay()">往前打出（暗扣 ${n}/5）</button>`,
-    "对决": `<button class="btn gold" onclick="openDeclare()">开始宣告</button>`,
-    "结算": `<button class="btn ghost" onclick="toast('系统自动结算（见座位信息变化）')">自动结算（演示）</button>`,
-    "购买": `<button class="btn ghost" onclick="doFlip()">跳过并翻面</button>`,
-    "删牌": `<button class="btn gold" onclick="openDelete()">删除弃牌区牌</button>`,
+             <button class="btn ghost" onclick="doStopSwap()">停止（剩${S.me.swap}次换${S.me.swap}筹）</button>
+             ${endBtn}`,
+    "出牌": `<button class="btn" ${n!==5?"disabled":""} onclick="doPlay()">往前打出（暗扣 ${n}/5）</button>
+             ${endBtn}`,
+    "对决": `<button class="btn gold" onclick="openDeclare()">开始宣告</button>
+             ${endBtn}`,
+    "结算": `<button class="btn ghost" disabled>自动结算已完成</button>
+             ${endBtn}`,
+    "购买": `<button class="btn ghost" onclick="doFlip()">跳过并翻面</button>
+             ${endBtn}`,
+    "删牌": `<button class="btn gold" onclick="openDelete()">删除弃牌区牌</button>
+             ${endBtn}`,
     "重整": `<button class="btn" onclick="doReshuffle()">重洗牌库</button>
-             <button class="btn ghost" onclick="meChips(2)">不重洗 +2血筹</button>`,
+             <button class="btn ghost" onclick="meChips(2)">不重洗 +2血筹</button>
+             ${endBtn}`,
   };
   el("actions").innerHTML = H[cur]||"";
-  el("actionHint").textContent = {
-    "换牌":`点选手牌后换牌（≤3张），剩余次数 ${S.me.swap}/${S.me.swapMax}`,
-    "出牌":`点选 5 张，确认后从手牌往前打出至你的出牌区`,
-    "购买":`点中央黑市卡购买；跳过则翻面`,
-    "删牌":`每回合免费 1 张，之后 2 筹/张`,
-  }[cur]||"";
+  el("actionHint").textContent = ended
+    ? "你已结束本阶段，等待其他玩家打标记后自动转场"
+    : ({
+      "抽牌":"手牌已自动补至上限，可直接结束阶段",
+      "换牌":`点选手牌后换牌（≤3张），剩余次数 ${S.me.swap}/${S.me.swapMax}`,
+      "出牌":`点选 5 张往前打出，完成后结束阶段`,
+      "对决":`全员亮牌；宣告按特权证→顺时针排队`,
+      "结算":`奖励已发放，确认后进入购买`,
+      "购买":`点中央黑市卡购买；跳过则翻面`,
+      "删牌":`每回合免费 1 张，之后 2 筹/张`,
+      "重整":`重洗牌库或拿 2 血筹，二选一后结束`,
+    }[cur]||"");
 }
 function renderAll(){renderPhases();renderSeats();renderMarket();renderHand();renderPiles();renderActions();}
 
 /* ================= 交互 ================= */
 function tapHand(id){
   const cur = PHASES[S.phase];
+  if(window._transing){ return; }
+  if(S.ended.me){ toast("你已结束本阶段"); return; }
   if(cur!=="换牌"&&cur!=="出牌"){toast("当前阶段不需要选手牌");return;}
   if(S.selHand.has(id)) S.selHand.delete(id);
   else if(cur==="出牌"&&S.selHand.size>=5) toast("最多选 5 张");
@@ -454,23 +577,19 @@ function doSwap(){
   renderAll();
 }
 function doStopSwap(){
-  S.me.chips+=S.me.swap; toast(`停止换牌，${S.me.swap} 次兑成血筹`); S.me.swap=0; gotoPhase(2);
+  S.me.chips+=S.me.swap; toast(`停止换牌，${S.me.swap} 次兑成血筹`); S.me.swap=0;
+  endPhase("me");
 }
-/* 出牌：手牌 → 飞行 → 我的出牌区（面前=朝向中央） */
+/* 出牌：手牌 → 飞行 → 我的出牌区（面前=朝向中央），随后打结束标记等待他人 */
 function doPlay(){
+  if(S.ended.me){ toast("已结束，等待下一阶段"); return; }
   const picked=S.hand.filter(c=>S.selHand.has(c.id));
   flyHandToPlay(picked, ()=>{
     S.hand=S.hand.filter(c=>!S.selHand.has(c.id));
     S.selHand.clear();
     S.play.me={cards:picked.map(c=>({...c,back:true})), revealed:false, combo:""};
-    gotoPhase(3);
-    toast("已暗扣，等待其他玩家出牌…");
-    setTimeout(()=>{
-      for(const st of SEATS){
-        S.play[st.id]={cards:[{r:"?",s:"S",back:true},{r:"?",s:"H",back:true},{r:"?",s:"D",back:true},{r:"?",s:"C",back:true},{r:"?",s:"S",back:true}], revealed:false, combo:""};
-      }
-      renderAll();
-    },700);
+    toast("已暗扣到你的出牌区，完成后点「结束阶段」");
+    renderAll();
   });
   renderAll();
 }
@@ -511,7 +630,7 @@ function shiftMarket(){
     }
   }
 }
-function doFlip(){ S.me.flipped=true; toast("已翻面，本回合不可再购买"); gotoPhase(6); }
+function doFlip(){ S.me.flipped=true; toast("已翻面，本回合不可再购买"); }
 function doReshuffle(){ S.me.deck+=S.discard.length; S.discard=[]; toast("牌库与弃牌堆已重洗（演示）"); renderAll(); }
 function meChips(n){S.me.chips+=n;toast(`+${n} 血筹`);renderSeats();}
 
@@ -604,15 +723,21 @@ function declareStep(step){
       S.opps.top.tickets+=4; S.opps.top.pass=true; S.me.pass=false;
       S.opps.right.tickets+=1; S.opps.right.chips+=3;
       S.opps.left.chips+=4;
-      S.phase=4;
-      toast("结算完成（演示流程）");
+      toast("对决结算完成，自动进入结算阶段");
+      SEAT_ALL.forEach(s=>setEnded(s,true));  /* 宣告完成=全员本阶段完成 */
       renderAll();
     },1600);
   }
 }
 
-/* 启动 */
+/* 启动：首个阶段以转场动画开场 */
+window._transing = true;
 renderAll();
+showPhaseTrans(S.phase, S.turn, ()=>{
+  window._transing = false;
+  phaseStartAfter(S.phase);
+  renderActions();
+});
 </script>
 </body>
 </html>
