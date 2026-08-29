@@ -29,3 +29,10 @@
 - 全量范围：21 角色 + 52 黑市牌全注册（命运/事件数据入管道，handler 留 M3+）；未注册效果降级「无效果 + log」。
 
 ## 里程碑：M1 白板标准局 → M2 黑市+角色+简易模式 → M3 单人荷官。
+
+## M2 完成（2026-08-30，票据 08-15 全部 closed）
+- 数据管道(08)、效果原语库(09)、交互机制(13)由主线程落地；角色效果(11)、黑市效果(12)、UI 组件(14)、web 联调(15)由并行 subAgent 完成。
+- 简易模式 2 人局端到端可玩：server 内存房间 + resolvePrompt 协议(docs/protocol.md) + prompt 超时 autoResolve + 掉线托管；web GameClient/Lobby/Table 最小接线。
+- 测试：engine 88 + card-data 15 + server e2e 4 = 107 全绿。
+- 已知遗留：resolveTiming 未按 roleId 展开持有者(角色效果 run 内 applyToHolders 兜底)；花色/牌型声明类黑市效果需 hand-evaluator 芯片视图；17 标准角色与 28 非黄边黑市效果部分占位；SQLite 局摘要未做；事件牌/命运牌 handler 待 M3。
+- 工作流验证有效：4 个并行 subAgent 各加载 wayfinder，claim→实现→resolve→commit，无文件冲突(共享基础设施由主线程先行提交)。
