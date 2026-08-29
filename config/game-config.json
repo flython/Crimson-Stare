@@ -1,0 +1,32 @@
+{
+  "$comment": "血色牌局 Web 版游戏配置。挂载到 server 容器 /app/config/game-config.json，修改后重启 server 生效（不换镜像）。数值依据规则书默认值，可调整平衡。",
+  "rankRewards": {
+    "2": [
+      { "rank": 1, "tickets": 4, "chips": 0 },
+      { "rank": 2, "tickets": 0, "chips": 4 }
+    ],
+    "3": [
+      { "rank": 1, "tickets": 4, "chips": 0 },
+      { "rank": 2, "tickets": 2, "chips": 2 },
+      { "rank": 3, "tickets": 0, "chips": 4 }
+    ],
+    "4": [
+      { "rank": 1, "tickets": 4, "chips": 0 },
+      { "rank": 2, "tickets": 2, "chips": 2 },
+      { "rank": 3, "tickets": 1, "chips": 3 },
+      { "rank": 4, "tickets": 0, "chips": 4 }
+    ]
+  },
+  "ticketGoals": { "2": 24, "3": 20, "4": 16 },
+  "handLimit": 6,
+  "swapCount": 3,
+  "swapCountWithPass": 4,
+  "initialSwapTokens": { "passHolder": 2, "others": 3 },
+  "deleteFreePerRound": 1,
+  "deleteChipCost": 2,
+  "reshuffleOrChips": 2,
+  "blackMarketSlots": 5,
+  "blackMarketBonusSlots": [4, 5],
+  "blackMarketBonusChips": 1,
+  "autoPassTimeoutSec": 120
+}

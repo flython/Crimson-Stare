@@ -1,0 +1,28 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    ports:
+      - "${WEB_PORT:-8088}:80"
+    depends_on:
+      - server
+    restart: unless-stopped
+
+  server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    environment:
+      - PORT=8080
+      - CONFIG_PATH=/app/config/game-config.json
+      - DB_PATH=/data/crimson.db
+    volumes:
+      - server-data:/data
+      - ./config:/app/config:ro
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+volumes:
+  server-data:

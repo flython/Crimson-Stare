@@ -209,16 +209,17 @@ export function evaluateHand(input: Card[]): HandEvaluation {
   }
 
   // 枚举 JOKER 赋值，取 (牌型, 总点数) 字典序最大
-  let best: { raw: RawEvaluation; resolved: ResolvedCard[] } | null = null;
+  // 用对象引用规避 TS 闭包赋值导致的 never 收窄问题
+  const best: { value: { raw: RawEvaluation; resolved: ResolvedCard[] } | null } = { value: null };
 
   const assign = (jokerIdx: number, current: { rank: number; suit: Suit }[]) => {
     if (jokerIdx === jokers.length) {
       const raw = evaluateResolved(current);
       if (!raw) return;
       const better =
-        !best ||
-        raw.category > best.raw.category ||
-        (raw.category === best.raw.category && raw.totalPoints > best.raw.totalPoints);
+        !best.value ||
+        raw.category > best.value.raw.category ||
+        (raw.category === best.value.raw.category && raw.totalPoints > best.value.raw.totalPoints);
       if (better) {
         let j = 0;
         const resolved = input.map((c) =>
@@ -226,7 +227,7 @@ export function evaluateHand(input: Card[]): HandEvaluation {
             ? { id: c.id, rank: current[plain.length + j]!.rank, suit: current[plain.length + j++]!.suit, wasJoker: true }
             : { id: c.id, rank: c.rank!, suit: c.suit!, wasJoker: false },
         );
-        best = { raw, resolved };
+        best.value = { raw, resolved };
       }
       return;
     }
@@ -241,8 +242,8 @@ export function evaluateHand(input: Card[]): HandEvaluation {
 
   assign(0, plain.map((c) => ({ rank: c.rank!, suit: c.suit! })));
 
-  if (!best) throw new Error("JOKER 求解失败");
-  return { category: best.raw.category, totalPoints: best.raw.totalPoints, cards: best.resolved };
+  if (!best.value) throw new Error("JOKER 求解失败");
+  return { category: best.value.raw.category, totalPoints: best.value.raw.totalPoints, cards: best.value.resolved };
 }
 
 /** 比较两手牌：返回正数表示 a 胜，负数表示 b 胜，0 表示需要特权证距离裁决。 */
