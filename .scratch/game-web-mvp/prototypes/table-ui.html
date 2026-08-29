@@ -95,11 +95,13 @@
   .chipIcon{width:12px;height:12px;border-radius:50%;background:var(--blood);border:1.5px solid #ff8a90;display:inline-block;vertical-align:-1px;}
   .ticketIcon{width:12px;height:12px;border-radius:3px;background:var(--gold);display:inline-block;vertical-align:-1px;}
   .charCard{
-    width:30px; height:42px; border-radius:5px; flex:none;
+    width:30px; height:42px; border-radius:5px; flex:none; cursor:pointer;
     background:linear-gradient(160deg,#5a2b30,#3c2226); border:1px solid var(--gold);
     color:var(--gold); font-size:9px; display:flex; align-items:center; justify-content:center;
     text-align:center; line-height:1.2; padding:2px;
   }
+  .charCard:active{outline:2px solid var(--gold); outline-offset:1px;}
+  .skillText{font-size:14px; line-height:1.7; color:var(--text); background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:12px 14px;}
   .handBacks{display:flex; gap:2px;}
   .mini-back{width:14px;height:20px;border-radius:3px;background:var(--back);border:1px solid var(--line);}
 
@@ -143,11 +145,14 @@
   }
 
   /* ===== 个人操作台 ===== */
-  #console{background:var(--panel); border-top:1px solid var(--line); padding:6px 12px 10px; display:flex; flex-direction:column; gap:6px;}
-  #consoleBar{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
-  #consoleBar .name{font-size:14px; display:flex; align-items:center; gap:8px;}
-  #actionHint{font-size:12px; color:var(--gold); flex:1; min-width:120px;}
-  #actions{display:flex; gap:8px; flex-wrap:wrap;}
+  #console{background:var(--panel); border-top:1px solid var(--line); padding:6px 12px 10px; display:flex; flex-direction:column; gap:4px;}
+  #consoleBar{display:flex; align-items:center; gap:10px;}
+  #consoleBar .name{font-size:14px; display:flex; align-items:center; gap:8px; white-space:nowrap;}
+  #actions{display:flex; gap:8px; flex-wrap:wrap; margin-left:auto; justify-content:flex-end;}
+  #hintRow{display:flex; align-items:center; gap:12px;}
+  #actionHint{font-size:14px; color:var(--gold); flex:1; min-width:0;}
+  #endInfo{font-size:11px; color:var(--muted); white-space:nowrap;}
+  #endInfo b{color:var(--ok); font-weight:500;}
   .btn{background:var(--blood); color:#fff; padding:9px 16px; font-size:14px; min-height:44px;}
   .btn:disabled{background:var(--panel2); color:var(--muted);}
   .btn.ghost{background:var(--panel2); color:var(--text); border:1px solid var(--line);}
@@ -195,6 +200,47 @@
     #seatMe .playZone .card{width:38px; height:55px;}
     .stat{gap:6px;}
   }
+  /* 横屏手机：宽度够但高度紧张（如 965x440），按高度压缩 */
+  @media (max-height:560px){
+    #topbar{padding:3px 8px; gap:8px;}
+    .ph{min-width:38px; padding:4px 2px; font-size:11px;}
+    #goal{font-size:12px;}
+    #tableWrap{padding:4px;}
+    #table{gap:5px;}
+    #seatLeft,#seatRight{width:118px;}
+    .seat{gap:3px;}
+    .seatInfo{padding:3px 7px; gap:6px; border-radius:8px;}
+    .seatInfo .name{font-size:12px;}
+    .badge,.endedTag{font-size:9px; padding:0 4px;}
+    .stat{gap:5px; font-size:10px;}
+    .chipIcon,.ticketIcon{width:10px; height:10px;}
+    .charCard{width:24px; height:34px; font-size:8px;}
+    .mini-back{width:11px; height:16px;}
+    .handBacks{gap:1px;}
+    #center{gap:3px; padding:5px;}
+    .bm-card{width:54px; height:76px; font-size:9px; padding:4px;}
+    .bm-card .bmName{font-size:10px;}
+    .bm-card .bonus{width:15px; height:15px; font-size:9px;}
+    .playZone{min-height:44px; gap:4px; padding:3px;}
+    .playZone .pwho{font-size:9px;}
+    .playZone .emptyHint{font-size:10px;}
+    .card{width:40px; height:57px; font-size:14px;}
+    .card .suit{font-size:11px;}
+    .card.small{width:30px; height:43px; font-size:11px;}
+    #seatMe .playZone .card{width:34px; height:49px; font-size:12px;}
+    #console{padding:4px 8px 6px; gap:3px;}
+    #consoleBar .name{font-size:13px;}
+    .btn{padding:6px 12px; font-size:13px; min-height:38px;}
+    #handRow{min-height:62px; gap:6px;}
+    #consoleMain{gap:8px;}
+    .pile{padding:4px 7px; font-size:10px;}
+    .pileStack{width:18px; height:26px;}
+    .pileStack::after{width:18px; height:26px;}
+    #phaseTrans .ptBox{padding:20px 44px;}
+    #phaseTrans .ptName{font-size:34px; letter-spacing:6px;}
+    #phaseTrans .ptTurn{font-size:13px;}
+    .zoneTitle{font-size:10px; gap:8px;}
+  }
 </style>
 </head>
 <body data-page-node-id="qyEmPWUY2jnNcIMau6LKK2">
@@ -237,9 +283,12 @@
 <!-- 个人操作台 -->
 <div id="console" data-page-node-id="HowPJyYaDiszFQ9N5DDJZU">
   <div id="consoleBar" data-page-node-id="NnPxxbqul0DuyY7oPeyVpS">
-    <span class="name" data-page-node-id="aYiAADelNunbOOKzJsoE96">你 · 矿工 <span class="badge" data-page-node-id="zgrEFEvwVn9NxwOqYTiX8N">临时特权证</span></span>
-    <span id="actionHint" data-page-node-id="jofQOKCIB98o6MRNmYsuVT"></span>
+    <span class="name" id="meName" data-page-node-id="aYiAADelNunbOOKzJsoE96"></span>
     <div id="actions" data-page-node-id="Xc5KmneGBfgnG1PXFPwgbe"></div>
+  </div>
+  <div id="hintRow">
+    <span id="actionHint" data-page-node-id="jofQOKCIB98o6MRNmYsuVT"></span>
+    <span id="endInfo"></span>
   </div>
   <div id="consoleMain" data-page-node-id="Z0xDAtLyYkUTJRnG4MKOaL">
     <div id="piles" data-page-node-id="P1WpiRIE37e65dpTNJt0gb">
@@ -279,6 +328,18 @@
   </div>
 </div>
 
+<!-- 角色技能面板 -->
+<div class="overlay" id="charOverlay" data-page-node-id="FmvxCharOv1FNbZmxfMZuZ0Ci8sU">
+  <div class="modal" style="max-width:380px;" data-page-node-id="0i1xCharModalZqjyOFMZuZ0Ci8sU">
+    <h3 data-page-node-id="SelxCharNameZyqytGi4KWEep8fy60">角色 · <span id="charName"></span></h3>
+    <div class="stepTag" data-page-node-id="302xCharTagWkJ7K9WEep8fy60">点击任意玩家头像可随时查看（原型为演示文本，以实际卡牌为准）</div>
+    <div id="charSkill" class="skillText" data-page-node-id="LE3xCharBodyF9B9UmqTkC3yOfSzEG"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;" data-page-node-id="QFxCharFootZ1JG6F6VhHcC3tsI4Lvd">
+      <button class="btn ghost" onclick="closeModal('charOverlay')" data-page-node-id="84xCharCloseFTlzmu0j3cEMVTLF">关闭</button>
+    </div>
+  </div>
+</div>
+
 <div id="phaseTrans" data-page-node-id="ptv3overlay">
   <div class="ptBox" data-page-node-id="ptv3box">
     <div class="ptName" data-page-node-id="ptv3name"></div>
@@ -304,11 +365,11 @@ const SEATS = [
 let S = {
   turn:3, phase:0,
   ended:{me:false, top:false, left:false, right:false},
-  me:{chips:7, tickets:8, swap:2, swapMax:3, deck:41, flipped:false, pass:true},
+  me:{name:"你", char:"矿工", skill:"【对决阶段】若你打出的牌均为黑色，获得3血筹。", chips:7, tickets:8, swap:2, swapMax:3, deck:41, flipped:false, pass:true},
   opps:{
-    top:  {name:"特型演员", char:"特型演员", chips:5, tickets:8, swap:1, swapMax:3, deck:38, handCount:6, flipped:false, pass:false},
-    left: {name:"赌场荷官", char:"赌场荷官", chips:9, tickets:4, swap:3, swapMax:3, deck:44, handCount:6, flipped:false, pass:false},
-    right:{name:"银行职员", char:"银行职员", chips:3, tickets:12, swap:0, swapMax:4, deck:40, handCount:6, flipped:true,  pass:false},
+    top:  {name:"特型演员", char:"特型演员", skill:"【对决阶段】你的2视为JOKER。", chips:5, tickets:8, swap:1, swapMax:3, deck:38, handCount:6, flipped:false, pass:false},
+    left: {name:"赌场荷官", char:"赌场荷官", skill:"【抽牌阶段】你的手牌上限+1。（演示占位文本）", chips:9, tickets:4, swap:3, swapMax:3, deck:44, handCount:6, flipped:false, pass:false},
+    right:{name:"银行职员", char:"银行职员", skill:"【重整阶段】获得2血筹。（若因效果跳过重整阶段则无法发动）", chips:3, tickets:12, swap:0, swapMax:4, deck:40, handCount:6, flipped:true,  pass:false},
   },
   market:[
     {id:"bm1",name:"血筹镀层(夺)",cat:"econ",price:3,bonus:1,eff:"对决阶段：抢夺任意玩家1血筹"},
@@ -423,9 +484,9 @@ function phaseStartAfter(p){
   }
 }
 
-function seatInfoHtml(o, extra, ended){
+function seatInfoHtml(seat, o, extra, ended){
   const sw = `${o.swap}/${o.swapMax}`;
-  return `<div class="charCard">${o.char}</div>
+  return `<div class="charCard" onclick="showChar('${seat}')" title="查看角色技能">${o.char}</div>
     <div class="name">${o.name}
       ${o.pass?'<span class="badge">特权证</span>':''}${o.flipped?'<span class="badge flip">已翻面</span>':''}
       ${ended?'<span class="endedTag">✓ 已结束</span>':''}
@@ -441,15 +502,25 @@ function seatInfoHtml(o, extra, ended){
 function renderSeats(){
   for(const st of SEATS){
     const o = S.opps[st.id];
-    el("info"+cap(st.id)).innerHTML = seatInfoHtml(o,
+    el("info"+cap(st.id)).innerHTML = seatInfoHtml(st.id, o,
       `<span>手牌</span><span class="handBacks">${'<div class="mini-back"></div>'.repeat(o.handCount)}</span>`,
       S.ended[st.id]);
     renderPlayZone(st.id, o.name, st.rot);
   }
-  el("infoMe").innerHTML = seatInfoHtml(S.me,
+  el("infoMe").innerHTML = seatInfoHtml("me", S.me,
     `<span>手牌 <b>${S.hand.length}</b></span>`, S.ended.me);
+  el("meName").innerHTML = `你 · ${S.me.char}
+    ${S.me.pass?'<span class="badge">临时特权证</span>':''}${S.me.flipped?'<span class="badge flip">已翻面</span>':''}`;
   renderPlayZone("me", "你(暗扣)", "");
   el("supplyInfo").textContent = `供应堆 ${S.supply} 张`;
+}
+/* 点击头像查看角色技能 */
+function showChar(seat){
+  const o = seat==="me" ? S.me : S.opps[seat];
+  if(!o) return;
+  el("charName").textContent = o.char || o.name;
+  el("charSkill").textContent = o.skill || "（暂无技能文本）";
+  el("charOverlay").classList.add("show");
 }
 function cap(s){return s[0].toUpperCase()+s.slice(1);}
 
@@ -510,30 +581,25 @@ function renderActions(){
   const cur = PHASES[S.phase];
   const n = S.selHand.size;
   const ended = S.ended.me;
-  const endBtn = ended
-    ? `<span class="endCount">已结束 · 等待其他玩家 <b>${endedCount()}</b>/4</span>`
-    : `<button class="btn gold" onclick="endPhase('me')">结束阶段</button>
-       <span class="endCount">全员结束后自动进入下一阶段 <b>${endedCount()}</b>/4</span>`;
+  /* 结束进度放在提示行右侧，不与操作按钮混排 */
+  el("endInfo").innerHTML = ended
+    ? `已结束 · 等待其他玩家 <b>${endedCount()}</b>/4`
+    : `全员结束后自动进入下一阶段 <b>${endedCount()}</b>/4`;
   const H = {
-    "抽牌": `${endBtn}`,
+    "抽牌": ``,
     "换牌": `<button class="btn" ${n<1||n>3||S.me.swap<1?"disabled":""} onclick="doSwap()">换牌（弃${n||0}抽${n||0}）</button>
-             <button class="btn ghost" onclick="doStopSwap()">停止（剩${S.me.swap}次换${S.me.swap}筹）</button>
-             ${endBtn}`,
-    "出牌": `<button class="btn" ${n!==5?"disabled":""} onclick="doPlay()">往前打出（暗扣 ${n}/5）</button>
-             ${endBtn}`,
-    "对决": `<button class="btn gold" onclick="openDeclare()">开始宣告</button>
-             ${endBtn}`,
-    "结算": `<button class="btn ghost" disabled>自动结算已完成</button>
-             ${endBtn}`,
-    "购买": `<button class="btn ghost" onclick="doFlip()">跳过并翻面</button>
-             ${endBtn}`,
-    "删牌": `<button class="btn gold" onclick="openDelete()">删除弃牌区牌</button>
-             ${endBtn}`,
+             <button class="btn ghost" onclick="doStopSwap()">停止（剩${S.me.swap}次换${S.me.swap}筹）</button>`,
+    "出牌": `<button class="btn" ${n!==5?"disabled":""} onclick="doPlay()">往前打出（暗扣 ${n}/5）</button>`,
+    "对决": `<button class="btn gold" onclick="openDeclare()">开始宣告</button>`,
+    "结算": `<button class="btn ghost" disabled>自动结算已完成</button>`,
+    "购买": `<button class="btn ghost" onclick="doFlip()">跳过并翻面</button>`,
+    "删牌": `<button class="btn gold" onclick="openDelete()">删除弃牌区牌</button>`,
     "重整": `<button class="btn" onclick="doReshuffle()">重洗牌库</button>
-             <button class="btn ghost" onclick="meChips(2)">不重洗 +2血筹</button>
-             ${endBtn}`,
+             <button class="btn ghost" onclick="meChips(2)">不重洗 +2血筹</button>`,
   };
-  el("actions").innerHTML = H[cur]||"";
+  /* 结束阶段按钮：所有阶段通用，已结束则隐藏（进度在提示行展示） */
+  const endBtn = `<button class="btn gold" onclick="endPhase('me')">结束阶段</button>`;
+  el("actions").innerHTML = ended ? "" : (H[cur]||"") + endBtn;
   el("actionHint").textContent = ended
     ? "你已结束本阶段，等待其他玩家打标记后自动转场"
     : ({
@@ -630,7 +696,7 @@ function shiftMarket(){
     }
   }
 }
-function doFlip(){ S.me.flipped=true; toast("已翻面，本回合不可再购买"); }
+function doFlip(){ S.me.flipped=true; toast("已翻面，本回合不可再购买"); renderSeats(); }
 function doReshuffle(){ S.me.deck+=S.discard.length; S.discard=[]; toast("牌库与弃牌堆已重洗（演示）"); renderAll(); }
 function meChips(n){S.me.chips+=n;toast(`+${n} 血筹`);renderSeats();}
 
