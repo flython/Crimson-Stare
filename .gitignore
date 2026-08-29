@@ -6,3 +6,6 @@ dist/
 
 # TypeScript 增量构建缓存
 *.tsbuildinfo
+
+# vitest/vite 临时编译产物
+*.ts.timestamp-*.mjs

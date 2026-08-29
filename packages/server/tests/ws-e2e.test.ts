@@ -61,7 +61,7 @@ class TestClient {
   playerId: string;
   token: string;
   private queue: ServerMessage[] = [];
-  private waiters: Array<{ type: string; pred?: (m: any) => boolean; resolve: (m: any) => void }> = [];
+  private waiters: Array<{ type: string; pred?: (m: ServerMessage) => boolean; resolve: (m: ServerMessage) => void }> = [];
 
   constructor(ws: WebSocket) {
     this.ws = ws;
@@ -108,10 +108,10 @@ class TestClient {
 
   recv<T extends ServerMessage["type"]>(
     type: T,
-    pred?: (m: any) => boolean,
+    pred?: (m: Extract<ServerMessage, { type: T }>) => boolean,
   ): Promise<Extract<ServerMessage, { type: T }>> {
     return new Promise((resolve) => {
-      this.waiters.push({ type, pred, resolve });
+      this.waiters.push({ type, pred: pred as (m: ServerMessage) => boolean, resolve: resolve as (m: ServerMessage) => void });
       this.flush();
     });
   }
