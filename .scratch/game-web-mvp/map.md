@@ -22,7 +22,7 @@ spec.md（`.scratch/game-web-mvp/spec.md`）全部 user stories 达成：内部�
 - [03 - 牌型判定与 JOKER 求解器](issues/03-牌型判定与JOKER求解器.md)：15 级牌型枚举按规则书排序；>5 张枚举 5 张子集+整组判六/七条家族；JOKER 逐张枚举赋值取 (牌型,点数) 字典序最优；规则书示例用例通过。
 - [07 - docker-compose 部署方案](issues/07-docker-compose部署方案.md)：web(nginx+反代/ws)+server 双服务多阶段构建；SQLite 卷 /data；配置只读挂载热改不换镜像；本机实测构建/启动/WS握手/清理全通过。
 - [02 - 引擎核心抽象定型](issues/02-引擎核心抽象定型.md)（飞飞已确认）：GameState 全序列化+rngState 内嵌（重放=种子+Action流）；redactState 按观察者裁剪（可见性执行点在 server 分发层）；EffectDef 硬编码注册表，结算队列按来源优先级+特权证顺时针排序；GameConfig 收敛进 engine 单一事实源；白板局 reducer 跑通 8 阶段。
-- [05 - 牌桌 UI 交互原型](issues/05-牌桌UI交互原型.md)：可点击假数据原型 `prototypes/table-ui.html`（8 阶段步进条、宣告三步面板、芯片插入演示、触屏≥44px），待飞飞体验后定稿。
+- [05 - 牌桌 UI 交互原型](issues/05-牌桌UI交互原型.md)（飞飞已拍板 v4 为基线）：可点击假数据原型 `prototypes/table-ui.html`；实体牌桌四向布局、个人操作台两行结构、程序控制阶段推进（endPhase + 全员结束标记 + 转场动画）、宣告三步面板、芯片插入弹窗、max-height 560px 横屏手机断点、头像点击看技能；结论整合进 spec.md「UI 与交互决策」节，实装以 spec 为准。
 - [04 - WebSocket 协议](issues/04-WebSocket协议与重连托管.md)：契约文档 `docs/protocol.md`；全量快照广播（redact 后）不做 diff；掉线立即/超时120s托管，最小操作原则；房间仅内存、终局写 SQLite 摘要。
 - [06 - 卡牌数据管道](issues/06-卡牌JSON模板与数据管道.md)：交付格式=Excel，模板 `config/card-pool-template.xlsx`（列可扩展，脚本按列名识别）；图片约定 `assets/cards/<牌类>/<ID>.png` + 占位回退；转换脚本待首批填好的模板回来后编写。
 
