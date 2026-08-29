@@ -31,6 +31,7 @@ spec.md（`.scratch/game-web-mvp/spec.md`）全部 user stories 达成：内部�
 - [11 - M2.2 角色牌效果注册](issues/11-角色牌效果注册.md)：21 张角色牌全部注册（4 简易全实现 + 矿工/股民/特级大厨对决部分实现 + 14 张交互/机制缺失占位）；roleSetup 常驻 + EffectDef 阶段效果 + swapZero 动作钩子三机制；resolveTiming 未按 roleId 展开由 run 内 applyToHolders 兜底（不改 effects.ts）；bank 职员开局 +2 因 roleSetup 在初始血筹赋值前执行改挂 draw-before(turn==1)；占位注册避开 settle-before 以防 whiteboard 排序测试回归。
 - [14 - UI 交互组件](issues/14-UI交互组件.md)：web 包 4 个交互组件落地——TargetPicker（选玩家）/CardPicker（选牌，多选）/PendingPromptBanner（顶部横幅三态，接 stateUpdate.pendingPrompt）/DiceRollAnimation（0.5s 掷骰动画）；简易模式入口开放、标准/单人灰显「敬请期待 M3」；resolvePrompt 顶层消息暂按 `{type:"resolvePrompt",choice}` 定义（playerId 由 server 推断），是否走 protocol 的 action 包装待 15 联调。
 - [12 - 黑市牌效果注册](issues/12-黑市牌效果注册.md)：52 张黑市牌注册完成（24 黄边全量 + 非黄边尽量）。强化芯片工厂 chipInstall（金科玉律 3/4：每牌限 1、点数 2-14 校验、无目标弃置，数值类 resolve 用 addPermanentRank）；血筹镀层（出/夺）以 (duel,during) 注册对持有者实际生效；秘密交易立即结算（027/031/034/036/039 + 闭店礼/血筹分享/拔除芯片）；道具统一注册 run 存 items（规避 whiteboard"备用道具"与 JSON"道具"命名不一致）。依赖[皇冠]状态/黑市区 slot 交互/hand-evaluator 芯片视图的声明效果占位 TODO，遗留已记录。
+- [15 - 简易模式 web 端联调](issues/15-简易模式web联调.md)（已 resolved）：server 内存房间模型落地（RoomManager+Room，hello/createRoom/joinRoom/startGame/action/resolvePrompt/reconnect），redactState 按连接裁剪广播全量 snapshot；`resolvePrompt {choice}` 协议定稿入 docs/protocol.md（playerId 由 server 从连接推断）；简易模式开局从 4 张 simpleOnly 角色随机分配；prompt 超时走 engine autoResolve（chooseCard 空选择兜底改选首候选，规避数值芯片 resolve 抛错卡死）+ 阶段级掉线托管；server WS 集成测试 4 用例（完整一回合含购买芯片 resolvePrompt 断言、超时托管、错误路径、断线重连）全绿；web 端最小接线（GameClient/Lobby/Table + App 三阶段路由，build 通过，冒烟打通建房→入房→开局→snapshot）。
 
 ## Not yet specified
 
@@ -38,7 +39,7 @@ spec.md（`.scratch/game-web-mvp/spec.md`）全部 user stories 达成：内部�
 - 内测反馈循环：内部游玩后的数值平衡调整流程（奖励表配置热更新？）。
 - 牌桌动效与音效打磨范围。
 
-> M2 剩余执行已票据化（open, ready-for-agent）：[10 - M2 卡牌逻辑与数据管道 spec](issues/10-M2卡牌逻辑与数据管道spec.md) 为执行蓝本；[11 - 角色牌效果注册](issues/11-角色牌效果注册.md)（已 resolved）、[12 - 黑市牌效果注册](issues/12-黑市牌效果注册.md)（已 resolved）、[13 - 交互机制（效果挂起）](issues/13-交互机制效果挂起.md)（已 resolved）、[14 - UI 交互组件](issues/14-UI交互组件.md)（已 resolved）、[15 - 简易模式 web 端联调](issues/15-简易模式web联调.md)。当前 frontier = 15（14 已解除其阻塞，可直接领取）。
+> M2 全部执行票据已 closed：[10 - M2 卡牌逻辑与数据管道 spec](issues/10-M2卡牌逻辑与数据管道spec.md)、[11 - 角色牌效果注册](issues/11-角色牌效果注册.md)、[12 - 黑市牌效果注册](issues/12-黑市牌效果注册.md)、[13 - 交互机制（效果挂起）](issues/13-交互机制效果挂起.md)、[14 - UI 交互组件](issues/14-UI交互组件.md)、[15 - 简易模式 web 端联调](issues/15-简易模式web联调.md) 均已 resolved。M2 主线完成（简易模式 web 端 2 人可玩，server 集成测试全绿）。**当前 frontier = 无（M2 收束）**，下一步候选：M3 单人机械荷官；或先清遗留（card-data 构建失败、SQLite 局摘要、黑市牌名元数据下发）。
 
 ## Out of scope
 
