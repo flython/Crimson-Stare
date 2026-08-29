@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>血色牌局 · 牌桌交互原型（假数据）</title>
+<title>血色牌局 · 牌桌交互原型 v2（假数据）</title>
 <style>
   :root{
     --blood:#e9404b; --dark:#583c42; --gold:#ffc840;
@@ -18,97 +18,150 @@
     display:flex; flex-direction:column; overflow:hidden; touch-action:manipulation;
   }
   button{font-family:inherit; cursor:pointer; border:none; border-radius:8px;}
-  /* ===== 顶栏：回合+阶段条 ===== */
-  #topbar{display:flex; align-items:center; gap:14px; padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap;}
+
+  /* ===== 顶栏 ===== */
+  #topbar{display:flex; align-items:center; gap:14px; padding:6px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap;}
   #turnInfo{font-size:13px; color:var(--muted); white-space:nowrap;}
   #turnInfo b{color:var(--gold); font-weight:500;}
   #phases{display:flex; gap:4px; flex:1; overflow-x:auto;}
-  .ph{
-    flex:1; min-width:52px; text-align:center; padding:7px 4px; border-radius:8px;
-    font-size:12px; color:var(--muted); background:var(--panel2); border:1px solid transparent; white-space:nowrap;
-  }
+  .ph{flex:1; min-width:52px; text-align:center; padding:6px 4px; border-radius:8px; font-size:12px; color:var(--muted); background:var(--panel2); border:1px solid transparent; white-space:nowrap;}
   .ph.done{opacity:.45;}
   .ph.cur{background:var(--blood); color:#fff;}
   #goal{font-size:13px; color:var(--gold); white-space:nowrap;}
-  /* ===== 主区 ===== */
-  #main{flex:1; display:grid; grid-template-columns:150px 1fr 150px; gap:10px; padding:10px; min-height:0;}
-  .side{display:flex; flex-direction:column; gap:10px; min-width:0;}
-  .opp{
-    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px;
-    display:flex; flex-direction:column; gap:8px; flex:1; min-height:0;
+
+  /* ===== 牌桌：中心黑市 + 四向座位 ===== */
+  #tableWrap{flex:1; min-height:0; padding:8px;}
+  #table{
+    height:100%; display:grid; gap:8px;
+    grid-template-columns:auto 1fr auto;
+    grid-template-rows:auto 1fr auto;
+    grid-template-areas:
+      "top    top    top"
+      "left   center right"
+      "me     me     me";
   }
-  .opp.active{border-color:var(--gold);}
-  .opp .name{font-size:13px; display:flex; justify-content:space-between; align-items:center;}
-  .badge{font-size:11px; color:var(--gold); border:1px solid var(--gold); border-radius:6px; padding:1px 6px;}
-  .badge.flip{color:var(--muted); border-color:var(--muted);}
-  .stat{display:flex; gap:10px; font-size:12px; color:var(--muted);}
-  .stat b{color:var(--text); font-weight:500;}
-  .chipRow{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--muted);}
-  .chipIcon{width:14px;height:14px;border-radius:50%;background:var(--blood);border:1.5px solid #ff8a90;display:inline-block;flex:none;}
-  .ticketIcon{width:14px;height:14px;border-radius:3px;background:var(--gold);display:inline-block;flex:none;}
-  .backs{display:flex; flex-wrap:wrap; gap:3px;}
-  .mini-back{width:16px;height:23px;border-radius:3px;background:var(--back);border:1px solid var(--line);}
-  .mini-face{width:16px;height:23px;border-radius:3px;background:#efe6dd;color:#2a1e1c;font-size:9px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);}
-  /* ===== 中央：黑市+出牌区 ===== */
-  #center{display:flex; flex-direction:column; gap:8px; min-width:0; min-height:0;}
-  .zoneTitle{font-size:12px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;}
-  #market{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:8px 10px;}
+  #center{
+    grid-area:center; border-radius:14px; border:1.5px dashed var(--dark);
+    background:radial-gradient(ellipse at center, #2a1c1d 0%, #201516 70%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:8px; min-height:0;
+  }
   #marketSlots{display:flex; gap:8px; justify-content:center; flex-wrap:wrap;}
+  .zoneTitle{font-size:11px; color:var(--muted); display:flex; gap:14px;}
+  .zoneTitle b{color:var(--gold); font-weight:500;}
+
   .bm-card{
-    width:76px; height:106px; border-radius:8px; background:#efe6dd; color:#2a1e1c;
+    width:72px; height:100px; border-radius:8px; background:#efe6dd; color:#2a1e1c;
     border:2.5px solid var(--cat-econ); position:relative; padding:5px; flex:none;
     display:flex; flex-direction:column; font-size:10px; line-height:1.3;
   }
   .bm-card.sel{outline:3px solid var(--gold); outline-offset:1px;}
   .bm-card .bmName{font-size:11px; font-weight:500; color:#583c42;}
   .bm-card .bmEff{flex:1; color:#5a4a48; overflow:hidden;}
-  .bm-card .bmPrice{position:absolute; bottom:4px; left:5px; right:5px; display:flex; justify-content:space-between; align-items:center; color:#2a1e1c;}
+  .bm-card .bmPrice{position:absolute; bottom:4px; left:5px; right:5px; display:flex; justify-content:space-between; color:#2a1e1c;}
   .bm-card .bonus{position:absolute; top:-7px; right:-7px; width:18px; height:18px; border-radius:50%; background:var(--blood); color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center; border:1.5px solid #ff8a90;}
   .bm-card.empty{background:transparent; border:1.5px dashed var(--line);}
   .cat-econ{border-color:#c98a1b;} .cat-del{border-color:#7a2d8a;} .cat-tol{border-color:#2d6a8a;} .cat-inter{border-color:#8a2d3d;} .cat-combo{border-color:#3d8a2d;}
-  /* 出牌区 */
-  #playZone{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:8px 10px; display:flex; flex-direction:column; gap:8px; min-height:0;}
-  #playSlots{display:flex; gap:14px; justify-content:center; align-items:center; flex-wrap:wrap;}
-  .pcard{display:flex; flex-direction:column; align-items:center; gap:3px;}
-  .pcard .who{font-size:10px; color:var(--muted);}
-  .pcard .combo{font-size:11px; color:var(--gold);}
+
+  /* ===== 座位 ===== */
+  .seat{display:flex; flex-direction:column; gap:5px; min-height:0; min-width:0;}
+  #seatTop{grid-area:top;}
+  #seatLeft{grid-area:left; width:158px;}
+  #seatRight{grid-area:right; width:158px;}
+  #seatMe{grid-area:me;}
+  .seatInfo{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:6px 10px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .seat.active .seatInfo{border-color:var(--gold);}
+  .seatInfo .name{font-size:13px; display:flex; align-items:center; gap:6px; white-space:nowrap;}
+  .badge{font-size:10px; color:var(--gold); border:1px solid var(--gold); border-radius:6px; padding:1px 5px; white-space:nowrap;}
+  .badge.flip{color:var(--muted); border-color:var(--muted);}
+  .stat{display:flex; gap:9px; font-size:11px; color:var(--muted); flex-wrap:wrap;}
+  .stat b{color:var(--text); font-weight:500;}
+  .chipIcon{width:12px;height:12px;border-radius:50%;background:var(--blood);border:1.5px solid #ff8a90;display:inline-block;vertical-align:-1px;}
+  .ticketIcon{width:12px;height:12px;border-radius:3px;background:var(--gold);display:inline-block;vertical-align:-1px;}
+  .charCard{
+    width:30px; height:42px; border-radius:5px; flex:none;
+    background:linear-gradient(160deg,#5a2b30,#3c2226); border:1px solid var(--gold);
+    color:var(--gold); font-size:9px; display:flex; align-items:center; justify-content:center;
+    text-align:center; line-height:1.2; padding:2px;
+  }
+  .handBacks{display:flex; gap:2px;}
+  .mini-back{width:14px;height:20px;border-radius:3px;background:var(--back);border:1px solid var(--line);}
+
+  /* 出牌区：位于座位与中央之间（玩家"面前"） */
+  .playZone{
+    flex:1; min-height:56px; border-radius:10px; border:1px dashed var(--line);
+    display:flex; align-items:center; justify-content:center; gap:6px; padding:4px; position:relative; overflow:visible;
+  }
+  .playZone .pwho{position:absolute; top:2px; left:8px; font-size:10px; color:var(--muted);}
+  .playZone .combo{position:absolute; bottom:2px; right:8px; font-size:11px; color:var(--gold); white-space:nowrap;}
+  .playZone .emptyHint{font-size:11px; color:#5a4a48;}
+  /* 左右座位的出牌区横向窄、纵向高，牌旋转 */
+  #seatLeft .playZone, #seatRight .playZone{flex-direction:column;}
+  .rot90{transform:rotate(90deg);} .rot180{transform:rotate(180deg);} .rot-90{transform:rotate(-90deg);}
+  .cardIn{animation:cardIn .35s ease-out;}
+  @keyframes cardIn{from{transform:scale(.6) translateY(14px);opacity:0;}to{transform:none;opacity:1;}}
+
   /* ===== 卡牌通用 ===== */
   .card{
-    width:58px; height:82px; border-radius:7px; background:#efe6dd; color:#2a1e1c;
+    width:52px; height:74px; border-radius:7px; background:#efe6dd; color:#2a1e1c;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    font-size:18px; font-weight:500; border:1px solid var(--line); position:relative; flex:none;
+    font-size:17px; font-weight:500; border:1px solid var(--line); position:relative; flex:none;
     user-select:none; -webkit-user-select:none;
   }
-  .card .suit{font-size:14px; line-height:1;}
+  .card .suit{font-size:13px; line-height:1;}
   .card.red{color:#b03340;}
-  .card.joker{background:#3c2a2c; color:var(--gold); font-size:12px;}
-  .card.chip::after{
-    content:"◆"; position:absolute; top:2px; right:4px; font-size:9px; color:#7a2d8a;
-  }
-  .card.back{background:var(--back); color:transparent;}
+  .card.joker{background:#3c2a2c; color:var(--gold); font-size:11px;}
+  .card.chip::after{content:"◆"; position:absolute; top:2px; right:4px; font-size:9px; color:#7a2d8a;}
+  .card.back{background:var(--back);}
+  .card.back *{visibility:hidden;}
   .card.sel{outline:3px solid var(--gold); outline-offset:1px; transform:translateY(-8px);}
-  .card.dim{opacity:.4;}
-  .card.small{width:44px; height:62px; font-size:14px;}
-  /* ===== 底部：自己区域 ===== */
-  #bottom{background:var(--panel); border-top:1px solid var(--line); padding:8px 12px 12px; display:flex; flex-direction:column; gap:8px;}
-  #meBar{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
-  #meBar .name{font-size:14px; display:flex; align-items:center; gap:8px;}
+  .card.small{width:40px; height:57px; font-size:13px;}
+  .card.small .suit{font-size:11px;}
+  #handRow .card{transition:transform .12s;}
+  #seatMe .playZone .card{width:46px; height:66px; font-size:15px;}
+
+  /* ===== 出牌飞行动画 ===== */
+  .fly{
+    position:fixed; z-index:80; transition:transform .45s cubic-bezier(.4,.2,.2,1), opacity .45s;
+    pointer-events:none;
+  }
+
+  /* ===== 个人操作台 ===== */
+  #console{background:var(--panel); border-top:1px solid var(--line); padding:6px 12px 10px; display:flex; flex-direction:column; gap:6px;}
+  #consoleBar{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+  #consoleBar .name{font-size:14px; display:flex; align-items:center; gap:8px;}
   #actionHint{font-size:12px; color:var(--gold); flex:1; min-width:120px;}
   #actions{display:flex; gap:8px; flex-wrap:wrap;}
-  .btn{
-    background:var(--blood); color:#fff; padding:10px 18px; font-size:14px; min-height:44px;
-  }
+  .btn{background:var(--blood); color:#fff; padding:9px 16px; font-size:14px; min-height:44px;}
   .btn:disabled{background:var(--panel2); color:var(--muted);}
   .btn.ghost{background:var(--panel2); color:var(--text); border:1px solid var(--line);}
   .btn.gold{background:var(--gold); color:#3a2a10;}
-  #handRow{display:flex; gap:8px; overflow-x:auto; padding:6px 2px 2px; min-height:96px; align-items:flex-end;}
-  #handRow .card{transition:transform .12s;}
-  /* ===== 宣告面板 ===== */
+  #consoleMain{display:flex; gap:12px; align-items:stretch; min-height:0;}
+  #piles{display:flex; flex-direction:column; gap:6px; flex:none;}
+  .pile{
+    display:flex; align-items:center; gap:8px; background:var(--panel2); border:1px solid var(--line);
+    border-radius:8px; padding:6px 10px; font-size:11px; color:var(--muted); white-space:nowrap;
+  }
+  .pile b{color:var(--text); font-size:13px;}
+  .pileStack{width:22px; height:32px; border-radius:4px; background:var(--back); border:1px solid var(--line); position:relative; flex:none;}
+  .pileStack.discard{background:#33201f;}
+  .pileStack::after{content:""; position:absolute; inset:-2px auto auto 2px; width:22px; height:32px; border-radius:4px; background:inherit; border:inherit; z-index:-1; opacity:.6;}
+  #items{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+  .itemCard{
+    background:#2c2130; border:1px solid #7a2d8a; border-radius:7px; padding:4px 8px;
+    font-size:11px; color:#d8c0e0; display:flex; align-items:center; gap:6px;
+  }
+  .itemCard .useBtn{background:#7a2d8a; color:#fff; font-size:11px; padding:4px 8px; border-radius:5px; min-height:0;}
+  #handRow{display:flex; gap:8px; overflow-x:auto; padding:4px 2px 2px; min-height:86px; align-items:flex-end; flex:1;}
+
+  /* ===== 弹层 ===== */
   .overlay{position:fixed; inset:0; background:rgba(0,0,0,.65); display:none; align-items:center; justify-content:center; z-index:50; padding:16px;}
   .overlay.show{display:flex;}
   .modal{background:var(--panel); border:1px solid var(--gold); border-radius:14px; padding:18px; max-width:480px; width:100%; max-height:88vh; overflow-y:auto;}
   .modal h3{font-size:15px; color:var(--gold); font-weight:500; margin-bottom:10px;}
-  .modal .stepTag{font-size:11px; color:var(--muted); margin-bottom:8px;}
+  .stepTag{font-size:11px; color:var(--muted); margin-bottom:8px;}
   .declareQueue{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;}
   .dq{font-size:12px; padding:4px 10px; border-radius:8px; background:var(--panel2); color:var(--muted); border:1px solid var(--line);}
   .dq.cur{background:var(--blood); color:#fff;}
@@ -116,13 +169,17 @@
   .optGrid{display:flex; flex-wrap:wrap; gap:8px; margin:10px 0;}
   .opt{background:var(--panel2); border:1px solid var(--line); color:var(--text); padding:10px 14px; border-radius:8px; font-size:13px; min-height:44px;}
   .opt.sel{border-color:var(--gold); color:var(--gold);}
+  .opt.dim{opacity:.4;}
   .logline{font-size:12px; color:var(--muted); padding:3px 0; border-bottom:1px dashed var(--line);}
-  /* ===== 提示浮层 ===== */
   #toast{position:fixed; top:14px; left:50%; transform:translateX(-50%); background:var(--gold); color:#3a2a10; padding:8px 18px; border-radius:8px; font-size:13px; display:none; z-index:99;}
-  @media (max-width:720px){
-    #main{grid-template-columns:110px 1fr 110px; gap:6px; padding:6px;}
-    .card{width:48px;height:68px;font-size:15px;}
-    .bm-card{width:64px;height:90px;}
+
+  @media (max-width:860px){
+    #seatLeft,#seatRight{width:118px;}
+    .bm-card{width:58px; height:84px;}
+    .card{width:44px; height:63px; font-size:14px;}
+    .card.small{width:34px; height:49px;}
+    #seatMe .playZone .card{width:38px; height:55px;}
+    .stat{gap:6px;}
   }
 </style>
 </head>
@@ -133,30 +190,51 @@
   <span id="goal">目标 16 票</span>
 </div>
 
-<div id="main">
-  <div class="side" id="leftSide"></div>
-  <div id="center">
-    <div id="market">
-      <div class="zoneTitle"><span>黑市（点卡片购买）</span><span>购买阶段结束时最右两格 +1 血筹</span></div>
-      <div id="marketSlots"></div>
+<div id="tableWrap">
+  <div id="table">
+    <!-- 上方座位 -->
+    <div class="seat" id="seatTop">
+      <div class="seatInfo" id="infoTop"></div>
+      <div class="playZone" id="playTop"></div>
     </div>
-    <div id="playZone">
-      <div class="zoneTitle"><span>出牌区</span><span id="playHint"></span></div>
-      <div id="playSlots"></div>
+    <!-- 左 / 右座位 -->
+    <div class="seat" id="seatLeft">
+      <div class="playZone" id="playLeft"></div>
+      <div class="seatInfo" id="infoLeft"></div>
+    </div>
+    <div class="seat" id="seatRight">
+      <div class="playZone" id="playRight"></div>
+      <div class="seatInfo" id="infoRight"></div>
+    </div>
+    <!-- 中央黑市 -->
+    <div id="center">
+      <div class="zoneTitle"><span><b>黑 市</b>（购买阶段点卡片购买）</span><span id="supplyInfo"></span></div>
+      <div id="marketSlots"></div>
+      <div class="zoneTitle"><span>购买阶段结束时最右两格叠加 1 血筹</span></div>
+    </div>
+    <!-- 我：出牌区在前（朝向中央），信息在后 -->
+    <div class="seat" id="seatMe">
+      <div class="playZone" id="playMe"></div>
+      <div class="seatInfo" id="infoMe"></div>
     </div>
   </div>
-  <div class="side" id="rightSide"></div>
 </div>
 
-<div id="bottom">
-  <div id="meBar">
+<!-- 个人操作台 -->
+<div id="console">
+  <div id="consoleBar">
     <span class="name">你 · 矿工 <span class="badge">临时特权证</span></span>
-    <span class="chipRow"><span class="chipIcon"></span><b id="meChips">7</b> 血筹</span>
-    <span class="chipRow"><span class="ticketIcon"></span><b id="meTickets">8</b> 票</span>
     <span id="actionHint"></span>
     <div id="actions"></div>
   </div>
-  <div id="handRow"></div>
+  <div id="consoleMain">
+    <div id="piles">
+      <div class="pile"><div class="pileStack"></div><span>牌堆 <b id="deckCnt">41</b></span></div>
+      <div class="pile"><div class="pileStack discard"></div><span>弃牌堆 <b id="discardCnt">5</b></span></div>
+      <div class="pile" style="align-items:flex-start;"><span style="line-height:1.6;">道具区</span><div id="items"></div></div>
+    </div>
+    <div id="handRow"></div>
+  </div>
 </div>
 
 <!-- 宣告面板 -->
@@ -194,14 +272,22 @@
 const SUIT_CH = {S:"♠",H:"♥",D:"♦",C:"♣"};
 const CAT = {econ:"经济",del:"删牌",tol:"容错",inter:"互动",combo:"牌型"};
 const PHASES = ["抽牌","换牌","出牌","对决","结算","购买","删牌","重整"];
+const GOAL = 16;
+/* 座位：bottom=我（不旋转），top=180°，left=90°，right=-90° */
+const SEATS = [
+  {id:"top",   name:"特型演员", rot:"rot180"},
+  {id:"left",  name:"赌场荷官", rot:"rot90"},
+  {id:"right", name:"银行职员", rot:"rot-90"},
+];
 
 let S = {
-  turn:3, phase:1, /* index into PHASES */
-  me:{chips:7,tickets:8,swap:3,flipped:false},
-  passIdx:0, /* 自己持证 */
-  opps:[
-    {name:"特型演员",chips:5,tickets:8,swap:2,pass:false,handCount:6,flipped:false,active:false},
-  ],
+  turn:3, phase:1,
+  me:{chips:7, tickets:8, swap:2, swapMax:3, deck:41, flipped:false, pass:true},
+  opps:{
+    top:  {name:"特型演员", char:"特型演员", chips:5, tickets:8, swap:1, swapMax:3, deck:38, handCount:6, flipped:false, pass:false},
+    left: {name:"赌场荷官", char:"赌场荷官", chips:9, tickets:4, swap:3, swapMax:3, deck:44, handCount:6, flipped:false, pass:false},
+    right:{name:"银行职员", char:"银行职员", chips:3, tickets:12, swap:0, swapMax:4, deck:40, handCount:6, flipped:true,  pass:false},
+  },
   market:[
     {id:"bm1",name:"血筹镀层(夺)",cat:"econ",price:3,bonus:1,eff:"对决阶段：抢夺任意玩家1血筹"},
     {id:"bm2",name:"限流阀-2",cat:"tol",price:3,bonus:0,eff:"插入：一张牌点数永久-2"},
@@ -209,44 +295,74 @@ let S = {
     {id:"bm4",name:"荷官证",cat:"inter",price:6,bonus:1,eff:"查看黑市牌堆顶3张，选1张购买"},
     {id:"bm5",name:"皮下密信",cat:"econ",price:2,bonus:1,eff:"备用道具：获得2血筹"},
   ],
+  supply:87,
   hand:[
     {id:"h1",r:9,s:"S"},{id:"h2",r:9,s:"H"},{id:"h3",r:9,s:"D"},{id:"h4",r:9,s:"C"},
     {id:"h5",r:3,s:"H"},{id:"h6",r:3,s:"D"},
   ],
   discard:[{id:"d1",r:2,s:"S"},{id:"d2",r:7,s:"C"},{id:"d3",r:11,s:"H"},{id:"d4",r:13,s:"D"},{id:"d5",r:5,s:"C"}],
-  play:[], selHand:new Set(), declared:{},
+  items:[{id:"it1",name:"皮下密信",eff:"使用：获得2血筹"}],
+  play:{}, /* seatId -> {cards, combo, revealed} */
+  selHand:new Set(),
   handId:100,
 };
 
-/* ================= 渲染 ================= */
+/* ================= 工具 ================= */
 function el(id){return document.getElementById(id);}
 function toast(msg){const t=el("toast");t.textContent=msg;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",1600);}
 
+/* ================= 渲染 ================= */
 function renderPhases(){
   el("phases").innerHTML = PHASES.map((p,i)=>
     `<button class="ph ${i===S.phase?'cur':i<S.phase?'done':''}" onclick="gotoPhase(${i})">${p}</button>`).join("");
   el("turnNo").textContent = S.turn;
 }
 function gotoPhase(i){
-  S.phase=i; S.selHand.clear(); S.play=[];
-  if(i===3) S.declared={};
+  S.phase=i; S.selHand.clear(); S.play={};
   renderAll();
 }
 
-function oppHtml(o){
-  return `<div class="opp ${o.pass?'':''}">
-    <div class="name">${o.name} ${o.pass?'<span class="badge">特权证</span>':''}${o.flipped?'<span class="badge flip">已翻面</span>':''}</div>
-    <div class="stat"><span>筹 <b>${o.chips}</b></span><span>票 <b>${o.tickets}</b></span><span>换牌 <b>${o.swap}</b></span></div>
-    <div class="backs">${'<div class="mini-back"></div>'.repeat(o.handCount)}</div>
-  </div>`;
+function seatInfoHtml(o, extra){
+  const sw = `${o.swap}/${o.swapMax}`;
+  return `<div class="charCard">${o.char}</div>
+    <div class="name">${o.name}
+      ${o.pass?'<span class="badge">特权证</span>':''}${o.flipped?'<span class="badge flip">已翻面</span>':''}
+    </div>
+    <div class="stat">
+      <span><span class="ticketIcon"></span> 票 <b>${o.tickets}</b>/${GOAL}</span>
+      <span><span class="chipIcon"></span> 筹 <b>${o.chips}</b></span>
+      <span>换牌 <b>${sw}</b></span>
+      <span>牌库 <b>${o.deck}</b></span>
+      ${extra||""}
+    </div>`;
 }
-function renderSides(){
-  el("leftSide").innerHTML = oppHtml(S.opps[0]);
-  el("rightSide").innerHTML = `<div class="opp">
-    <div class="name">牌堆</div>
-    <div class="backs">${'<div class="mini-back"></div>'.repeat(18)}</div>
-    <div style="font-size:11px;color:var(--muted);">弃牌堆：${S.discard.length} 张（对他人不可见）</div>
-  </div>`;
+function renderSeats(){
+  for(const st of SEATS){
+    const o = S.opps[st.id];
+    el("info"+cap(st.id)).innerHTML = seatInfoHtml(o,
+      `<span>手牌</span><span class="handBacks">${'<div class="mini-back"></div>'.repeat(o.handCount)}</span>`);
+    renderPlayZone(st.id, o.name, st.rot);
+  }
+  el("infoMe").innerHTML = seatInfoHtml(S.me,
+    `<span>手牌 <b>${S.hand.length}</b></span>`);
+  renderPlayZone("me", "你(暗扣)", "");
+  el("supplyInfo").textContent = `供应堆 ${S.supply} 张`;
+}
+function cap(s){return s[0].toUpperCase()+s.slice(1);}
+
+function renderPlayZone(seatId, who, rot){
+  const pz = el("play"+cap(seatId));
+  const p = S.play[seatId];
+  const active = ["出牌","对决"].includes(PHASES[S.phase]);
+  if(!p){
+    pz.innerHTML = `<span class="pwho">${who}</span><span class="emptyHint">${active?"等待出牌…":"出牌区"}</span>`;
+    return;
+  }
+  const cards = p.cards.map(c=>{
+    const html = cardHtml(c.revealed?c:c.back?{r:"?",s:"S",back:true}:c, false, true, p.revealed?"cardIn":(c.revealed?"":""));
+    return `<span class="${rot}">${html}</span>`;
+  }).join("");
+  pz.innerHTML = `<span class="pwho">${who}</span>${cards}<span class="combo">${p.combo||""}</span>`;
 }
 
 function bmCardHtml(c,i){
@@ -262,16 +378,9 @@ function renderMarket(){ el("marketSlots").innerHTML = S.market.map(bmCardHtml).
 
 function cardHtml(c, sel, small, extra){
   const red = c.s==="H"||c.s==="D";
-  return `<div class="card ${red?'red':''} ${c.joker?'joker':''} ${c.chip?'chip':''} ${sel?'sel':''} ${small?'small':''} ${extra||''}" onclick="${c.onclick||''}">
-    ${c.joker ? "JOKER" : `<div class="suit">${SUIT_CH[c.s]}</div><div>${c.r}</div>`}
+  return `<div class="card ${red?'red':''} ${c.joker?'joker':''} ${c.chip?'chip':''} ${c.back?'back':''} ${sel?'sel':''} ${small?'small':''} ${extra||''}" onclick="${c.onclick||''}">
+    ${c.joker ? "JOKER" : c.back ? "" : `<div class="suit">${SUIT_CH[c.s]}</div><div>${c.r}</div>`}
   </div>`;
-}
-function renderPlay(){
-  const cur = PHASES[S.phase];
-  el("playHint").textContent = cur==="出牌" ? "暗扣出牌后统一亮出" : cur==="对决" ? "已亮牌 · 宣告中" : "";
-  if(S.play.length===0){ el("playSlots").innerHTML = `<span style="color:var(--muted);font-size:12px;">（空）</span>`; return; }
-  el("playSlots").innerHTML = S.play.map(p=>
-    `<div class="pcard"><div class="who">${p.who}</div>${cardHtml(p.card,false,true)}<div class="combo">${p.combo||""}</div></div>`).join("");
 }
 
 function renderHand(){
@@ -280,35 +389,44 @@ function renderHand(){
     cardHtml({...c, onclick:`tapHand('${c.id}')`}, S.selHand.has(c.id) && (cur==="换牌"||cur==="出牌"))).join("");
 }
 
-function renderMe(){
-  el("meChips").textContent=S.me.chips; el("meTickets").textContent=S.me.tickets;
-  renderActions();
+function renderPiles(){
+  el("deckCnt").textContent = S.me.deck;
+  el("discardCnt").textContent = S.discard.length;
+  el("items").innerHTML = S.items.length
+    ? S.items.map(it=>`<div class="itemCard">🎁 ${it.name} <button class="useBtn" onclick="useItem('${it.id}')">使用</button></div>`).join("")
+    : `<span style="font-size:11px;color:var(--muted);">（空）</span>`;
 }
+function useItem(id){
+  const it = S.items.find(x=>x.id===id); if(!it) return;
+  S.items = S.items.filter(x=>x.id!==id);
+  S.me.chips += 2; toast(`使用「${it.name}」：+2 血筹`);
+  renderPiles(); renderSeats();
+}
+
 function renderActions(){
   const cur = PHASES[S.phase];
-  const A = el("actions"); const n = S.selHand.size;
+  const n = S.selHand.size;
   const H = {
     "抽牌": `<button class="btn ghost" disabled>自动抽至 6 张</button>`,
-    "换牌": `<button class="btn" ${n<1||n>3?"disabled":""} onclick="doSwap()">换牌（弃${n||0}抽${n||0}）</button>
+    "换牌": `<button class="btn" ${n<1||n>3||S.me.swap<1?"disabled":""} onclick="doSwap()">换牌（弃${n||0}抽${n||0}）</button>
              <button class="btn ghost" onclick="doStopSwap()">停止（剩${S.me.swap}次换${S.me.swap}筹）</button>`,
-    "出牌": `<button class="btn" ${n!==5?"disabled":""} onclick="doPlay()">暗扣出牌（${n}/5）</button>`,
+    "出牌": `<button class="btn" ${n!==5?"disabled":""} onclick="doPlay()">往前打出（暗扣 ${n}/5）</button>`,
     "对决": `<button class="btn gold" onclick="openDeclare()">开始宣告</button>`,
-    "结算": `<button class="btn ghost" onclick="toast('系统自动结算：你第1名 +4票，对手第2名 +4筹')">自动结算（演示）</button>`,
+    "结算": `<button class="btn ghost" onclick="toast('系统自动结算（见座位信息变化）')">自动结算（演示）</button>`,
     "购买": `<button class="btn ghost" onclick="doFlip()">跳过并翻面</button>`,
     "删牌": `<button class="btn gold" onclick="openDelete()">删除弃牌区牌</button>`,
-    "重整": `<button class="btn" onclick="toast('牌库与弃牌堆已重洗（演示）')">重洗牌库</button>
+    "重整": `<button class="btn" onclick="doReshuffle()">重洗牌库</button>
              <button class="btn ghost" onclick="meChips(2)">不重洗 +2血筹</button>`,
   };
-  A.innerHTML = H[cur]||"";
+  el("actions").innerHTML = H[cur]||"";
   el("actionHint").textContent = {
-    "换牌":`点选手牌后换牌（≤3张），剩余次数 ${S.me.swap}`,
-    "出牌":`点选 5 张组成最大牌型`,
-    "购买":`点上方黑市卡购买；已购可继续，跳过则翻面`,
+    "换牌":`点选手牌后换牌（≤3张），剩余次数 ${S.me.swap}/${S.me.swapMax}`,
+    "出牌":`点选 5 张，确认后从手牌往前打出至你的出牌区`,
+    "购买":`点中央黑市卡购买；跳过则翻面`,
     "删牌":`每回合免费 1 张，之后 2 筹/张`,
   }[cur]||"";
 }
-
-function renderAll(){renderPhases();renderSides();renderMarket();renderPlay();renderHand();renderMe();}
+function renderAll(){renderPhases();renderSeats();renderMarket();renderHand();renderPiles();renderActions();}
 
 /* ================= 交互 ================= */
 function tapHand(id){
@@ -324,35 +442,63 @@ function fakeDraw(n){
   for(let i=0;i<n;i++){
     S.hand.push({id:"h"+(S.handId++), r:2+Math.floor(Math.random()*13), s:suits[Math.floor(Math.random()*4)]});
   }
+  S.me.deck = Math.max(0, S.me.deck-n);
 }
 function doSwap(){
-  const ids=[...S.selHand];
+  const n = S.selHand.size;
   S.hand=S.hand.filter(c=>!S.selHand.has(c.id));
-  S.discard.push(...S.hand.length?[]:[]);
-  fakeDraw(ids.length); S.me.swap--; S.selHand.clear();
-  toast(`已弃 ${ids.length} 张并补抽`);
+  S.discard.push(...Array(n).fill(0).map((_,i)=>({id:"x"+(S.handId+i),r:0,s:"S"})));
+  S.handId+=n;
+  fakeDraw(n); S.me.swap--; S.selHand.clear();
+  toast(`已弃 ${n} 张并补抽`);
   renderAll();
 }
 function doStopSwap(){
   S.me.chips+=S.me.swap; toast(`停止换牌，${S.me.swap} 次兑成血筹`); S.me.swap=0; gotoPhase(2);
 }
+/* 出牌：手牌 → 飞行 → 我的出牌区（面前=朝向中央） */
 function doPlay(){
   const picked=S.hand.filter(c=>S.selHand.has(c.id));
-  S.play=picked.map(c=>({who:"你(暗扣)",card:{...c,back:true}}));
-  S.hand=S.hand.filter(c=>!S.selHand.has(c.id));
-  S.selHand.clear(); gotoPhase(3);
-  toast("已暗扣，等待对手出牌…");
-  setTimeout(()=>{ /* 对手也出牌 */
-    S.play.push({who:"特型演员(暗扣)",card:{r:"?",s:"S",back:true}});
-    renderAll();
-  },700);
+  flyHandToPlay(picked, ()=>{
+    S.hand=S.hand.filter(c=>!S.selHand.has(c.id));
+    S.selHand.clear();
+    S.play.me={cards:picked.map(c=>({...c,back:true})), revealed:false, combo:""};
+    gotoPhase(3);
+    toast("已暗扣，等待其他玩家出牌…");
+    setTimeout(()=>{
+      for(const st of SEATS){
+        S.play[st.id]={cards:[{r:"?",s:"S",back:true},{r:"?",s:"H",back:true},{r:"?",s:"D",back:true},{r:"?",s:"C",back:true},{r:"?",s:"S",back:true}], revealed:false, combo:""};
+      }
+      renderAll();
+    },700);
+  });
+  renderAll();
+}
+function flyHandToPlay(cards, done){
+  const target = el("playMe").getBoundingClientRect();
+  const tx = target.left + target.width/2 - 26, ty = target.top + target.height/2 - 37;
+  const els = [...el("handRow").children].filter(c=>c.querySelector&&c.classList.contains("sel"));
+  let flown = 0;
+  els.forEach((elm,i)=>{
+    const r = elm.getBoundingClientRect();
+    const clone = elm.cloneNode(true);
+    clone.classList.add("fly"); clone.classList.remove("sel");
+    clone.style.left=r.left+"px"; clone.style.top=r.top+"px";
+    document.body.appendChild(clone);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      clone.style.transform=`translate(${tx-r.left}px,${ty-r.top}px) scale(.9)`;
+      clone.style.opacity="0.85";
+    }));
+    setTimeout(()=>{clone.remove(); if(++flown===els.length) done&&done();}, 500+i*40);
+  });
+  if(!els.length) done&&done();
 }
 function tapMarket(i){
   if(PHASES[S.phase]!=="购买"){toast("购买阶段才能买黑市牌");return;}
   const c=S.market[i]; if(!c)return;
   if(S.me.chips<c.price){toast(`血筹不足：需 ${c.price}`);return;}
-  S.me.chips-=c.price+c.bonus*0-0; S.me.chips+=c.bonus;
-  if(c.id==="bm2"){ /* 芯片演示 */ openChip(c); return; }
+  S.me.chips-=c.price; S.me.chips+=c.bonus; S.supply=Math.max(0,S.supply-1);
+  if(c.id==="bm2"){ openChip(c); return; }
   toast(`已购「${c.name}」${c.bonus?`，并取走叠加的 ${c.bonus} 筹`:""}（效果结算）`);
   S.market[i]=null; shiftMarket(); renderAll();
 }
@@ -366,7 +512,8 @@ function shiftMarket(){
   }
 }
 function doFlip(){ S.me.flipped=true; toast("已翻面，本回合不可再购买"); gotoPhase(6); }
-function meChips(n){S.me.chips+=n;toast(`+${n} 血筹`);renderMe();}
+function doReshuffle(){ S.me.deck+=S.discard.length; S.discard=[]; toast("牌库与弃牌堆已重洗（演示）"); renderAll(); }
+function meChips(n){S.me.chips+=n;toast(`+${n} 血筹`);renderSeats();}
 
 /* 删牌 */
 function openDelete(){
@@ -377,10 +524,10 @@ function openDelete(){
   el("deleteOverlay").classList.add("show");
 }
 function pickDelete(i,btn){
-  if(window._del.includes(i)) {window._del=window._del.filter(x=>x!==i);btn.classList.remove("sel");return;}
+  if(window._del.includes(i)) {window._del=window._del.filter(x=>x!==i);btn.classList.remove("sel");btn.querySelectorAll("span[data-cost]").forEach(x=>x.remove());return;}
   window._del.push(i); btn.classList.add("sel");
   const cost=Math.max(0,window._del.length-1)*2;
-  btn.insertAdjacentHTML("beforeend", cost?` <span style="color:var(--blood)">-${cost}筹</span>`:"");
+  if(cost) btn.insertAdjacentHTML("beforeend",`<span data-cost style="color:var(--blood)">-${cost}筹</span>`);
 }
 el("deleteOverlay").addEventListener("click",e=>{
   if(e.target.id==="deleteOverlay"&&window._del){
@@ -399,7 +546,7 @@ function openChip(c){
   el("chipName").textContent=c.name;
   const body=el("chipBody");
   body.innerHTML=S.discard.map((d,i)=>{
-    const target = d.r-2; /* 限流阀-2 */
+    const target = d.r-2;
     return `<button class="opt ${target<2?"dim":""}" ${target<2?"disabled":""} onclick="doChip(${i},${target})">${SUIT_CH[d.s]}${d.r} → ${SUIT_CH[d.s]}${target}</button>`;
   }).join("");
   el("chipOverlay").classList.add("show");
@@ -410,19 +557,21 @@ function doChip(i,target){
   closeModal("chipOverlay"); toast(`芯片已插入 ${SUIT_CH[d.s]}${d.r}（不可替换）`); renderAll();
 }
 
-/* 宣告（半结构化排队演示） */
+/* 宣告（4人排队演示） */
 function openDeclare(){
-  /* 亮牌 */
-  S.play[0].card=S.hand.length?S.play[0].card:{r:9,s:"S"};
-  const mine=S.hand.slice(0,5);
-  S.play=[{who:"你",card:{r:9,s:"S"},combo:"四条 39点"},{who:"特型演员",card:{r:10,s:"C"},combo:"葫芦 46点"}];
+  S.play.me={cards:S.hand.slice(0,5).map(c=>({...c})), revealed:true, combo:"四条 39点"};
+  S.play.top={cards:[{r:10,s:"C"},{r:10,s:"H"},{r:10,s:"D"},{r:8,s:"C"},{r:8,s:"S"}], revealed:true, combo:"葫芦 46点"};
+  delete S.play.left; delete S.play.right;
+  S.play.left={cards:[{r:5,s:"S"},{r:5,s:"H"},{r:6,s:"D"},{r:6,s:"C"},{r:9,s:"S"}], revealed:true, combo:"两对 31点"};
+  S.play.right={cards:[{r:13,s:"S"},{r:12,s:"S"},{r:11,s:"S"},{r:4,s:"H"},{r:3,s:"D"}], revealed:true, combo:"高牌 43点"};
   renderAll();
-  const q=el("dq");
-  q.innerHTML=["你","特型演员"].map((n,i)=>`<span class="dq ${i===0?"cur":""}">${i+1}. ${n}</span>`).join("");
+  const order=["me","top","left","right"];
+  const names={me:"你",top:"特型演员",left:"赌场荷官",right:"银行职员"};
+  el("dq").innerHTML=order.map((s,i)=>`<span class="dq ${i===0?"cur":""}">${i+1}. ${names[s]}</span>`).join("");
   const body=el("declareBody");
   body.innerHTML=`
     <div class="stepTag">宣告步骤 1/3 · JOKER 赋值（逐张）</div>
-    <div style="display:flex;gap:6px;align-items:center;">${cardHtml({r:null,joker:true})}<span style="font-size:12px;color:var(--muted);">→ 视为</span>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${cardHtml({r:null,joker:true})}<span style="font-size:12px;color:var(--muted);">→ 视为</span>
       <div class="optGrid" style="margin:0;">
         <button class="opt" onclick="declareStep(1)">♠10（补成四条9）</button>
         <button class="opt" onclick="declareStep(1)">♠9（凑五条，但缺花色）</button>
@@ -441,14 +590,24 @@ function declareStep(step){
   else if(step===2) body.innerHTML=`
     <div class="stepTag">宣告步骤 3/3 · 强化芯片</div>
     <div class="optGrid">
-      <button class="opt" onclick="declareStep(3)">发动「血筹镀层(夺)」→ 抢对手1筹</button>
+      <button class="opt" onclick="declareStep(3)">发动「血筹镀层(夺)」→ 抢银行职员1筹</button>
       <button class="opt" onclick="declareStep(3)">无可用芯片</button>
     </div>`;
   else {
-    body.innerHTML=`<div class="logline">你的宣告完成 → 轮到特型演员（顺时针）</div>
-      <div class="logline">特型演员：四张10 + JOKER视为10 → 葫芦 46点，胜出</div>
-      <div class="logline">结算：他夺魁获得特权证 +4票；你第2名 +4筹</div>`;
-    setTimeout(()=>{closeModal("declareOverlay"); gotoPhase(4); S.me.chips+=4; toast("结算完成（演示流程）");},1400);
+    body.innerHTML=`<div class="logline">你的宣告完成 → 顺时针轮到特型演员</div>
+      <div class="logline">特型演员：三张10+两8 + JOKER视为10 → 葫芦 46点</div>
+      <div class="logline">赌场荷官：两对 31点；银行职员：高牌 43点</div>
+      <div class="logline">结算：特型演员夺魁 +4票 +特权证；你第2名 +2票2筹；银行职员第3名 +1票3筹；荷官第4名 +4筹</div>`;
+    setTimeout(()=>{
+      closeModal("declareOverlay");
+      S.me.tickets+=2; S.me.chips+=2;
+      S.opps.top.tickets+=4; S.opps.top.pass=true; S.me.pass=false;
+      S.opps.right.tickets+=1; S.opps.right.chips+=3;
+      S.opps.left.chips+=4;
+      S.phase=4;
+      toast("结算完成（演示流程）");
+      renderAll();
+    },1600);
   }
 }
 
