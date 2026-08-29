@@ -1,12 +1,9 @@
 /**
- * 票据 02 — 白板局（无角色技能/无黑市效果）骨架 reducer。
- *
- * 职责边界：跑通 8 阶段全流程的状态机形状与推进规则，
- * 宣告交互（JOKER 逐项赋值）、角色/黑市效果、初始构筑均留给 M2+，
- * 本骨架的对决结算直接用 hand-evaluator 的自动最优 JOKER 求解。
+ * 票据 02 — 白板局 reducer（M2 已接入角色 setup / 黑市购买处理 / 效果接入点）。
  *
  * 模型：reduce(state, action, config) → 新 state（纯函数，入参不改）。
  * Action 流 + 初始 rngState 即可完整重放一局。
+ * 角色/黑市效果本体在 effects/roles.ts、effects/market.ts（票据 11/12），本文件只挂接入点。
  */
 import type { Card } from "../cards.js";
 import { card, joker, SUITS } from "../cards.js";
@@ -14,8 +11,10 @@ import type { GameConfig } from "../core/config.js";
 import type { GameState, PlayerState, PhaseId } from "../core/state.js";
 import { shuffle } from "../core/rng.js";
 import { evaluateHand, compareHands } from "../hand-evaluator.js";
-import { resolveTiming, runTimingQueue, getEffect } from "../core/effects.js";
+import { resolveTiming, runTimingQueue, runActionHook, getEffect } from "../core/effects.js";
 import { validateChoice } from "../effects/interactive.js";
+import { roleSetup } from "../effects/roles.js";
+import type { CardPool } from "../cardPool.js";
 
 export type Action =
   | { type: "swap"; playerId: string; discardIds: string[] }
@@ -60,9 +59,10 @@ function log(state: GameState, text: string): void {
   state.log.push({ turn: state.turn, phase: state.phase, text });
 }
 
-/** 抽牌至手牌上限；抽牌堆不足时先重洗弃牌堆 */
+/** 抽牌至手牌上限（手牌上限 = 基础 + 角色加成，魔术师 +1）；抽牌堆不足时先重洗弃牌堆 */
 function drawToHandLimit(state: GameState, p: PlayerState, config: GameConfig): void {
-  while (p.zones.hand.length < config.handLimit) {
+  const limit = config.handLimit + (p.handLimitBonus ?? 0);
+  while (p.zones.hand.length < limit) {
     if (p.zones.draw.length === 0) {
       if (p.zones.discard.length === 0) return; // 无牌可抽（牌打空的现实边界）
       p.zones.draw = shuffle(state, p.zones.discard.splice(0));
@@ -91,7 +91,10 @@ function enterPhase(state: GameState, phase: PhaseId, config: GameConfig): void 
   for (const p of state.players) {
     p.phaseReady = false;
     if (phase === "swap") {
-      p.swapLeft = p.seat === state.passHolderSeat ? config.swapCountWithPass : config.swapCount;
+      // 换牌次数 = 基础（持证者+1）+ 角色加成（酒保+1）
+      p.swapLeft =
+        (p.seat === state.passHolderSeat ? config.swapCountWithPass : config.swapCount) +
+        (p.swapBonus ?? 0);
     }
     if (phase === "purchase") p.purchaseFlipped = false;
   }
@@ -117,15 +120,22 @@ function enterPhase(state: GameState, phase: PhaseId, config: GameConfig): void 
     if (!state.finished) enterPhase(state, "purchase", config);
     return;
   }
-  // swap / play / purchase / delete / reshape：等待玩家 Action
+  if (phase === "reshape") {
+    runHooks(state, "before", config); // 角色阶段效果（银行职员【重整阶段】+2 血筹）
+    return; // 等玩家 reshape 决策
+  }
+  // swap / play / purchase / delete：等待玩家 Action
 }
 
-/** 对决自动结算（骨架：无宣告交互，直接取最优牌型） */
+/** 对决自动结算（骨架：无宣告交互，直接取最优牌型；角色对决点数加成生效） */
 function resolveDuel(state: GameState, config: GameConfig): void {
-  const evaluated = state.players.map((p) => ({
-    p,
-    ev: p.zones.play.length > 0 ? evaluateHand(p.zones.play) : null,
-  }));
+  const evaluated = state.players.map((p) => {
+    const ev = p.zones.play.length > 0 ? evaluateHand(p.zones.play) : null;
+    if (ev && (p.duelPointsBonus ?? 0) !== 0) {
+      ev.totalPoints += p.duelPointsBonus!; // 赌场荷官【结算阶段】牌型总点数+20
+    }
+    return { p, ev };
+  });
   const n = state.players.length;
   const holder = state.passHolderSeat ?? 0;
   // 牌型降序 → 总点数降序 → 顺时针离特权证近者先
@@ -192,22 +202,46 @@ function refillSlot(state: GameState, slotIndex: number): void {
     slot.defId = next.defId;
     slot.price = next.price;
     slot.bonusChips = 0;
+    slot.subtype = next.subtype;
   } else {
     slot.defId = null; // 黑市买空不补齐（规则 6）
   }
 }
 
-/** 创建一局（白板骨架）：发牌、随机决定临时特权证、直接进入第一回合抽牌阶段 */
+/**
+ * 黑市牌购买处理（M2.3 骨架）：按注册表分发。
+ * - 效果已注册（market:<defId>，秘密交易立即结算 / 强化芯片插入交互）→ 调 run（可能挂起等选牌）
+ * - 备用道具 → 存入道具区（正面朝上，公开；使用时再结算）
+ * - 未注册 → 占位 log（issue 06 降级约定）
+ */
+function handlePurchase(state: GameState, p: PlayerState, defId: string, subtype: string | undefined, config: GameConfig): void {
+  const def = getEffect(`market:${defId}`);
+  if (def) {
+    def.run(state, { config, playerId: p.id, effectId: def.id });
+    return;
+  }
+  if (subtype === "备用道具") {
+    p.zones.items.push(defId);
+    log(state, `${p.name} 获得备用道具 ${defId}（存入道具区）`);
+    return;
+  }
+  log(state, `效果未实现: market:${defId}`);
+}
+
+/** 创建一局（M2）：发牌、随机决定临时特权证、可选注入卡池（黑市供应堆/简易过滤）与角色（roleSetup），进入第一回合 */
 export function createGame(
-  playerInfos: { id: string; name: string }[],
+  playerInfos: { id: string; name: string; characterId?: string }[],
   config: GameConfig,
   seed: number,
+  pool?: CardPool,
+  opts: { simple?: boolean } = {},
 ): GameState {
   if (playerInfos.length < 2 || playerInfos.length > 4) {
     throw new Error("MVP 白板局支持 2-4 人");
   }
+  const players = playerInfos.map((info, seat) => newPlayer(info.id, info.name, seat));
   const state: GameState = {
-    players: playerInfos.map((info, seat) => newPlayer(info.id, info.name, seat)),
+    players,
     phase: "draw",
     turn: 1,
     passHolderSeat: null,
@@ -226,6 +260,35 @@ export function createGame(
     finished: false,
     winners: [],
   };
+
+  // 卡池注入：黑市供应堆（按 count 展开；简易模式仅黄边）→ 填满栏位
+  if (pool) {
+    const marketDefs = opts.simple ? pool.market.filter((d) => d.yellowBorder) : pool.market;
+    state.blackMarket.supply = shuffle(
+      state,
+      marketDefs.flatMap((d) =>
+        Array.from({ length: d.count }, () => ({ defId: d.id, price: d.price ?? 0, subtype: d.subtype })),
+      ),
+    );
+    for (const slot of state.blackMarket.slots) {
+      const next = state.blackMarket.supply.shift();
+      if (next) {
+        slot.defId = next.defId;
+        slot.price = next.price;
+        slot.subtype = next.subtype;
+      }
+    }
+  }
+
+  // 角色注入：设置 characterId 并应用游戏开始 setup（roleSetup）
+  for (let i = 0; i < players.length; i++) {
+    const info = playerInfos[i]!;
+    const p = players[i]!;
+    if (info.characterId) {
+      p.characterId = info.characterId;
+      roleSetup[info.characterId]?.(state, { config, playerId: p.id, effectId: `setup:${info.characterId}` });
+    }
+  }
 
   // 每人一副 54 张洗混
   for (const p of state.players) {
@@ -293,7 +356,10 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       p.zones.discard.push(...moving);
       drawToHandLimit(next, p, config);
       p.swapLeft -= 1;
-      if (p.swapLeft === 0) p.phaseReady = true;
+      if (p.swapLeft === 0) {
+        p.phaseReady = true;
+        runActionHook(next, p.characterId, "swapZero", config, p.id); // 酒保：剩余换牌次数归 0 得 1 血筹
+      }
       break;
     }
     case "stopSwap": {
@@ -337,7 +403,10 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       if (p.chips < slot.price) throw new Error("血筹不足");
       p.chips -= slot.price;
       p.chips += slot.bonusChips;
-      log(next, `${p.name} 购买 ${slot.defId}（${slot.price}筹，效果结算留 M2）`);
+      log(next, `${p.name} 购买 ${slot.defId}（${slot.price}筹${slot.bonusChips > 0 ? `，含叠加 ${slot.bonusChips} 筹` : ""}）`);
+      const defId = slot.defId;
+      const subtype = slot.subtype;
+      handlePurchase(next, p, defId, subtype, config);
       refillSlot(next, action.slotIndex);
       break;
     }

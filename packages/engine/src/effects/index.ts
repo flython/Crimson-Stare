@@ -1,6 +1,8 @@
 /**
- * 效果层聚合导出(M2.1+)。
- * primitives = 原语库;interactive = 交互挂起;roles/market 由 M2.2/M2.3 效果注册表文件加入。
+ * 效果层聚合导出。
+ * primitives = 原语库；interactive = 交互挂起；roles/market = 角色与黑市效果注册（票据 11/12）。
  */
 export * from "./primitives.js";
 export * from "./interactive.js";
+export * from "./roles.js";
+export * from "./market.js";

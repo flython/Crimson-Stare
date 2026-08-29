@@ -112,12 +112,14 @@ export interface BlackMarketSlot {
   price: number;
   /** 叠加在牌上的血筹（购买阶段结束时最右两格各 +1） */
   bonusChips: number;
+  /** 黑市牌类型（强化芯片/秘密交易/道具），购买处理分发用（M2.3） */
+  subtype?: string;
 }
 
 export interface BlackMarketState {
   slots: BlackMarketSlot[];
   /** 供应堆（背面朝上，洗混后的 defId+price 序列） */
-  supply: { defId: string; price: number }[];
+  supply: { defId: string; price: number; subtype?: string }[];
 }
 
 export interface LogEntry {
