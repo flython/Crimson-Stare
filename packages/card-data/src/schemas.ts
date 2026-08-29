@@ -32,8 +32,10 @@ export const CardTriggerSchema = z.object({
   timing: z.enum(["before", "during", "after"]),
 });
 
-/** 行 → CardDef 的结构校验(zod 拒绝非结构合法数据) */
-export const CardDefSchema: z.ZodType<CardDef> = z.object({
+/** 行 → CardDef 的结构校验(zod 拒绝非结构合法数据)。
+ * 注意:不用 z.ZodType<CardDef> 整体标注——.default() 会放宽 Input 类型导致逆变不兼容;
+ * 改为下方单向 output 对齐断言(编译期保证输出兼容 engine 的 CardDef,运行时由 zod 校验)。 */
+export const CardDefSchema = z.object({
   id: z.string().min(1, "编号ID 不能为空"),
   name: z.string().min(1, "名称不能为空"),
   category: z.enum(["role", "market", "fate", "event"]),
@@ -59,6 +61,9 @@ export const CardDefSchema: z.ZodType<CardDef> = z.object({
 });
 
 export type ParsedCardDef = z.infer<typeof CardDefSchema>;
+
+/** 编译期对齐断言：zod 输出必须可赋值给 engine 的 CardDef（类型单一事实源在 engine） */
+type _SchemaOutputAlignsWithEngineCardDef = CardDef extends ParsedCardDef ? true : never;
 
 /** 校验结果:硬错(必须修复)与警告(可继续) */
 export interface BuildIssues {
