@@ -4,9 +4,10 @@ server ↔ web 的通信契约。02 号票据定稿的引擎抽象（`reduce` �
 
 ## 总原则
 
-1. **服务端权威**：客户端只发意图（Action），状态只存在于 server 内存中的引擎实例。
+1. **服务端权威**：客户端只发意图（Action / resolvePrompt），状态只存在于 server 内存中的引擎实例。
 2. **全量快照广播**：每次状态变更后，server 对每个连接调用 `redactState(state, viewerId)` 裁剪私密区，推送**全量**裁剪后快照。不做 diff——内部局快照 <50KB，全量省去一致性难题，断线重连天然复用同一机制。
 3. **可见性执行点**：只在 server 分发层（广播前）裁剪，引擎不感知"谁能看到什么"。
+4. **日志随快照**：`snapshot.state.log` 即结算/宣告日志流（公开信息，全量下发），不单独发 `log` 增量消息——与全量快照原则一致，省去增量同步。
 
 ## 消息类型表
 
@@ -15,23 +16,35 @@ server ↔ web 的通信契约。02 号票据定稿的引擎抽象（`reduce` �
 | type | 载荷 | 说明 |
 |---|---|---|
 | `hello` | `{ name, token? }` | 连接后首条消息。token 缺失则为新身份，server 下发新 token |
-| `createRoom` | `{ config }` | 创建房间，返回 `roomId` + 分享链接 |
+| `createRoom` | `{ mode, config? }` | 创建房间。MVP 仅 `mode:"easy"`（标准/单人返回 `MODE_UNAVAILABLE`）；`config` 可部分覆盖引擎 GameConfig（如 `promptTimeoutSec`） |
 | `joinRoom` | `{ roomId }` | 以当前身份加入房间 |
-| `updateConfig` | `{ config }` | 房主修改开局配置（未开始时） |
 | `startGame` | `{}` | 房主开始游戏 |
-| `action` | `{ action }` | 提交引擎 Action（换牌/出牌/宣告/购买/删除/重整等，形状由 engine `Action` 类型定义） |
-| `ready` | `{}` | 同步型阶段（出牌/宣告）的就绪确认 |
-| `reconnect` | `{ token, roomId }` | 断线后重连，凭 token 恢复座位 |
+| `action` | `{ action }` | 提交引擎 Action（换牌/出牌/购买/删除/重整等，形状由 engine `Action` 类型定义）。`playerId` 由 server 从连接身份注入，客户端不携带 |
+| `resolvePrompt` | `{ choice }` | **交互挂起选择（15 号票据定稿）**：`choice` 为 `string`（choosePlayer）或 `string[]`（chooseCard，牌 id 数组）。`playerId` 同样由 server 从连接推断，映射为引擎 `{ type:"resolvePrompt"; playerId; choice }` Action |
+| `reconnect` | `{ token }` | 断线后重连。与 `hello` 携带 token 等价：server 按 token 恢复身份 → 绑定原座位 → 补发 roomState + 快照 |
+
+> 注：v1 草案中的 `updateConfig`（房主改配置）未实现，MVP 建房时一次性定配置；`ready` 语义由引擎 `ready` Action 承担（`action` 消息）。
 
 ### 服务端 → 客户端
 
 | type | 载荷 | 说明 |
 |---|---|---|
 | `welcome` | `{ playerId, token }` | hello 应答，token 由客户端持久化到 localStorage |
-| `roomState` | `{ room }` | 房间 lobby 状态（成员/配置/座位） |
-| `snapshot` | `{ state, you }` | 全量裁剪快照。`you` 是观察者座位号，客户端据此渲染"我的视角" |
-| `log` | `{ entries }` | 结算/宣告日志流（公开信息，不裁剪） |
-| `error` | `{ code, message }` | Action 非法 / 未轮到你 / 房间不存在等 |
+| `roomState` | `{ room }` | 房间 lobby 状态（成员/配置/座位/开始与结束标记），成员进出/开局时全房间广播 |
+| `snapshot` | `{ state, you }` | 全量裁剪快照。`you` 是观察者座位号（playerId），客户端据此渲染"我的视角"；`state` 为 `redactState(state, you)` 输出，含 `pendingPrompt`（目标玩家见完整候选，他人见 `{ kind, waitingFor, promptText }`）与 `log` |
+| `error` | `{ code, message }` | Action 非法 / 未轮到你 / 房间不存在等。错误码见下表 |
+
+### 错误码
+
+| code | 含义 |
+|---|---|
+| `BAD_JSON` / `UNKNOWN_TYPE` | 消息格式非法 |
+| `NEED_HELLO` | 连接后未先 `hello` |
+| `ROOM_NOT_FOUND` / `ROOM_FULL` / `ALREADY_IN_ROOM` / `ALREADY_STARTED` / `NOT_IN_ROOM` | 房间状态不匹配 |
+| `NOT_OWNER` | 仅房主可开始游戏 |
+| `MODE_UNAVAILABLE` | 标准/单人模式未开放 |
+| `GAME_NOT_STARTED` / `NO_PROMPT` / `NOT_YOUR_TURN` | 对局阶段不匹配（含 pendingPrompt 只接受目标玩家） |
+| `BAD_ACTION` | 引擎 `reduce` 拒绝（如非法牌型、血筹不足、非当前阶段） |
 
 ## 时序
 
@@ -44,37 +57,50 @@ client A          server                       client B
    │                │ 校验失败 ──▶ error(仅A)       │
    │                │ 成功 ──▶ snapshot(redact,A)   │
    │◀── snapshot ────│── snapshot(redact,B) ───────▶│
-   │◀── log ────────│── log ──────────────────────▶│
+```
+
+### 交互挂起（resolvePrompt）
+
+```
+client A          server                       client B
+   │ action:purchase ──▶│                              │
+   │                │ 效果 run 写入 pendingPrompt      │
+   │◀── snapshot(含完整候选) ── snapshot(仅 waitingFor) ─▶│
+   │ resolvePrompt ─▶│ 校验目标玩家 → resolve 两段式    │
+   │◀── snapshot ────│── snapshot ────────────────────▶│
+   │ 超时未选择       │ promptTimeoutSec 后 engine      │
+   │                  │ autoResolve 自动 resolve       │
 ```
 
 ### 断线重连
 
 ```
 client (重连)      server
-   │ hello(name) ──▶│ 新连接，返回 welcome+新token（旧token仍在座位表）
-   │ reconnect ────▶│ 校验 token → 命中座位
-   │◀── snapshot ───│ 全量恢复（含托管状态标记）
+   │ hello(name, token) ▶│ 身份恢复 → 命中原座位
+   │◀── welcome ─────────│
+   │◀── roomState ───────│（若仍在房间）
+   │◀── snapshot ────────│ 全量恢复（含托管状态标记）
 ```
 
-- token 校验失败：座位保留但视为离线，进入托管。
+- token 校验失败（token 不存在）：视为新身份。
 - 房间不存在/已结束：error，回到大厅。
 
-## 托管规则（已确认）
+## 托管规则（15 号票据落地）
 
 | 触发 | 行为 |
 |---|---|
-| 连接断开 | 立即进入托管 |
-| 在线但超时 | 阻塞型阶段（出牌/宣告/确认选择）超时 **120s**（全局配置 `config/game-config.json`，不做每房配置）自动托管 |
-
-托管执行 = **最小操作原则**：不换牌（阶段结束自动兑换血筹）、出系统判定的最大牌型（不发动可选技能/芯片）、不购买、不删牌、重整选获得 2 血筹。重连接管后托管自动解除，未执行的选择重新交还玩家。
+| 交互挂起超时 | pendingPrompt 超过 `config.promptTimeoutSec`（默认 60s）后，server 调引擎 `autoResolve(state)` 取默认选择并自动发 resolvePrompt（`timeoutPolicy:"auto"`；`"strict"` 不托管，可能卡死留人工介入） |
+| 连接断开且正被等待选择 | 立即 autoResolve 托管，避免挂起卡死整局 |
+| 连接断开的其他阶段 | 离线玩家未 `phaseReady` 超过 `config.autoPassTimeoutSec`（默认 120s）后提交该阶段默认 Action（最小操作原则：不换牌/出系统判定最优 5 张/不购买/不删牌/重整取 2 血筹） |
+| 重连 | 座位恢复在线，托管定时器取消；未执行的选择重新交还玩家 |
 
 ## 房间生命周期（已确认）
 
 ```
 创建(内存) → 配置/加入 → 开始 → 对局 → 有人达标 = 结束
-                                    └─▶ 写 SQLite 局摘要后房间销毁
+                                    └─▶ 广播终局快照（房间保留供查看）
 ```
 
-- 房间**只存内存**；**仅游戏结束时写一局摘要**进 SQLite（胜负/各回合结算/时长），不做逐 Action 回放。
+- 房间**只存内存**；**仅游戏结束时写一局摘要**进 SQLite（胜负/各回合结算/时长），不做逐 Action 回放。**（15 号遗留：SQLite 摘要未实现，优先跑通 WS 链路；终局以 `snapshot.state.finished + winners` 通知客户端）**
 - 中途关服 = 丢局，内部可接受（已确认）。
-- server 启动时建表 `game_records(id, mode, player_count, started_at, ended_at, winner, summary_json)`。
+- server 启动时建表 `game_records(id, mode, player_count, started_at, ended_at, winner, summary_json)`（表结构预留，未落库）。
