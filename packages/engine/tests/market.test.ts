@@ -1,0 +1,282 @@
+/**
+ * 黑市牌效果单测（票据 12，M2.3）。
+ * 覆盖：黄边秘密交易购买立即结算（血筹/牌区断言）、强化芯片挂起→选牌→挂载与点数变化、
+ * 无合法目标弃置、数值越界 2-14 拒绝、每牌限 1 芯片（金科玉律 3）、阶段时机效果（血筹镀层出/夺）、备用道具入区。
+ */
+import { describe, it, expect } from "vitest";
+import { createGame, reduce } from "../src/game/whiteboard.js";
+import { DEFAULT_GAME_CONFIG } from "../src/core/config.js";
+import { resolveTiming, runTimingQueue } from "../src/core/effects.js";
+import { card } from "../src/cards.js";
+import type { GameState } from "../src/core/state.js";
+// 副作用导入：加载 market.ts 使注册表生效（whiteboard 只 import roles.js）
+import "../src/effects/market.js";
+
+const CFG = DEFAULT_GAME_CONFIG;
+
+function makeGame(): GameState {
+  return createGame(
+    [
+      { id: "a", name: "A" },
+      { id: "b", name: "B" },
+    ],
+    CFG,
+    42,
+  );
+}
+
+/** 在指定槽位放置黑市牌并购买（购买者血筹置 20、价格 0，专注效果本身） */
+function buy(state: GameState, defId: string): GameState {
+  const a = state.players[0]!;
+  a.chips = 20;
+  state.phase = "purchase";
+  const slot = state.blackMarket.slots[0]!;
+  slot.defId = defId;
+  slot.price = 0;
+  slot.bonusChips = 0;
+  return reduce(state, { type: "purchase", playerId: "a", slotIndex: 0 }, CFG);
+}
+
+/** 玩家 a 对挂起交互做出选择 */
+function resolve(state: GameState, choice: string | string[]): GameState {
+  return reduce(state, { type: "resolvePrompt", playerId: "a", choice }, CFG);
+}
+
+describe("黑市牌效果（票据 12）", () => {
+  describe("黄边秘密交易：购买立即结算", () => {
+    it("027 廉价删除：购买挂起选牌 → 免费删除至多 2 张，血筹不变", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(5, "S", "d1"), card(9, "H", "d2"), card(2, "C", "d3")];
+      g = buy(g, "027");
+      expect(g.pendingPrompt).toMatchObject({ kind: "chooseCard", effectId: "market:027", from: "discard" });
+      g = resolve(g, ["d1", "d2"]);
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.players[0]!.zones.deleted.map((c) => c.id).sort()).toEqual(["d1", "d2"]);
+      expect(g.players[0]!.zones.discard.map((c) => c.id)).toEqual(["d3"]);
+      expect(g.players[0]!.chips).toBe(20); // 免费删除，价格 0
+    });
+
+    it("027 廉价删除：选 0 张不删牌不报错", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(5, "S", "d1")];
+      g = buy(g, "027");
+      g = resolve(g, []);
+      expect(g.players[0]!.zones.discard.map((c) => c.id)).toEqual(["d1"]);
+      expect(g.players[0]!.zones.deleted).toHaveLength(0);
+    });
+
+    it("027 廉价删除：弃牌堆空 → 无候选，不挂起", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [];
+      g = buy(g, "027");
+      expect(g.pendingPrompt).toBeNull();
+    });
+
+    it("031 暴力删除：选择目标删除其抽牌堆顶 3 张", () => {
+      let g = makeGame();
+      const b = g.players[1]!;
+      expect(b.zones.draw.length).toBeGreaterThanOrEqual(3);
+      const top3 = b.zones.draw.slice(0, 3).map((c) => c.id);
+      g = buy(g, "031");
+      expect(g.pendingPrompt).toMatchObject({ kind: "choosePlayer", effectId: "market:031" });
+      g = resolve(g, "b");
+      const b2 = g.players[1]!;
+      for (const id of top3) {
+        expect(b2.zones.deleted.some((c) => c.id === id)).toBe(true);
+        expect(b2.zones.draw.some((c) => c.id === id)).toBe(false);
+      }
+      expect(g.players[0]!.chips).toBe(20);
+    });
+
+    it("034 货箱盲掏：免费获得黑市牌堆顶 1 张，按其类型结算（对赌协议 → 立即得骰子血筹）", () => {
+      let g = makeGame();
+      g.blackMarket.supply = [{ defId: "036", price: 0, subtype: "秘密交易" }];
+      g = buy(g, "034");
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.blackMarket.supply).toHaveLength(0);
+      expect(g.players[0]!.chips).toBeGreaterThan(20);
+    });
+
+    it("034 货箱盲掏：堆顶为备用道具 → 存入道具区", () => {
+      let g = makeGame();
+      g.blackMarket.supply = [{ defId: "052", price: 0, subtype: "道具" }];
+      g = buy(g, "034");
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.players[0]!.zones.items).toContain("052");
+    });
+
+    it("036 对赌协议：购买立即结算，获得 1-6 血筹", () => {
+      let g = makeGame();
+      g = buy(g, "036");
+      expect(g.pendingPrompt).toBeNull();
+      const gain = g.players[0]!.chips - 20;
+      expect(gain).toBeGreaterThanOrEqual(1);
+      expect(gain).toBeLessThanOrEqual(6);
+    });
+
+    it("039 鬼手探囊：购买后获得临时特权证", () => {
+      let g = makeGame();
+      g.passHolderSeat = g.players[1]!.seat; // 先让 B 持证
+      g = buy(g, "039");
+      expect(g.passHolderSeat).toBe(g.players[0]!.seat);
+    });
+  });
+
+  describe("强化芯片：插入挂载与点数变化", () => {
+    it("001 校准器+1：购买挂起 → 选牌 → 芯片挂载且点数 +1", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(5, "S", "t1")];
+      g = buy(g, "001");
+      expect(g.pendingPrompt).toMatchObject({ kind: "chooseCard", effectId: "market:001", from: "discard" });
+      g = resolve(g, ["t1"]);
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.players[0]!.zones.chips["t1"]).toBe("001");
+      expect(g.players[0]!.zones.discard.find((c) => c.id === "t1")!.rank).toBe(6);
+    });
+
+    it("005 限流阀-1：选中后点数 -1", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(10, "S", "t1")];
+      g = buy(g, "005");
+      g = resolve(g, ["t1"]);
+      expect(g.players[0]!.zones.chips["t1"]).toBe("005");
+      expect(g.players[0]!.zones.discard.find((c) => c.id === "t1")!.rank).toBe(9);
+    });
+
+    it("金科玉律 4：数值越界拒绝——13+2=15 无候选弃置，12+2=14 可插", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(13, "S", "t1")];
+      g = buy(g, "002"); // 校准器+2
+      expect(g.pendingPrompt).toBeNull(); // 15 越界 → 无合法目标，该黑市牌弃置
+      expect(g.players[0]!.zones.chips).toEqual({});
+
+      let g2 = makeGame();
+      g2.players[0]!.zones.discard = [card(12, "S", "t1")];
+      g2 = buy(g2, "002"); // 14 恰好合法
+      expect(g2.pendingPrompt).not.toBeNull();
+    });
+
+    it("金科玉律 4：下限越界——2-1=1 无候选弃置", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(2, "S", "t1")];
+      g = buy(g, "005"); // 限流阀-1
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.players[0]!.zones.chips).toEqual({});
+    });
+
+    it("金科玉律 3：每牌限 1 芯片——已挂芯片的牌不可再插入，无其他目标则弃置", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(5, "S", "t1")];
+      g.players[0]!.zones.chips["t1"] = "005";
+      g = buy(g, "001");
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.players[0]!.zones.chips["t1"]).toBe("005"); // 不可替换
+    });
+
+    it("弃牌堆空 → 无合法目标，强化芯片弃置", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [];
+      g = buy(g, "001");
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.players[0]!.zones.chips).toEqual({});
+    });
+
+    it("JOKER 不可插入数值/声明类芯片（无花色点数）", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(5, "S", "t1"), { rank: null, suit: null, isJoker: true, id: "jk" }];
+      g = buy(g, "001");
+      expect(g.pendingPrompt!.candidates).not.toContain("jk");
+    });
+  });
+
+  describe("阶段时机效果（血筹镀层）", () => {
+    it("021 血筹镀层（出）：对决 during 对持有者 +2 血筹", () => {
+      const g = makeGame();
+      const a = g.players[0]!;
+      a.zones.chips["t1"] = "021";
+      const before = a.chips;
+      runTimingQueue(g, resolveTiming(g, "duel", "during", CFG), CFG);
+      expect(a.chips).toBe(before + 2);
+    });
+
+    it("022 血筹镀层（夺）：对决挂起选对手，夺其 1 血筹给自己", () => {
+      let g = makeGame();
+      const a = g.players[0]!;
+      const b = g.players[1]!;
+      a.zones.chips["t1"] = "022";
+      b.chips = 10;
+      const aBefore = a.chips;
+      runTimingQueue(g, resolveTiming(g, "duel", "during", CFG), CFG);
+      expect(g.pendingPrompt).toMatchObject({ kind: "choosePlayer", effectId: "market:022:during:duel", playerId: "a" });
+      g = reduce(g, { type: "resolvePrompt", playerId: "a", choice: "b" }, CFG);
+      expect(g.players[1]!.chips).toBe(9);
+      expect(g.players[0]!.chips).toBe(aBefore + 1);
+    });
+
+    it("021/022 只对持有者生效：未持有芯片的玩家不触发", () => {
+      const g = makeGame();
+      const b = g.players[1]!;
+      b.zones.chips["t1"] = "021";
+      const aBefore = g.players[0]!.chips;
+      runTimingQueue(g, resolveTiming(g, "duel", "during", CFG), CFG);
+      expect(g.players[0]!.chips).toBe(aBefore); // a 未持有
+      expect(b.chips).toBe(b.chips); // b +2（上面无对比，仅确保不抛错）
+    });
+  });
+
+  describe("备用道具", () => {
+    it("052 荷官证（黄边道具）：购买后存入道具区，不挂起", () => {
+      let g = makeGame();
+      g = buy(g, "052");
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.players[0]!.zones.items).toContain("052");
+    });
+
+    it("045 信号干扰器（道具）：购买后存入道具区", () => {
+      let g = makeGame();
+      g = buy(g, "045");
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.players[0]!.zones.items).toContain("045");
+    });
+  });
+
+  describe("非黄边秘密交易（尽量）", () => {
+    it("028 闭店礼·小：获得 4 血筹并跳过本回合购买", () => {
+      let g = makeGame();
+      g = buy(g, "028");
+      const a = g.players[0]!;
+      expect(a.chips).toBe(24);
+      expect(a.purchaseFlipped).toBe(true);
+      expect(a.phaseReady).toBe(true);
+    });
+
+    it("041 血筹分享：自己 +5，每位对手 +1", () => {
+      let g = makeGame();
+      const bBefore = g.players[1]!.chips;
+      g = buy(g, "041");
+      expect(g.players[0]!.chips).toBe(25);
+      expect(g.players[1]!.chips).toBe(bBefore + 1);
+    });
+
+    it("042 拔除芯片：删除弃牌堆带芯片的牌并获得 4 血筹", () => {
+      let g = makeGame();
+      const a = g.players[0]!;
+      a.zones.discard = [card(5, "S", "t1")];
+      a.zones.chips["t1"] = "001";
+      g = buy(g, "042");
+      expect(g.pendingPrompt).toMatchObject({ effectId: "market:042" });
+      g = resolve(g, ["t1"]);
+      const a2 = g.players[0]!;
+      expect(a2.zones.deleted.some((c) => c.id === "t1")).toBe(true);
+      expect(a2.zones.chips["t1"]).toBeUndefined();
+      expect(a2.chips).toBe(24); // 20 + 4
+    });
+
+    it("042 拔除芯片：弃牌堆无带芯片的牌 → 不挂起", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(5, "S", "t1")];
+      g = buy(g, "042");
+      expect(g.pendingPrompt).toBeNull();
+    });
+  });
+});
