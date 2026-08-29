@@ -18,6 +18,8 @@ spec.md（`.scratch/game-web-mvp/spec.md`）全部 user stories 达成：内部�
 ## Decisions so far
 
 - [Grilling 定稿设计共识](../spec.md)：MVP 范围（标准局2-4人/简易/单人，排除捣蛋鬼、组队、暗藏杀机、事件牌）、TS monorepo 三包、服务端权威、效果硬编码注册表、奖励表配置化、无账号昵称进房、托管最小操作原则、暗色 UI 三基色。
+- [01 - 初始化 monorepo 工程骨架](issues/01-monorepo工程骨架.md)：npm workspaces（不引 turborepo/pnpm），engine/server/web 三包就绪，根级 build/test/lint/dev 脚本，web 开发期 alias 直引 engine 源码。
+- [03 - 牌型判定与 JOKER 求解器](issues/03-牌型判定与JOKER求解器.md)：15 级牌型枚举按规则书排序；>5 张枚举 5 张子集+整组判六/七条家族；JOKER 逐张枚举赋值取 (牌型,点数) 字典序最优；规则书示例用例通过。
 
 ## Not yet specified
 
