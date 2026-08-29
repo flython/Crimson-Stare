@@ -3,3 +3,6 @@ dist/
 *.log
 .env
 .workbuddy/memory/
+
+# TypeScript 增量构建缓存
+*.tsbuildinfo

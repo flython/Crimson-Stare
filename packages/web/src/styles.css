@@ -519,3 +519,333 @@ button:disabled {
     font-size: 32px;
   }
 }
+
+/* 票据 15 — 大厅 / 牌桌联调基础样式（与 14 号暗色三基色同源） */
+.lobby,
+.conn-form {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 24px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.lobby-title {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 20px;
+}
+
+.lobby-mode {
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+}
+
+.lobby-sub {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.lobby-actions {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.lobby-join {
+  display: flex;
+  gap: 8px;
+}
+
+.text-input {
+  flex: 1;
+  padding: 8px 10px;
+  color: var(--text);
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  outline: none;
+}
+
+.text-input:focus {
+  border-color: var(--gold);
+}
+
+.conn-form .text-input {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.btn {
+  padding: 8px 14px;
+  color: var(--text);
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--gold);
+}
+
+.btn.gold {
+  color: #3a2305;
+  background: var(--gold);
+  border-color: var(--gold);
+  font-weight: 600;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.lobby-players {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+}
+
+.lobby-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: var(--panel2);
+  border-radius: 6px;
+}
+
+.lobby-player.offline {
+  opacity: 0.55;
+}
+
+.lobby-offline {
+  margin-left: auto;
+  color: var(--blood);
+  font-size: 12px;
+}
+
+.lobby-note {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.table-root {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.table-phase-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.phase-tag {
+  padding: 4px 10px;
+  color: var(--gold);
+  background: var(--panel2);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.table-supply {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.players-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.player-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--text);
+  background: var(--back);
+  border-radius: 50%;
+  font-size: 14px;
+}
+
+.opt-name {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.opt-sub {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.section {
+  margin-bottom: 14px;
+}
+
+.section-title {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.slot-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.slot-card {
+  width: 104px;
+  padding: 10px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.slot-card:hover {
+  border-color: var(--gold);
+}
+
+.slot-price {
+  display: block;
+  margin-top: 6px;
+  color: var(--gold);
+  font-size: 13px;
+}
+
+.card-grid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.card-mini {
+  width: 72px;
+  min-height: 96px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.card-mini.selected {
+  outline: 3px solid var(--gold);
+  transform: translateY(-4px);
+}
+
+.card-mini .joker-text {
+  color: var(--blood);
+  font-weight: 700;
+}
+
+.suit.red {
+  color: var(--blood);
+}
+
+.rank.red {
+  color: var(--blood);
+}
+
+.zone-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.zone-chip {
+  padding: 4px 10px;
+  color: var(--muted);
+  background: var(--panel2);
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.pending-banner {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  color: var(--gold);
+  background: var(--panel);
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.pending-choices {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.log-box {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.log-entry {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.log-entry .turn-tag {
+  color: var(--gold);
+}
+
+.app-error {
+  margin: 16px auto;
+  max-width: 560px;
+  padding: 12px;
+  color: #ffd9da;
+  background: var(--back);
+  border: 1px solid var(--blood);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.app-error .btn {
+  margin-left: 12px;
+}

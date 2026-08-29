@@ -29,6 +29,6 @@ export function startServer(opts: { port?: number } = {}): { wss: WebSocketServe
 }
 
 // 直接作为入口运行时启动（被测试 import 时不启动，测试自行构造）
-if (import.meta.url === new URL(process.argv[1] ?? "", import.meta.url).href) {
+if (process.argv[1] && import.meta.url === new URL(process.argv[1], import.meta.url).href) {
   startServer();
 }

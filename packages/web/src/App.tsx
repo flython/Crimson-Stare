@@ -1,5 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ENGINE_VERSION } from "@crimson/engine";
+import type { RoomView, SnapState } from "./lib/ws.js";
+import { GameClient, defaultWsUrl } from "./lib/ws.js";
+import Lobby from "./components/Lobby.js";
+import Table from "./components/Table.js";
 
 type Mode = "easy" | "standard" | "solo";
 
@@ -12,7 +16,9 @@ interface ModeEntry {
   available: boolean;
 }
 
-/** 模式选择。当前无大厅/建房 UI（WS 联调在 15 号票据），此处为占位入口。 */
+const TOKEN_KEY = "crimson.stare.token";
+
+/** 模式选择。简易模式已接入 15 号票据联调链路，其余灰显。 */
 const MODES: ModeEntry[] = [
   {
     id: "easy",
@@ -37,39 +43,154 @@ const MODES: ModeEntry[] = [
   },
 ];
 
+type Stage = "mode" | "conn" | "lobby" | "table";
+
 export default function App() {
   const [mode, setMode] = useState<Mode | null>(null);
+  const [stage, setStage] = useState<Stage>("mode");
+  const [name, setName] = useState("");
+  const [wsUrl, setWsUrl] = useState("");
+  const [room, setRoom] = useState<RoomView | null>(null);
+  const [snap, setSnap] = useState<SnapState | null>(null);
+  const [you, setYou] = useState("");
+  const [error, setError] = useState("");
+  const clientRef = useRef<GameClient | null>(null);
+
+  useEffect(() => {
+    return () => clientRef.current?.close();
+  }, []);
+
+  function connect() {
+    if (!name.trim()) {
+      setError("请输入昵称");
+      return;
+    }
+    setError("");
+    const client = new GameClient({
+      url: wsUrl.trim() || defaultWsUrl(),
+      name: name.trim(),
+      token: localStorage.getItem(TOKEN_KEY) ?? undefined,
+      onMessage: (msg) => {
+        switch (msg.type) {
+          case "welcome":
+            localStorage.setItem(TOKEN_KEY, msg.token);
+            break;
+          case "roomState":
+            setRoom(msg.room);
+            setStage(msg.room.started ? "table" : "lobby");
+            break;
+          case "snapshot":
+            setSnap(msg.state);
+            setYou(msg.you);
+            setStage("table");
+            break;
+          case "error":
+            setError(msg.message);
+            break;
+        }
+      },
+      onClose: () => setError("连接已断开"),
+    });
+    clientRef.current = client;
+    client.connect().then(
+      () => setStage("lobby"),
+      (e: Error) => setError(e.message),
+    );
+  }
+
+  function send(msg: unknown) {
+    clientRef.current?.send(msg);
+  }
+
+  function onAction(action: Record<string, unknown>) {
+    clientRef.current?.sendAction(action);
+  }
+
+  function onResolve(choice: string | string[]) {
+    clientRef.current?.sendResolvePrompt(choice);
+  }
 
   return (
     <div className="app-root">
       <h1 className="app-title">血色牌局</h1>
-      <p className="app-sub">归乡特快 · 发车准备中（engine v{ENGINE_VERSION}）</p>
-      <div className="mode-select">
-        {MODES.map((m) =>
-          m.available ? (
-            <button
-              key={m.id}
-              type="button"
-              className="mode-card available"
-              onClick={() => setMode(m.id)}
-            >
-              <span className="mode-name">{m.name}</span>
-              <span className="mode-tag">{m.tag}</span>
-              <span className="mode-desc">{m.desc}</span>
-              {mode === m.id ? <span className="mode-picked">✓ 已选择</span> : null}
+      <p className="app-sub">归乡特快 · 简易模式在线对局（engine v{ENGINE_VERSION}）</p>
+
+      {stage === "mode" ? (
+        <div className="mode-select">
+          {MODES.map((m) =>
+            m.available ? (
+              <button
+                key={m.id}
+                type="button"
+                className="mode-card available"
+                onClick={() => {
+                  setMode(m.id);
+                  setStage("conn");
+                }}
+              >
+                <span className="mode-name">{m.name}</span>
+                <span className="mode-tag">{m.tag}</span>
+                <span className="mode-desc">{m.desc}</span>
+              </button>
+            ) : (
+              <div key={m.id} className="mode-card disabled" aria-disabled="true">
+                <span className="mode-name">{m.name}</span>
+                <span className="coming-soon">{m.tag}</span>
+                <span className="mode-desc">{m.desc}</span>
+              </div>
+            ),
+          )}
+        </div>
+      ) : null}
+
+      {stage === "conn" && mode === "easy" ? (
+        <div className="conn-form">
+          <h2 className="lobby-title">连接对局服务器</h2>
+          <input
+            className="text-input"
+            placeholder="昵称"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            className="text-input"
+            placeholder={`服务器地址（默认 ${defaultWsUrl()}）`}
+            value={wsUrl}
+            onChange={(e) => setWsUrl(e.target.value)}
+          />
+          <div className="lobby-actions">
+            <button type="button" className="btn gold" onClick={connect}>
+              连接
             </button>
-          ) : (
-            <div key={m.id} className="mode-card disabled" aria-disabled="true">
-              <span className="mode-name">{m.name}</span>
-              <span className="coming-soon">{m.tag}</span>
-              <span className="mode-desc">{m.desc}</span>
-            </div>
-          ),
-        )}
-      </div>
-      {mode === "easy" ? (
-        <p className="app-note">
-          已选择「简易模式」。建房 / 大厅流程待 15 号票据（WebSocket 联调）接入后可用。
+          </div>
+        </div>
+      ) : null}
+
+      {stage === "lobby" ? (
+        <Lobby
+          room={room}
+          myPlayerId={clientRef.current?.playerId ?? ""}
+          onCreate={() => send({ type: "createRoom", mode: "easy" })}
+          onJoin={(roomId) => send({ type: "joinRoom", roomId })}
+          onStart={() => send({ type: "startGame" })}
+        />
+      ) : null}
+
+      {stage === "table" && snap ? <Table snap={snap} you={you} onAction={onAction} onResolve={onResolve} /> : null}
+
+      {error ? (
+        <p className="app-error">
+          错误：{error}
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setError("");
+              setStage("mode");
+            }}
+          >
+            返回
+          </button>
         </p>
       ) : null}
     </div>
