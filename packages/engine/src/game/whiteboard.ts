@@ -12,10 +12,10 @@ import type { Card } from "../cards.js";
 import { card, joker, SUITS } from "../cards.js";
 import type { GameConfig } from "../core/config.js";
 import type { GameState, PlayerState, PhaseId } from "../core/state.js";
-import { PHASE_ORDER } from "../core/state.js";
-import { nextInt, shuffle } from "../core/rng.js";
+import { shuffle } from "../core/rng.js";
 import { evaluateHand, compareHands } from "../hand-evaluator.js";
-import { resolveTiming, runTimingQueue } from "../core/effects.js";
+import { resolveTiming, runTimingQueue, getEffect } from "../core/effects.js";
+import { validateChoice } from "../effects/interactive.js";
 
 export type Action =
   | { type: "swap"; playerId: string; discardIds: string[] }
@@ -25,7 +25,8 @@ export type Action =
   | { type: "skipPurchase"; playerId: string }
   | { type: "deleteCards"; playerId: string; cardIds: string[] }
   | { type: "ready"; playerId: string }
-  | { type: "reshape"; playerId: string; reshuffle: boolean };
+  | { type: "reshape"; playerId: string; reshuffle: boolean }
+  | { type: "resolvePrompt"; playerId: string; choice: string | string[] };
 
 /** 一副 54 张标准扑克（2-14 × 4 花色 + 双王） */
 function buildDeck(playerIdx: number): Card[] {
@@ -219,6 +220,7 @@ export function createGame(
       supply: [],
     },
     eventCardId: null,
+    pendingPrompt: null,
     rngState: seed,
     log: [],
     finished: false,
@@ -251,11 +253,32 @@ export function createGame(
   return state;
 }
 
+/** 处理 resolvePrompt：校验选择 → 调效果 resolve → 清挂起 */
+function resolvePrompt(state: GameState, action: Extract<Action, { type: "resolvePrompt" }>, config: GameConfig): void {
+  const prompt = state.pendingPrompt;
+  if (!prompt) throw new Error("当前没有待决交互");
+  if (prompt.playerId !== action.playerId) throw new Error("等待其他玩家选择");
+  const def = getEffect(prompt.effectId);
+  if (!def?.resolve) throw new Error(`效果 ${prompt.effectId} 无 resolve 实现`);
+  validateChoice(prompt, action.choice);
+  def.resolve(state, { config, playerId: prompt.playerId, effectId: prompt.effectId }, action.choice);
+  log(state, `${state.players.find((p) => p.id === prompt.playerId)?.name ?? prompt.playerId} 完成交互选择`);
+  state.pendingPrompt = null;
+}
+
 /** 纯函数 reducer：输入当前 state 与 Action，返回全新 state */
 export function reduce(state: GameState, action: Action, config: GameConfig): GameState {
   if (state.finished) throw new Error("游戏已结束");
   const next: GameState = structuredClone(state);
   const p = findPlayer(next, action.playerId);
+
+  // 交互挂起门禁：pendingPrompt 非空时只接受目标玩家的 resolvePrompt
+  if (next.pendingPrompt) {
+    if (action.type !== "resolvePrompt") throw new Error("有待决交互，请先完成选择");
+    resolvePrompt(next, action, config);
+    return next;
+  }
+
   const seatIdx = p.seat;
 
   switch (action.type) {
@@ -360,6 +383,10 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       p.phaseReady = true;
       if (allReady(next)) endTurn(next, config);
       break;
+    }
+    case "resolvePrompt": {
+      // 理论不可达：挂起门禁已在 reduce 入口处理；防御性拒绝
+      throw new Error("当前没有待决交互");
     }
     default: {
       const exhaustive: never = action;

@@ -25,14 +25,17 @@ spec.md（`.scratch/game-web-mvp/spec.md`）全部 user stories 达成：内部�
 - [05 - 牌桌 UI 交互原型](issues/05-牌桌UI交互原型.md)（飞飞已拍板 v4 为基线）：可点击假数据原型 `prototypes/table-ui.html`；实体牌桌四向布局、个人操作台两行结构、程序控制阶段推进（endPhase + 全员结束标记 + 转场动画）、宣告三步面板、芯片插入弹窗、max-height 560px 横屏手机断点、头像点击看技能；结论整合进 spec.md「UI 与交互决策」节，实装以 spec 为准。
 - [04 - WebSocket 协议](issues/04-WebSocket协议与重连托管.md)：契约文档 `docs/protocol.md`；全量快照广播（redact 后）不做 diff；掉线立即/超时120s托管，最小操作原则；房间仅内存、终局写 SQLite 摘要。
 - [06 - 卡牌数据管道](issues/06-卡牌JSON模板与数据管道.md)：交付格式=Excel，模板 `config/card-pool-template.xlsx`（列可扩展，脚本按列名识别）；图片约定 `assets/cards/<牌类>/<ID>.png` + 占位回退；转换脚本待首批填好的模板回来后编写。
+- [08 - 卡池数据管道落地](issues/08-卡池数据管道落地.md)：转换脚本 `packages/card-data/`（SheetJS+zod，`cards:build`/`cards:check`）+ 产物 `config/cards/*.json`（21/52/15/36）+ server 启动 `loadCardPool()` 注入；结构层+业务层双层校验。
+- [09 - 效果原语库](issues/09-效果原语库.md)：`effects/primitives.ts` 17 个原语（gainChips/addPermanentRank/deleteCards/placeholderEffect 等）；PlayerState 加 skillDisabled/chipsDisabled/handLimitBonus/duelPointsBonus/swapBonus；EffectContext 加 effectId。
+- [13 - 交互机制（效果挂起）](issues/13-交互机制效果挂起.md)：`GameState.pendingPrompt` + `resolvePrompt` Action + `EffectDef.resolve` 两段式效果；挂起门禁（只接受目标玩家）；validateChoice 校验；autoResolve 超时托管（promptTimeoutSec/timeoutPolicy 入 GameConfig）；redact 裁剪（目标玩家见候选，他人见 waitingFor）。server WS 接线留 15。
 
 ## Not yet specified
 
-- 首批牌池（简易模式 4 角色 + 黄边黑市牌）文本到手后的效果函数实现排期与拆分。
-- 单人模式实现细节决策：命运牌库洗切时机、荷官托管出牌的交互呈现、Mortis 重掷流程的状态机表达——依赖引擎抽象定型与卡牌管道。
-- SQLite 存档 schema（牌局记录/复盘数据结构）——协议已定"仅终局摘要"，具体表结构在实现 server 持久化时定。
+- 单人模式实现细节决策：命运牌库洗切时机、荷官托管出牌的交互呈现、Mortis 重掷流程的状态机表达——依赖引擎抽象定型与卡牌管道（M3，先不急）。
 - 内测反馈循环：内部游玩后的数值平衡调整流程（奖励表配置热更新？）。
 - 牌桌动效与音效打磨范围。
+
+> M2 剩余执行已票据化（open, ready-for-agent）：[10 - M2 卡牌逻辑与数据管道 spec](issues/10-M2卡牌逻辑与数据管道spec.md) 为执行蓝本；[11 - 角色牌效果注册](issues/11-角色牌效果注册.md)、[12 - 黑市牌效果注册](issues/12-黑市牌效果注册.md)、[13 - 交互机制（效果挂起）](issues/13-交互机制效果挂起.md)、[14 - UI 交互组件](issues/14-UI交互组件.md)、[15 - 简易模式 web 端联调](issues/15-简易模式web联调.md)。当前 frontier = 11, 12, 14（13 已 resolved，解除其阻塞；按编号序 11 优先）。
 
 ## Out of scope
 

@@ -2,9 +2,10 @@
  * 票据 02 — 状态裁剪（私密信息可见性）。
  * 服务端按 WebSocket 连接逐个调用后下发；引擎 state 本体永远全量保存在服务端。
  * 金科玉律 1/2：手牌/弃牌区/删牌区/抽牌堆对他人不可见。
+ * M2.4：pendingPrompt 的 chooseCard 候选牌 id 是私密的，只对目标玩家展开，其余人只见提示。
  */
 import type { Card } from "../cards.js";
-import type { GameState, PlayerZones } from "./state.js";
+import type { GameState, PendingPrompt, PlayerZones } from "./state.js";
 
 export type ZoneDigest = { count: number } | { cards: Card[] };
 
@@ -23,6 +24,18 @@ function digestZones(z: PlayerZones, isSelf: boolean) {
     chips: z.chips,
     items: z.items,
   };
+}
+
+/** 待决交互裁剪：目标玩家见完整候选，其余人只见"等待 X 选择" */
+function redactPrompt(prompt: PendingPrompt, viewerId: string): object | null {
+  if (prompt.playerId !== viewerId) {
+    return {
+      kind: prompt.kind,
+      waitingFor: prompt.playerId,
+      promptText: prompt.promptText,
+    };
+  }
+  return prompt; // 目标玩家：完整（含 candidates）
 }
 
 export function redactState(state: GameState, viewerId: string): object {
@@ -50,6 +63,7 @@ export function redactState(state: GameState, viewerId: string): object {
       supplyCount: state.blackMarket.supply.length,
     },
     eventCardId: state.eventCardId,
+    pendingPrompt: state.pendingPrompt ? redactPrompt(state.pendingPrompt, viewerId) : null,
     log: state.log,
     finished: state.finished,
     winners: state.winners,

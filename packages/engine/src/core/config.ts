@@ -27,6 +27,10 @@ export interface GameConfig {
   blackMarketBonusSlots: number[];
   blackMarketBonusChips: number;
   autoPassTimeoutSec: number;
+  /** 交互 prompt 超时（M2.4）：超过后按 timeoutPolicy 处理 */
+  promptTimeoutSec: number;
+  /** "auto"=超时自动默认选择（choosePlayer 随机/chooseCard 不选）；"strict"=永不自动（可能卡死，人工介入） */
+  timeoutPolicy: "auto" | "strict";
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
@@ -59,4 +63,6 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   blackMarketBonusSlots: [4, 5],
   blackMarketBonusChips: 1,
   autoPassTimeoutSec: 120,
+  promptTimeoutSec: 60,
+  timeoutPolicy: "auto",
 };

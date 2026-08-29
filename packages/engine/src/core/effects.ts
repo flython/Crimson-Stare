@@ -30,16 +30,25 @@ export interface EffectContext {
   config: GameConfig;
   /** 触发该效果的玩家（规则书类效果为 null） */
   playerId: string | null;
+  /** 当前执行的效果 id（日志定位 / 交互提示） */
+  effectId: string;
 }
 
 export interface EffectDef {
-  /** 全局唯一，如 "char-miner-black-bonus" / "bm-valsart-chip" */
+  /** 全局唯一，如 "role:01:reshape" / "market:001:during:duel" */
   id: string;
   source: EffectSource;
   phase: PhaseId;
   timing: Timing;
+  /** 角色技能专属：该效果属于哪张角色牌（source=character 时生效，resolveTiming 按持有者展开） */
+  roleId?: string;
   /** 效果体：直接变更 state（reducer 已保证传入的是工作副本） */
   run: (state: GameState, ctx: EffectContext) => void;
+  /**
+   * 交互效果（M2.4）：run 写入 state.pendingPrompt 挂起，玩家 resolvePrompt 后调用本函数继续。
+   * choice 形状由 prompt.kind 决定：choosePlayer → string（玩家 id）；chooseCard → string[]（牌 id 列表）。
+   */
+  resolve?: (state: GameState, ctx: EffectContext, choice: string | string[]) => void;
 }
 
 const registry = new Map<string, EffectDef>();
@@ -51,6 +60,43 @@ export function registerEffect(def: EffectDef): void {
 
 export function getEffect(id: string): EffectDef | undefined {
   return registry.get(id);
+}
+
+/** 动作钩子（角色技能内嵌在 reducer 动作中触发的效果，如酒保"剩余换牌次数为0"） */
+export type ActionHookName = "swapZero";
+
+const actionHooks = new Map<string, { hook: ActionHookName; run: (state: GameState, ctx: EffectContext) => void }>();
+
+export function registerActionHook(
+  characterId: string,
+  hook: ActionHookName,
+  run: (state: GameState, ctx: EffectContext) => void,
+): void {
+  const key = `${characterId}:${hook}`;
+  if (actionHooks.has(key)) throw new Error(`动作钩子重复注册: ${key}`);
+  actionHooks.set(key, { hook, run });
+}
+
+/** reducer 在动作发生点调用（异常隔离到单条，坏卡不毁局；交互挂起时停止后续） */
+export function runActionHook(
+  state: GameState,
+  characterId: string | null,
+  hook: ActionHookName,
+  config: GameConfig,
+  playerId: string,
+): void {
+  if (!characterId) return;
+  const entry = actionHooks.get(`${characterId}:${hook}`);
+  if (!entry) return;
+  try {
+    entry.run(state, { config, playerId, effectId: `hook:${characterId}:${hook}` });
+  } catch (err) {
+    state.log.push({
+      turn: state.turn,
+      phase: state.phase,
+      text: `动作钩子 ${characterId}:${hook} 执行失败: ${(err as Error).message}`,
+    });
+  }
 }
 
 /** 顺时针距离：从特权证持有者数到目标座位的步数 */
@@ -96,11 +142,11 @@ export function resolveTiming(
   return queue;
 }
 
-/** 依序执行队列（异常隔离到单条效果，避免一张坏卡毁掉整局） */
+/** 依序执行队列（异常隔离到单条效果，避免一张坏卡毁掉整局；交互挂起时暂停队列） */
 export function runTimingQueue(state: GameState, queue: QueuedEffect[], config: GameConfig): void {
   for (const { def, playerId } of queue) {
     try {
-      def.run(state, { config, playerId });
+      def.run(state, { config, playerId, effectId: def.id });
     } catch (err) {
       state.log.push({
         turn: state.turn,
@@ -108,5 +154,6 @@ export function runTimingQueue(state: GameState, queue: QueuedEffect[], config: 
         text: `效果 ${def.id} 执行失败: ${(err as Error).message}`,
       });
     }
+    if (state.pendingPrompt) break; // 交互挂起：等 resolvePrompt 后再继续（余下效果 M2 不自动恢复，交互效果各自独立）
   }
 }

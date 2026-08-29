@@ -49,6 +49,33 @@ export interface PlayerZones {
   items: string[];
 }
 
+/** 玩家区域名（chooseCard 交互的牌来源） */
+export type ZoneId = "hand" | "discard" | "draw" | "play" | "deleted";
+
+/**
+ * 待决交互（M2.4 效果挂起）。
+ * 同一时刻最多 1 个挂起：效果 run 写入它并返回，reducer 等待对应玩家的 resolvePrompt Action。
+ * candidates:choosePlayer = 候选玩家 id 列表;chooseCard = 候选牌实例 id 列表（私密，redact 时只对目标玩家展开）。
+ */
+export type PendingPrompt =
+  | {
+      kind: "choosePlayer";
+      /** 触发该交互的效果 id（resolve 时查注册表） */
+      effectId: string;
+      /** 等待谁输入（效果触发者，简单交互下即效果归属者） */
+      playerId: string;
+      candidates: string[];
+      promptText?: string;
+    }
+  | {
+      kind: "chooseCard";
+      effectId: string;
+      playerId: string;
+      candidates: string[];
+      from: ZoneId;
+      promptText?: string;
+    };
+
 export interface PlayerState {
   id: string;
   name: string;
@@ -65,6 +92,16 @@ export interface PlayerState {
   purchaseFlipped: boolean;
   /** 当前阶段是否已完成个人操作（等待其他玩家） */
   phaseReady: boolean;
+  /** 本回合角色技能失效（暂时失忆等，undefined=正常） */
+  skillDisabled?: boolean;
+  /** 本回合强化芯片失效（磁山隧道等，undefined=正常） */
+  chipsDisabled?: boolean;
+  /** 手牌上限加成（魔术师 +1 等，undefined=0） */
+  handLimitBonus?: number;
+  /** 对决总点数加成（赌场荷官 +20 等，undefined=0） */
+  duelPointsBonus?: number;
+  /** 换牌次数加成（酒保 +1 等，undefined=0） */
+  swapBonus?: number;
   zones: PlayerZones;
 }
 
@@ -98,6 +135,8 @@ export interface GameState {
   blackMarket: BlackMarketState;
   /** 事件牌（MVP 默认关闭，保留字段） */
   eventCardId: string | null;
+  /** 待决交互（M2.4）；非空时 reducer 只接受该玩家的 resolvePrompt */
+  pendingPrompt: PendingPrompt | null;
   /** mulberry32 内部状态（32 位无符号），重放根 */
   rngState: number;
   log: LogEntry[];

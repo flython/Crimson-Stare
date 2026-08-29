@@ -7,7 +7,6 @@ import {
   resolveTiming,
   card,
   DEFAULT_GAME_CONFIG,
-  type Action,
   type GameState,
 } from "../src/index.js";
 
@@ -123,7 +122,6 @@ describe("白板局骨架", () => {
 
   it("删除阶段：首张免费、超额扣筹、筹不够报错", () => {
     let g = driveTo(makeGame(), "delete");
-    const alice = g.players.find((p) => p.id === "alice")!;
     // 测试桩：塞 3 张可删的弃牌，并把 alice 压到 1 筹（删 3 张需 (3-1)*2=4 筹）
     g.players[0].zones.discard = [card(2, "S"), card(3, "H"), card(4, "D")];
     g.players[0].chips = 1;
@@ -181,16 +179,17 @@ describe("白板局骨架", () => {
 
   it("裁剪：bob 视角看不到 alice 手牌明细，只看到数量", () => {
     const g = makeGame();
-    const view = redactState(g, "bob") as any;
-    const aliceView = view.players.find((p: any) => p.id === "alice");
+    type PlayerView = { id: string; zones: { hand: { count?: number; cards?: unknown } } };
+    const view = redactState(g, "bob") as { players: PlayerView[] };
+    const aliceView = view.players.find((p) => p.id === "alice")!;
     expect(aliceView.zones.hand).toHaveProperty("count");
     expect(aliceView.zones.hand).not.toHaveProperty("cards");
-    const bobView = view.players.find((p: any) => p.id === "bob");
+    const bobView = view.players.find((p) => p.id === "bob")!;
     expect(bobView.zones.hand).toHaveProperty("cards");
   });
 
   it("时间点队列排序：来源优先级 事件>角色>黑市>规则书，同来源按特权证顺时针", () => {
-    let g = makeGame();
+    const g = makeGame();
     g.phase = "settle";
     registerEffect({ id: "e-event", source: "event", phase: "settle", timing: "before", run: () => {} });
     registerEffect({ id: "e-char", source: "character", phase: "settle", timing: "before", run: () => {} });

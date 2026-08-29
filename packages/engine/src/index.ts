@@ -7,10 +7,12 @@
 export const ENGINE_VERSION = "0.1.0";
 
 export * from "./cards.js";
+export * from "./cardPool.js";
 export * from "./hand-evaluator.js";
 export * from "./core/state.js";
 export * from "./core/config.js";
 export * from "./core/rng.js";
 export * from "./core/effects.js";
 export * from "./core/redact.js";
+export * from "./effects/index.js";
 export * from "./game/whiteboard.js";
