@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./vite.config.ts"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/cardpicker.tsx","./src/components/dicerollanimation.tsx","./src/components/pendingpromptbanner.tsx","./src/components/targetpicker.tsx","./src/components/index.ts","./src/lib/resolveprompt.ts","./src/lib/types.ts","./vite.config.ts"],"version":"5.9.3"}

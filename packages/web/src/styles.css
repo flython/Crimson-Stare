@@ -1,0 +1,521 @@
+/**
+ * 票据 14 — 全局样式。暗色牌桌三基色延伸，与 05 原型 `prototypes/table-ui.html` 保持同一视觉语言。
+ * 基色：血红 #e9404b / 暗红 #583c42 / 提示金 #ffc840。
+ * 金科玉律：暗色主题文字一律浅色可读（--text / --muted），仅按钮等强调块用深色字。
+ */
+:root {
+  --blood: #e9404b;
+  --dark: #583c42;
+  --gold: #ffc840;
+  --bg: #17100f;
+  --panel: #241a1b;
+  --panel2: #2e2223;
+  --line: #4a3537;
+  --text: #f2e6e2;
+  --muted: #a89694;
+  --ok: #6fbf73;
+  --back: #3c1418;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    -apple-system,
+    "PingFang SC",
+    "Microsoft YaHei",
+    sans-serif;
+  touch-action: manipulation;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* ===== 按钮（触屏目标 ≥44px） ===== */
+.btn {
+  background: var(--blood);
+  color: #fff;
+  padding: 9px 16px;
+  font-size: 14px;
+  min-height: 44px;
+  border-radius: 8px;
+}
+
+.btn:disabled {
+  background: var(--panel2);
+  color: var(--muted);
+}
+
+.btn.ghost {
+  background: var(--panel2);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.btn.gold {
+  background: var(--gold);
+  color: #3a2a10;
+}
+
+/* ===== 弹层（Picker 复用 05 原型的 overlay/modal 模式） ===== */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 16px;
+}
+
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--gold);
+  border-radius: 14px;
+  padding: 18px;
+  max-width: 560px;
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.modal h3 {
+  font-size: 15px;
+  color: var(--gold);
+  font-weight: 500;
+  margin: 0 0 10px;
+}
+
+.modal .prompt-text {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.modal .picker-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+/* ===== 顶部横幅（PendingPromptBanner） ===== */
+.prompt-banner {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(90deg, var(--dark), var(--bg));
+  font-size: 14px;
+}
+
+.prompt-banner .prompt-kind {
+  color: var(--gold);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.prompt-banner .prompt-text {
+  color: var(--muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prompt-banner .prompt-sub {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* 等待我：血红强调 */
+.prompt-banner.mine {
+  background: linear-gradient(90deg, #7a2530, var(--dark));
+  border-bottom-color: var(--blood);
+}
+
+.prompt-banner.mine .prompt-text {
+  color: var(--text);
+}
+
+/* ===== 选择网格（TargetPicker / CardPicker） ===== */
+.picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 12px 0;
+}
+
+/* 目标玩家卡（TargetPicker） */
+.picker-opt {
+  background: var(--panel2);
+  border: 2px solid var(--line);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-width: 112px;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.picker-opt.sel {
+  border-color: var(--gold);
+  color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold) inset;
+}
+
+.picker-opt.dim {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #5a2b30, #3c2226);
+  border: 1px solid var(--dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.picker-opt.sel .avatar {
+  border-color: var(--gold);
+}
+
+.picker-opt .opt-name {
+  font-size: 14px;
+}
+
+.picker-opt .opt-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.picker-opt.sel .opt-sub {
+  color: var(--gold);
+}
+
+/* ===== 卡牌占位（CardPicker；沿用 05 原型 .card 视觉） ===== */
+.card {
+  width: 56px;
+  height: 80px;
+  border-radius: 7px;
+  background: #efe6dd;
+  color: #2a1e1c;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 500;
+  border: 1px solid var(--line);
+  position: relative;
+  flex: none;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 0;
+}
+
+.card .suit {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.card .suit.red,
+.card .rank.red {
+  color: #b03340;
+}
+
+.card .joker-text {
+  color: var(--gold);
+  font-size: 11px;
+  background: #3c2a2c;
+  padding: 4px 3px;
+  border-radius: 4px;
+}
+
+.card.sel {
+  outline: 3px solid var(--gold);
+  outline-offset: 1px;
+  transform: translateY(-6px);
+}
+
+.card.dim {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+  pointer-events: none;
+}
+
+.card .check {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1.5px solid var(--muted);
+  color: #3a2a10;
+  font-size: 12px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card.sel .check {
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+/* ===== 骰子动画（DiceRollAnimation） ===== */
+.dice {
+  border-radius: 12px;
+  background: #efe6dd;
+  border: 2px solid var(--dark);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 7px;
+  gap: 2px;
+  flex: none;
+}
+
+.dice.rolling {
+  animation: dice-roll 0.5s linear infinite;
+}
+
+@keyframes dice-roll {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(90deg) scale(0.9);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.05);
+  }
+  75% {
+    transform: rotate(270deg) scale(0.9);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.dice .dice-pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #3c2226;
+  align-self: center;
+  justify-self: center;
+}
+
+.dice.result .dice-pip {
+  animation: pip-in 0.25s ease-out;
+}
+
+@keyframes pip-in {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* ===== 大厅模式选择（App 入口；无大厅前作为占位入口） ===== */
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #2a1d20 0%, #17100f 70%);
+  color: var(--blood);
+  padding: 24px;
+}
+
+.app-title {
+  font-size: 42px;
+  letter-spacing: 8px;
+  color: var(--blood);
+  margin: 0;
+}
+
+.app-sub {
+  color: var(--gold);
+  margin: 8px 0 0;
+}
+
+.app-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 18px;
+  max-width: 420px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.mode-select {
+  display: flex;
+  gap: 14px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.mode-card {
+  width: 190px;
+  min-height: 44px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.mode-card.available {
+  border-color: var(--gold);
+  background: linear-gradient(160deg, #5a2b30, var(--panel));
+}
+
+.mode-card.available:hover {
+  box-shadow: 0 0 20px rgba(233, 64, 75, 0.4);
+}
+
+.mode-card.available:active {
+  transform: scale(0.98);
+}
+
+.mode-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mode-card .mode-name {
+  font-weight: 600;
+}
+
+.mode-card .mode-tag {
+  font-size: 11px;
+  color: var(--gold);
+}
+
+.mode-card .mode-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.mode-card .coming-soon {
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+.mode-card .mode-picked {
+  font-size: 12px;
+  color: var(--ok);
+}
+
+/* ===== 横屏手机/高度紧张设备压缩断点（对齐 05 原型） ===== */
+@media (max-height: 560px) {
+  .btn {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-height: 38px;
+  }
+
+  .prompt-banner {
+    padding: 4px 10px;
+    min-height: 38px;
+    font-size: 13px;
+  }
+
+  .picker-opt {
+    padding: 8px 10px;
+    min-width: 92px;
+    gap: 4px;
+  }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .card {
+    width: 46px;
+    height: 66px;
+    font-size: 15px;
+  }
+
+  .card .suit {
+    font-size: 12px;
+  }
+
+  .dice {
+    padding: 5px;
+  }
+
+  .dice .dice-pip {
+    width: 9px;
+    height: 9px;
+  }
+
+  .mode-card {
+    width: 160px;
+    padding: 12px;
+  }
+
+  .app-title {
+    font-size: 32px;
+  }
+}

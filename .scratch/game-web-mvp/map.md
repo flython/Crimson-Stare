@@ -28,6 +28,7 @@ spec.md（`.scratch/game-web-mvp/spec.md`）全部 user stories 达成：内部�
 - [08 - 卡池数据管道落地](issues/08-卡池数据管道落地.md)：转换脚本 `packages/card-data/`（SheetJS+zod，`cards:build`/`cards:check`）+ 产物 `config/cards/*.json`（21/52/15/36）+ server 启动 `loadCardPool()` 注入；结构层+业务层双层校验。
 - [09 - 效果原语库](issues/09-效果原语库.md)：`effects/primitives.ts` 17 个原语（gainChips/addPermanentRank/deleteCards/placeholderEffect 等）；PlayerState 加 skillDisabled/chipsDisabled/handLimitBonus/duelPointsBonus/swapBonus；EffectContext 加 effectId。
 - [13 - 交互机制（效果挂起）](issues/13-交互机制效果挂起.md)：`GameState.pendingPrompt` + `resolvePrompt` Action + `EffectDef.resolve` 两段式效果；挂起门禁（只接受目标玩家）；validateChoice 校验；autoResolve 超时托管（promptTimeoutSec/timeoutPolicy 入 GameConfig）；redact 裁剪（目标玩家见候选，他人见 waitingFor）。server WS 接线留 15。
+- [14 - UI 交互组件](issues/14-UI交互组件.md)：web 包 4 个交互组件落地——TargetPicker（选玩家）/CardPicker（选牌，多选）/PendingPromptBanner（顶部横幅三态，接 stateUpdate.pendingPrompt）/DiceRollAnimation（0.5s 掷骰动画）；简易模式入口开放、标准/单人灰显「敬请期待 M3」；resolvePrompt 顶层消息暂按 `{type:"resolvePrompt",choice}` 定义（playerId 由 server 推断），是否走 protocol 的 action 包装待 15 联调。
 - [12 - 黑市牌效果注册](issues/12-黑市牌效果注册.md)：52 张黑市牌注册完成（24 黄边全量 + 非黄边尽量）。强化芯片工厂 chipInstall（金科玉律 3/4：每牌限 1、点数 2-14 校验、无目标弃置，数值类 resolve 用 addPermanentRank）；血筹镀层（出/夺）以 (duel,during) 注册对持有者实际生效；秘密交易立即结算（027/031/034/036/039 + 闭店礼/血筹分享/拔除芯片）；道具统一注册 run 存 items（规避 whiteboard"备用道具"与 JSON"道具"命名不一致）。依赖[皇冠]状态/黑市区 slot 交互/hand-evaluator 芯片视图的声明效果占位 TODO，遗留已记录。
 
 ## Not yet specified
@@ -36,7 +37,7 @@ spec.md（`.scratch/game-web-mvp/spec.md`）全部 user stories 达成：内部�
 - 内测反馈循环：内部游玩后的数值平衡调整流程（奖励表配置热更新？）。
 - 牌桌动效与音效打磨范围。
 
-> M2 剩余执行已票据化（open, ready-for-agent）：[10 - M2 卡牌逻辑与数据管道 spec](issues/10-M2卡牌逻辑与数据管道spec.md) 为执行蓝本；[11 - 角色牌效果注册](issues/11-角色牌效果注册.md)、[12 - 黑市牌效果注册](issues/12-黑市牌效果注册.md)、[13 - 交互机制（效果挂起）](issues/13-交互机制效果挂起.md)、[14 - UI 交互组件](issues/14-UI交互组件.md)、[15 - 简易模式 web 端联调](issues/15-简易模式web联调.md)。13、12 已 resolved；11、14 已被并行任务 claim。当前 frontier = 15（阻塞于 14，待其解除）。
+> M2 剩余执行已票据化（open, ready-for-agent）：[10 - M2 卡牌逻辑与数据管道 spec](issues/10-M2卡牌逻辑与数据管道spec.md) 为执行蓝本；[11 - 角色牌效果注册](issues/11-角色牌效果注册.md)、[12 - 黑市牌效果注册](issues/12-黑市牌效果注册.md)、[13 - 交互机制（效果挂起）](issues/13-交互机制效果挂起.md)、[14 - UI 交互组件](issues/14-UI交互组件.md)、[15 - 简易模式 web 端联调](issues/15-简易模式web联调.md)。12、13、14 已 resolved；11 已被并行任务 claim。当前 frontier = 15（14 已解除其阻塞，可直接领取）。
 
 ## Out of scope
 
