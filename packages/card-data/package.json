@@ -1,0 +1,22 @@
+{
+  "name": "@crimson/card-data",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "卡池数据管道: xlsx 模板 → 校验 → config/cards/*.json(票据 06 遗留项落地)",
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json",
+    "convert": "tsx src/build.ts",
+    "check": "tsx src/build.ts --check-only",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

@@ -1,0 +1,479 @@
+[
+  {
+    "id": "01",
+    "name": "赌场荷官",
+    "category": "role",
+    "title": "安娜",
+    "gender": "女",
+    "tags": [
+      "经济"
+    ],
+    "colorTag": "经济",
+    "simpleOnly": true,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "settle",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:01",
+    "effectText": "【结算阶段】你的牌型的总点数+20。",
+    "image": "assets/cards/role/01.png"
+  },
+  {
+    "id": "02",
+    "name": "银行职员",
+    "category": "role",
+    "title": "朴正男",
+    "gender": "男",
+    "tags": [
+      "经济"
+    ],
+    "colorTag": "经济",
+    "simpleOnly": true,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "reshape",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:02",
+    "effectText": "【重整阶段】获得2血筹。游戏开始时，额外获得2血筹。",
+    "image": "assets/cards/role/02.png"
+  },
+  {
+    "id": "03",
+    "name": "魔术师",
+    "category": "role",
+    "title": "陈星宇",
+    "gender": "男",
+    "tags": [
+      "容错"
+    ],
+    "colorTag": "容错",
+    "simpleOnly": true,
+    "count": 1,
+    "triggers": [],
+    "effectId": "role:03",
+    "effectText": "你的手牌上限+1。",
+    "image": "assets/cards/role/03.png"
+  },
+  {
+    "id": "04",
+    "name": "酒保",
+    "category": "role",
+    "title": "索菲亚",
+    "gender": "女",
+    "tags": [
+      "经济"
+    ],
+    "colorTag": "经济",
+    "simpleOnly": true,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "swap",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:04",
+    "effectText": "【换牌阶段】你的换牌次数+1，当剩余可换牌次数为0时，获得1血筹。",
+    "image": "assets/cards/role/04.png"
+  },
+  {
+    "id": "05",
+    "name": "特型演员",
+    "category": "role",
+    "title": "亚瑟",
+    "gender": "男",
+    "tags": [
+      "牌型"
+    ],
+    "colorTag": "牌型",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:05",
+    "effectText": "【对决阶段】你的2可视为5。游戏开始时，删除2张2。",
+    "image": "assets/cards/role/05.png"
+  },
+  {
+    "id": "06",
+    "name": "矿工",
+    "category": "role",
+    "title": "强尼",
+    "gender": "男",
+    "tags": [
+      "经济"
+    ],
+    "colorTag": "经济",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:06",
+    "effectText": "【对决阶段】若你打出的牌均为黑色，则获得3血筹。",
+    "image": "assets/cards/role/06.png"
+  },
+  {
+    "id": "07",
+    "name": "杂技演员",
+    "category": "role",
+    "title": "红雀",
+    "gender": "女",
+    "tags": [
+      "牌型"
+    ],
+    "colorTag": "牌型",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:07",
+    "effectText": "【对决阶段】你的6可视为9，9可视为6。",
+    "image": "assets/cards/role/07.png"
+  },
+  {
+    "id": "08",
+    "name": "海盗",
+    "category": "role",
+    "title": "阿卜迪",
+    "gender": "男",
+    "tags": [
+      "经济",
+      "互动"
+    ],
+    "colorTag": "经济;互动",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "purchase",
+        "timing": "before"
+      }
+    ],
+    "effectId": "role:08",
+    "effectText": "【购买阶段】前，你可以抢劫1位对手，其必须选择[放弃]或[抵抗]。若[放弃]，则交给你2血筹（不足则全给）；若[抵抗]则与你轮流掷骰。若你的点数更大，则抢夺其至多4血筹，否则无事发生。",
+    "image": "assets/cards/role/08.png"
+  },
+  {
+    "id": "09",
+    "name": "股民",
+    "category": "role",
+    "title": "张桂芬",
+    "gender": "女",
+    "tags": [
+      "经济"
+    ],
+    "colorTag": "经济",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "purchase",
+        "timing": "after"
+      }
+    ],
+    "effectId": "role:09",
+    "effectText": "【购买阶段】结束时，若你剩余0血筹，则获得3血筹。",
+    "image": "assets/cards/role/09.png"
+  },
+  {
+    "id": "10",
+    "name": "塔罗师",
+    "category": "role",
+    "title": "艾拉",
+    "gender": "女",
+    "tags": [
+      "容错"
+    ],
+    "colorTag": "容错",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "swap",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:10",
+    "effectText": "【换牌阶段】你的每次换牌：可先抽牌，再弃牌。但每次最多抽2张再弃2张牌。",
+    "image": "assets/cards/role/10.png"
+  },
+  {
+    "id": "11",
+    "name": "吉祥物",
+    "category": "role",
+    "title": "BB",
+    "gender": "男",
+    "tags": [
+      "经济"
+    ],
+    "colorTag": "经济",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "purchase",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:11",
+    "effectText": "每回合【购买阶段】当你第一次购买时，价格优惠一半（向上取整）。例：价格3血筹的牌以1血筹购入。",
+    "image": "assets/cards/role/11.png"
+  },
+  {
+    "id": "12",
+    "name": "炸鸡店老板",
+    "category": "role",
+    "title": "亨利",
+    "gender": "男",
+    "tags": [
+      "删牌"
+    ],
+    "colorTag": "删牌",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "swap",
+        "timing": "during"
+      },
+      {
+        "phase": "settle",
+        "timing": "after"
+      }
+    ],
+    "effectId": "role:12",
+    "effectText": "【换牌阶段】你可花费1血筹，并抽1张牌（无次数限制）。【结算阶段】结束时，你可用1血筹删除1张本回合打出的牌（最多3张）。",
+    "image": "assets/cards/role/12.png"
+  },
+  {
+    "id": "13",
+    "name": "洗衣房店主",
+    "category": "role",
+    "title": "金贞淑",
+    "gender": "女",
+    "tags": [
+      "经济",
+      "容错"
+    ],
+    "colorTag": "经济;容错",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "reshape",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:13",
+    "effectText": "任何时候，当重洗牌库时，获得1血筹。【重整阶段】若选择不重洗牌库，则额外获得2血筹。",
+    "image": "assets/cards/role/13.png"
+  },
+  {
+    "id": "14",
+    "name": "偶像",
+    "category": "role",
+    "title": "QueenQueen",
+    "gender": "男",
+    "tags": [
+      "删牌"
+    ],
+    "colorTag": "删牌",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "swap",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:14",
+    "effectText": "【换牌阶段】每次换牌，可选择任意数量的牌（而非至多3张）。若一次弃了4张或者更多的牌，获得1血筹。",
+    "image": "assets/cards/role/14.png"
+  },
+  {
+    "id": "15",
+    "name": "特级大厨",
+    "category": "role",
+    "title": "阿米特",
+    "gender": "男",
+    "tags": [
+      "删牌",
+      "经济"
+    ],
+    "colorTag": "删牌;经济",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "swap",
+        "timing": "during"
+      },
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:15",
+    "effectText": "【换牌阶段】每当你弃置1张3时，可展示之并获得1血筹。【对决阶段】你每打出1张3，获得1血筹。任意时候，每当你或你的队伍删除1张3，获得4血筹。",
+    "image": "assets/cards/role/15.png"
+  },
+  {
+    "id": "16",
+    "name": "高中生",
+    "category": "role",
+    "title": "结城绫乃",
+    "gender": "女",
+    "tags": [
+      "删牌",
+      "互动"
+    ],
+    "colorTag": "删牌;互动",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "before"
+      }
+    ],
+    "effectId": "role:16",
+    "effectText": "【对决阶段】前，你可将出牌区的牌全部弃置（牌型视为高牌，点数为0），获得2血筹，并可执行一次删牌。",
+    "image": "assets/cards/role/16.png"
+  },
+  {
+    "id": "17",
+    "name": "枪手",
+    "category": "role",
+    "title": "科尔特",
+    "gender": "男",
+    "tags": [
+      "容错"
+    ],
+    "colorTag": "容错",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      },
+      {
+        "phase": "settle",
+        "timing": "after"
+      }
+    ],
+    "effectId": "role:17",
+    "effectText": "【对决阶段】你可将4视为小丑。【结算阶段】结束时，将本回合视为小丑的4删除。",
+    "image": "assets/cards/role/17.png"
+  },
+  {
+    "id": "18",
+    "name": "清洁工",
+    "category": "role",
+    "title": "加西亚",
+    "gender": "男",
+    "tags": [
+      "删牌"
+    ],
+    "colorTag": "删牌",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "reshape",
+        "timing": "after"
+      }
+    ],
+    "effectId": "role:18",
+    "effectText": "【重整阶段】结束时，可从全牌库删除1张牌。若删除的是抽牌堆的牌，则重洗抽牌堆。",
+    "image": "assets/cards/role/18.png"
+  },
+  {
+    "id": "19",
+    "name": "职业赌徒",
+    "category": "role",
+    "title": "刀哥",
+    "gender": "男",
+    "tags": [
+      "经济"
+    ],
+    "colorTag": "经济",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "before"
+      },
+      {
+        "phase": "settle",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:19",
+    "effectText": "【对决阶段】前，你可以猜测本回合【临时特权证】的玩家（可以猜自己）。【结算阶段】若猜对，则获得（人数+2）血筹。",
+    "image": "assets/cards/role/19.png"
+  },
+  {
+    "id": "20",
+    "name": "武士",
+    "category": "role",
+    "title": "黑泽宗介",
+    "gender": "男",
+    "tags": [
+      "经济"
+    ],
+    "colorTag": "经济",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "settle",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:20",
+    "effectText": "【结算阶段】你额外获得本回合获得的★数量的血筹。",
+    "image": "assets/cards/role/20.png"
+  },
+  {
+    "id": "21",
+    "name": "黑客",
+    "category": "role",
+    "title": "Alpha",
+    "gender": "?",
+    "tags": [
+      "删牌"
+    ],
+    "colorTag": "删牌",
+    "simpleOnly": false,
+    "count": 1,
+    "triggers": [
+      {
+        "phase": "delete",
+        "timing": "during"
+      }
+    ],
+    "effectId": "role:21",
+    "effectText": "你的初始构筑改为从全牌库中挑选8张牌删除。【删牌阶段】你可以额外免费删除1张牌。",
+    "image": "assets/cards/role/21.png"
+  }
+]

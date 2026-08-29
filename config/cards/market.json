@@ -1,0 +1,898 @@
+[
+  {
+    "id": "001",
+    "name": "校准器+1",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 4,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [],
+    "effectId": "market:001",
+    "effectText": "此牌点数永久+1，花色不变。",
+    "image": "assets/cards/market/001.png"
+  },
+  {
+    "id": "002",
+    "name": "校准器+2",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 4,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [],
+    "effectId": "market:002",
+    "effectText": "此牌点数永久+2，花色不变。",
+    "image": "assets/cards/market/002.png"
+  },
+  {
+    "id": "003",
+    "name": "校准器+3",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 4,
+    "count": 1,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [],
+    "effectId": "market:003",
+    "effectText": "此牌点数永久+3，花色不变。",
+    "image": "assets/cards/market/003.png"
+  },
+  {
+    "id": "004",
+    "name": "校准器+4",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 4,
+    "count": 1,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [],
+    "effectId": "market:004",
+    "effectText": "此牌点数永久+4，花色不变。",
+    "image": "assets/cards/market/004.png"
+  },
+  {
+    "id": "005",
+    "name": "限流阀-1",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 3,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [],
+    "effectId": "market:005",
+    "effectText": "此牌点数永久-1，花色不变。",
+    "image": "assets/cards/market/005.png"
+  },
+  {
+    "id": "006",
+    "name": "限流阀-2",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 3,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [],
+    "effectId": "market:006",
+    "effectText": "此牌点数永久-2，花色不变。",
+    "image": "assets/cards/market/006.png"
+  },
+  {
+    "id": "007",
+    "name": "限流阀-3",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 3,
+    "count": 1,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [],
+    "effectId": "market:007",
+    "effectText": "此牌点数永久-3，花色不变。",
+    "image": "assets/cards/market/007.png"
+  },
+  {
+    "id": "008",
+    "name": "变色墨水",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 2,
+    "count": 6,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:008",
+    "effectText": "对决此牌的花色可视为任意花色。",
+    "image": "assets/cards/market/008.png"
+  },
+  {
+    "id": "009",
+    "name": "黑色芯片",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 1,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:009",
+    "effectText": "对决此牌的花色视为♠或♣。",
+    "image": "assets/cards/market/009.png"
+  },
+  {
+    "id": "010",
+    "name": "红色芯片",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 1,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:010",
+    "effectText": "对决此牌的花色视为♦或♥。",
+    "image": "assets/cards/market/010.png"
+  },
+  {
+    "id": "011",
+    "name": "数字滑轨",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 6,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:011",
+    "effectText": "对决此牌的点数可视为任意点数。",
+    "image": "assets/cards/market/011.png"
+  },
+  {
+    "id": "012",
+    "name": "百变影像",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 8,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:012",
+    "effectText": "对决此牌可视为任意花色与点数。",
+    "image": "assets/cards/market/012.png"
+  },
+  {
+    "id": "013",
+    "name": "空白模板",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 0,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "牌型绿",
+    "triggers": [],
+    "effectId": "market:013",
+    "effectText": "无效果",
+    "image": "assets/cards/market/013.jpg"
+  },
+  {
+    "id": "014",
+    "name": "仿制印章",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 6,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:014",
+    "effectText": "对决可视为自己出牌区的另一张牌（无视其「强化芯片」，不可视为【Joker牌】）。",
+    "image": "assets/cards/market/014.png"
+  },
+  {
+    "id": "015",
+    "name": "复制芯片",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 4,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:015",
+    "effectText": "对决可复制任意一位玩家的1张[强化芯片]效果（「双生镜片」除外，不可插入【Joker牌】中）。",
+    "image": "assets/cards/market/015.png"
+  },
+  {
+    "id": "016",
+    "name": "磁力线圈",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 6,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "牌型绿",
+    "triggers": [],
+    "effectId": "market:016",
+    "effectText": "重洗牌库前，可将在弃牌区的此牌挑出，并在重洗牌库后放在抽牌堆顶。",
+    "image": "assets/cards/market/016.png"
+  },
+  {
+    "id": "017",
+    "name": "双生镜片",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 10,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:017",
+    "effectText": "对决将此牌视为2张（不可插入【Joker牌】中）。",
+    "image": "assets/cards/market/017.png"
+  },
+  {
+    "id": "018",
+    "name": "加密线路",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 5,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "settle",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:018",
+    "effectText": "结算若[皇冠]，获得2[星星]（不可插入【Joker牌】中）。",
+    "image": "assets/cards/market/018.png"
+  },
+  {
+    "id": "019",
+    "name": "血筹镀层（胜）",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 1,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "settle",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:019",
+    "effectText": "结算若[皇冠]，获得4【血筹】（不可插入【Joker牌】中）。",
+    "image": "assets/cards/market/019.png"
+  },
+  {
+    "id": "020",
+    "name": "血筹镀层（败）",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 1,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "settle",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:020",
+    "effectText": "结算若[皇冠]，获得3【血筹】（不可插入【Joker牌】中）。",
+    "image": "assets/cards/market/020.png"
+  },
+  {
+    "id": "021",
+    "name": "血筹镀层（出）",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 1,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:021",
+    "effectText": "对决获得2【血筹】（不可插入【Joker牌】中）。",
+    "image": "assets/cards/market/021.png"
+  },
+  {
+    "id": "022",
+    "name": "血筹镀层（夺）",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 1,
+    "count": 2,
+    "yellowBorder": true,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:022",
+    "effectText": "对决选择并抢夺一位对手1【血筹】（不可插入【Joker牌】中）。",
+    "image": "assets/cards/market/022.png"
+  },
+  {
+    "id": "023",
+    "name": "弹簧夹层",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 4,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:023",
+    "effectText": "对决可花费X【血筹】，令此牌的点数临时增加/减少X点。",
+    "image": "assets/cards/market/023.png"
+  },
+  {
+    "id": "024",
+    "name": "屏蔽器",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 4,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:024",
+    "effectText": "对决可令一位玩家的1张[强化芯片]失效（不可插入【Joker牌】中）。",
+    "image": "assets/cards/market/024.png"
+  },
+  {
+    "id": "025",
+    "name": "自毁芯片",
+    "category": "market",
+    "subtype": "强化芯片",
+    "price": 2,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "牌型绿",
+    "triggers": [
+      {
+        "phase": "settle",
+        "timing": "after"
+      }
+    ],
+    "effectId": "market:025",
+    "effectText": "结算结束时，删除本回合打出的所有牌（包括此牌）。",
+    "image": "assets/cards/market/025.png"
+  },
+  {
+    "id": "026",
+    "name": "共享信息",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 2,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:026",
+    "effectText": "可删除至多2张牌，每位对手可删除1张牌。",
+    "image": "assets/cards/market/026.png"
+  },
+  {
+    "id": "027",
+    "name": "廉价删除",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 3,
+    "count": 4,
+    "yellowBorder": true,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:027",
+    "effectText": "可删除至多2张牌。",
+    "image": "assets/cards/market/027.png"
+  },
+  {
+    "id": "028",
+    "name": "闭店礼·小",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 3,
+    "count": 1,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [
+      {
+        "phase": "purchase",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:028",
+    "effectText": "获得4【血筹】，跳过本回合的购买。",
+    "image": "assets/cards/market/028.png"
+  },
+  {
+    "id": "029",
+    "name": "闭店礼·中",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 5,
+    "count": 1,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [
+      {
+        "phase": "purchase",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:029",
+    "effectText": "获得7【血筹】，跳过本回合的购买。",
+    "image": "assets/cards/market/029.png"
+  },
+  {
+    "id": "030",
+    "name": "闭店礼·大",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 8,
+    "count": 1,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [
+      {
+        "phase": "purchase",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:030",
+    "effectText": "获得11【血筹】，跳过本回合的购买。",
+    "image": "assets/cards/market/030.png"
+  },
+  {
+    "id": "031",
+    "name": "暴力删除",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 3,
+    "count": 4,
+    "yellowBorder": true,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:031",
+    "effectText": "删除自己或对手抽牌堆顶的3张牌（抽牌堆至少有3张牌）。",
+    "image": "assets/cards/market/031.png"
+  },
+  {
+    "id": "032",
+    "name": "精准删除",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 2,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:032",
+    "effectText": "抽3张牌，删除其中0-2张，弃置剩余的牌（抽牌堆至少有3张牌）。",
+    "image": "assets/cards/market/032.png"
+  },
+  {
+    "id": "033",
+    "name": "定点爆破",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 3,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:033",
+    "effectText": "选择一位对手并宣称一个点数，该对手必须从弃牌堆中删除1张该点数的牌。",
+    "image": "assets/cards/market/033.png"
+  },
+  {
+    "id": "034",
+    "name": "货箱盲掏",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 3,
+    "count": 5,
+    "yellowBorder": true,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:034",
+    "effectText": "免费获得黑市牌堆顶的1张牌。",
+    "image": "assets/cards/market/034.png"
+  },
+  {
+    "id": "035",
+    "name": "黑厢抢夺",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 2,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:035",
+    "effectText": "选择一位对手轮流掷骰，若你的点数比对手大，则抢夺其至多4【血筹】。否则无事发生。",
+    "image": "assets/cards/market/035.png"
+  },
+  {
+    "id": "036",
+    "name": "对赌协议",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 3,
+    "count": 5,
+    "yellowBorder": true,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:036",
+    "effectText": "投一次骰子，获得骰子点数的【血筹】。",
+    "image": "assets/cards/market/036.png"
+  },
+  {
+    "id": "037",
+    "name": "特权分红",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 1,
+    "count": 1,
+    "yellowBorder": true,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:037",
+    "effectText": "若你持有[皇冠]，获得3【血筹】。",
+    "image": "assets/cards/market/037.png"
+  },
+  {
+    "id": "038",
+    "name": "冻结车厢",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 2,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [
+      {
+        "phase": "reshape",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:038",
+    "effectText": "令一位对手跳过本回合的重整。",
+    "image": "assets/cards/market/038.png"
+  },
+  {
+    "id": "039",
+    "name": "鬼手探囊",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 2,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:039",
+    "effectText": "获得【临时特权证】。",
+    "image": "assets/cards/market/039.png"
+  },
+  {
+    "id": "040",
+    "name": "餐车投毒",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 3,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [
+      {
+        "phase": "swap",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:040",
+    "effectText": "令一位对手下回合换牌可换牌次数-2。",
+    "image": "assets/cards/market/040.png"
+  },
+  {
+    "id": "041",
+    "name": "血筹分享",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 3,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:041",
+    "effectText": "获得5【血筹】，其他每位对手获得1【血筹】。",
+    "image": "assets/cards/market/041.png"
+  },
+  {
+    "id": "042",
+    "name": "拔除芯片",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 1,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:042",
+    "effectText": "拔除自己弃牌堆中的1张[强化芯片]，获得4【血筹】。",
+    "image": "assets/cards/market/042.png"
+  },
+  {
+    "id": "043",
+    "name": "再来一批",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 1,
+    "count": 4,
+    "yellowBorder": true,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:043",
+    "effectText": "将黑市区中至多2张牌放入黑市牌堆底，然后补齐黑市，并可立即再进行一次购买。",
+    "image": "assets/cards/market/043.png"
+  },
+  {
+    "id": "044",
+    "name": "暂时失忆",
+    "category": "market",
+    "subtype": "秘密交易",
+    "price": 2,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "容错蓝",
+    "triggers": [],
+    "effectId": "market:044",
+    "effectText": "令一位玩家的技能在下回合失效。",
+    "image": "assets/cards/market/044.png"
+  },
+  {
+    "id": "045",
+    "name": "信号干扰器",
+    "category": "market",
+    "subtype": "道具",
+    "price": 3,
+    "count": 4,
+    "yellowBorder": false,
+    "colorTag": "互动暗红",
+    "triggers": [
+      {
+        "phase": "swap",
+        "timing": "after"
+      }
+    ],
+    "effectId": "market:045",
+    "effectText": "换牌结束时，可令一位玩家随机弃1张牌，并抽1张牌。",
+    "image": "assets/cards/market/045.png"
+  },
+  {
+    "id": "046",
+    "name": "广播喇叭",
+    "category": "market",
+    "subtype": "道具",
+    "price": 3,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "互动暗红",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "before"
+      },
+      {
+        "phase": "settle",
+        "timing": "during"
+      },
+      {
+        "phase": "purchase",
+        "timing": "during"
+      },
+      {
+        "phase": "delete",
+        "timing": "during"
+      },
+      {
+        "phase": "reshape",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:046",
+    "effectText": "对决前，可宣称自己将【临时特权证】。结算若成功【临时特权证】，则获得玩家人数×3【血筹】，否则跳过本回合的购买、删牌、重整。",
+    "image": "assets/cards/market/046.png"
+  },
+  {
+    "id": "047",
+    "name": "赌徒虹膜",
+    "category": "market",
+    "subtype": "道具",
+    "price": 3,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "互动暗红",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "before"
+      },
+      {
+        "phase": "settle",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:047",
+    "effectText": "对决前，猜测一位玩家的牌型。结算若猜测正确，获得3【血筹】，该玩家本回合获得的[星星]-4（最低为0）。",
+    "image": "assets/cards/market/047.png"
+  },
+  {
+    "id": "048",
+    "name": "皮下密信",
+    "category": "market",
+    "subtype": "道具",
+    "price": 2,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "互动暗红",
+    "triggers": [
+      {
+        "phase": "swap",
+        "timing": "after"
+      }
+    ],
+    "effectId": "market:048",
+    "effectText": "换牌结束时，可花费2【血筹】，抽3张牌。",
+    "image": "assets/cards/market/048.png"
+  },
+  {
+    "id": "049",
+    "name": "防护屏障",
+    "category": "market",
+    "subtype": "道具",
+    "price": 3,
+    "count": 4,
+    "yellowBorder": false,
+    "colorTag": "互动暗红",
+    "triggers": [],
+    "effectId": "market:049",
+    "effectText": "取消玩家即将单独对你使用的[秘密交易]或[备用道具]效果（不可对「防护屏障」使用）。",
+    "image": "assets/cards/market/049.png"
+  },
+  {
+    "id": "050",
+    "name": "魔术橡皮",
+    "category": "market",
+    "subtype": "道具",
+    "price": 3,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "互动暗红",
+    "triggers": [
+      {
+        "phase": "play",
+        "timing": "before"
+      },
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:050",
+    "effectText": "出牌前，宣称一种牌型，本回合对决此牌型视为「高牌」。",
+    "image": "assets/cards/market/050.png"
+  },
+  {
+    "id": "051",
+    "name": "消磁枪",
+    "category": "market",
+    "subtype": "道具",
+    "price": 4,
+    "count": 2,
+    "yellowBorder": false,
+    "colorTag": "互动暗红",
+    "triggers": [
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:051",
+    "effectText": "对决令一位玩家的1张[强化芯片]失效。",
+    "image": "assets/cards/market/051.png"
+  },
+  {
+    "id": "052",
+    "name": "荷官证",
+    "category": "market",
+    "subtype": "道具",
+    "price": 6,
+    "count": 1,
+    "yellowBorder": true,
+    "colorTag": "互动暗红",
+    "triggers": [
+      {
+        "phase": "play",
+        "timing": "before"
+      },
+      {
+        "phase": "duel",
+        "timing": "during"
+      }
+    ],
+    "effectId": "market:052",
+    "effectText": "出牌前，可令本次对决改为比较总点数大小，平局再比牌型大小，以此类推。",
+    "image": "assets/cards/market/052.png"
+  }
+]
