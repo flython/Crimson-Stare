@@ -108,6 +108,8 @@ export function addPermanentRank(cardId: string, delta: number): EffectBody {
       (c) => c.id === cardId,
     );
     if (!card) throw new Error(`找不到牌 ${cardId} 以修正点数`);
+    // 记录原始点数（用于 UI 显示"9 (5+4)"）；若已被记录则不覆盖（首次插入芯片时的值才是"基础"）
+    if (card.baseRank === undefined) card.baseRank = card.rank;
     const next = (card.rank ?? 0) + delta;
     if (next < 2 || next > 14) {
       logText(state, `${card.id} 点数将超出 2-14(${next})，强化失败`);

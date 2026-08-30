@@ -11,7 +11,7 @@ export const SUITS: readonly Suit[] = ["S", "H", "D", "C"] as const;
 
 /** 牌堆中的一张牌（含实例 id，供引擎追踪）。 */
 export interface Card {
-  /** 点数 2-14；JOKER 在赋值前为 null */
+  /** 点数 2-14；JOKER 在赋值前为 null；被强化芯片修改后保留原始值于 baseRank */
   rank: number | null;
   /** 花色；JOKER 在赋值前为 null */
   suit: Suit | null;
@@ -19,6 +19,11 @@ export interface Card {
   isJoker: boolean;
   /** 牌实例唯一 id */
   id: string;
+  /**
+   * 强化芯片插入前的原始点数（仅数值类芯片 001-007 会设置）。
+   * 用于 UI 显示"修改后点数 (原始点数±芯片加值)"。
+   */
+  baseRank?: number | null;
 }
 
 /** 构造一张普通牌的便捷函数（测试与引擎共用）。 */

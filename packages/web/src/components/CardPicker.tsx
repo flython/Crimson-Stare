@@ -8,8 +8,8 @@ const SUIT_SYMBOL: Record<string, string> = {
   C: "♣",
 };
 
-/** 候选来源：区域 id 或 "deck" = 全牌库（抽牌堆+弃牌区，票据 20 清洁工） */
-export type CardSource = ZoneId | "deck";
+/** 候选来源：区域 id、"deck"（全牌库）或 "market"（黑市区栏位序号，票据 20） */
+export type CardSource = ZoneId | "deck" | "market";
 
 /** 区域名展示（chooseCard 的 from） */
 export const ZONE_LABEL: Record<CardSource, string> = {
@@ -19,6 +19,7 @@ export const ZONE_LABEL: Record<CardSource, string> = {
   play: "出牌区",
   deleted: "删牌区",
   deck: "全牌库",
+  market: "黑市区",
 };
 
 export interface CardPickerProps {

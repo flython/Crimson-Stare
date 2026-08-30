@@ -52,6 +52,25 @@ const TICKET_GOAL: Record<number, number> = { 2: 24, 3: 20, 4: 16 };
 /** 他人手牌背面最多渲染个数（防止手牌过多撑爆座位） */
 const MAX_HAND_BACKS = 8;
 
+/**
+ * 数值类芯片的点数修正值（与 engine 注册表一致）。
+ * 用于 UI 显示"9 (5+4)"——baseRank 由 engine addPermanentRank 写入 card.baseRank。
+ */
+const CHIP_DELTA: Record<string, number> = {
+  "001": 1, "002": 2, "003": 3, "004": 4,
+  "005": -1, "006": -2, "007": -3,
+};
+
+/**
+ * 花色声明类芯片覆盖的花色（显示"♠(原♥)"）。
+ * null = 任意花色（变色墨水）；S/C = 黑色芯片；H/D = 红色芯片。
+ */
+const CHIP_SUIT_MAP: Record<string, string[] | null> = {
+  "008": null, // 变色墨水：任意花色
+  "009": ["S", "C"], // 黑色芯片：♠♣
+  "010": ["H", "D"], // 红色芯片：♦♥
+};
+
 function cardsOf(zone: { count: number } | { cards: Card[] }): Card[] {
   return "cards" in zone ? zone.cards : [];
 }
@@ -83,16 +102,72 @@ function subtypeCat(subtype?: string): string {
   return "cat-generic";
 }
 
-/** 占位卡面：纯色块 + 点数/花色（图片缺失回退，与 05 原型一致） */
-function CardFace({ card }: { card: Card }) {
+/**
+ * 占位卡面：纯色块 + 点数/花色（图片缺失回退，与 05 原型一致）。
+ * 芯片可视化（票据 21）：
+ * - 角标：金色芯片徽章（有 chipDefId）
+ * - 详情：title tooltip = 芯片名称 + 效果文本
+ * - 数值芯片：显示修改后点数，括号内「原始点数±加值」
+ * - 花色芯片：显示声明花色，括号内「原花色」
+ */
+function CardFace({
+  card,
+  chipDefId,
+  marketById,
+}: {
+  card: Card;
+  chipDefId?: string;
+  marketById?: Map<string, CardDef>;
+}) {
+  const chipDef = chipDefId && marketById ? marketById.get(chipDefId) : undefined;
+  const delta = chipDefId ? CHIP_DELTA[chipDefId] : undefined;
+  const suitOverride = chipDefId ? CHIP_SUIT_MAP[chipDefId] : undefined;
+
+  // Joker
   if (card.isJoker || card.suit === null || card.rank === null) {
-    return <span className="joker-text">JOKER</span>;
+    return (
+      <>
+        {chipDefId && <span className="chipIcon" title={chipDef ? `${chipDef.name}：${chipDef.effectText}` : chipDefId} />}
+        <span className="joker-text">JOKER</span>
+      </>
+    );
   }
+
   const red = card.suit === "H" || card.suit === "D";
+  const baseRank = card.baseRank ?? card.rank;
+  const hasValueChip = delta !== undefined;
+
+  // 花色覆盖显示
+  let suitEl = <span className={`suit${red ? " red" : ""}`}>{SUIT_SYMBOL[card.suit]}</span>;
+  if (suitOverride !== undefined) {
+    // 显示声明花色，括号内原花色
+    const declared = suitOverride ?? ["♠", "♥", "♦", "♣"];
+    const declaredStr = declared.length === 4 ? "任意" : declared.map((s) => SUIT_SYMBOL[s] ?? s).join("");
+    suitEl = (
+      <span className={`suit${red ? " red" : ""}`} title={`原${SUIT_SYMBOL[card.suit]}`}>
+        {declaredStr}({SUIT_SYMBOL[card.suit]})
+      </span>
+    );
+  }
+
+  // 点数显示：数值芯片显示"修改后(基础±delta)"
+  let rankEl = <span className={`rank${red ? " red" : ""}`}>{card.rank}</span>;
+  if (hasValueChip && baseRank !== card.rank) {
+    const sign = delta! > 0 ? "+" : "";
+    rankEl = (
+      <span className={`rank${red ? " red" : ""}`} title={`基础${baseRank}，芯片${sign}${delta}`}>
+        {card.rank}({baseRank}{sign === "+" ? "+" : ""}{delta})
+      </span>
+    );
+  } else if (hasValueChip && baseRank === card.rank) {
+    // 芯片已插入但还没结算（少见），只显示芯片图标
+  }
+
   return (
     <>
-      <span className={`suit${red ? " red" : ""}`}>{SUIT_SYMBOL[card.suit]}</span>
-      <span className={`rank${red ? " red" : ""}`}>{card.rank}</span>
+      {chipDefId && <span className="chipIcon" title={chipDef ? `${chipDef.name}：${chipDef.effectText}` : chipDefId} />}
+      {suitEl}
+      {rankEl}
     </>
   );
 }
@@ -164,7 +239,17 @@ function SeatInfo({
 }
 
 /** 出牌区：位于座位与中央之间（玩家"面前"）；左右座位牌旋转，top 座位 180° */
-function PlayZone({ dir, p }: { dir: SeatDir | "me"; p?: SnapPlayer }) {
+function PlayZone({
+  dir,
+  p,
+  chips,
+  marketById,
+}: {
+  dir: SeatDir | "me";
+  p?: SnapPlayer;
+  chips: Record<string, string>;
+  marketById: Map<string, CardDef>;
+}) {
   const rot = dir === "left" ? "rot90" : dir === "right" ? "rot-90" : dir === "top" ? "rot180" : "";
   const cards = p ? cardsOf(p.zones.play) : [];
   const who = p ? p.name : "";
@@ -177,7 +262,7 @@ function PlayZone({ dir, p }: { dir: SeatDir | "me"; p?: SnapPlayer }) {
         cards.map((c) => (
           <span key={c.id} className={rot}>
             <span className="card small">
-              <CardFace card={c} />
+              <CardFace card={c} chipDefId={chips[c.id]} marketById={marketById} />
             </span>
           </span>
         ))
@@ -380,7 +465,7 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
             {seats.top ? (
               <>
                 <SeatInfo p={seats.top} goal={goal} isPass={snap.passHolderSeat === seats.top.seat} active={!seats.top.phaseReady} isMe={false} role={seats.top.characterId ? roleById.get(seats.top.characterId) : undefined} />
-                <PlayZone dir="top" p={seats.top} />
+                <PlayZone dir="top" p={seats.top} chips={seats.top?.zones.chips ?? {}} marketById={marketById} />
               </>
             ) : (
               <div className="seatInfo empty-seat">空位</div>
@@ -390,7 +475,7 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
           <div className="seat seatLeft">
             {seats.left ? (
               <>
-                <PlayZone dir="left" p={seats.left} />
+                <PlayZone dir="left" p={seats.left} chips={seats.left?.zones.chips ?? {}} marketById={marketById} />
                 <SeatInfo p={seats.left} goal={goal} isPass={snap.passHolderSeat === seats.left.seat} active={!seats.left.phaseReady} isMe={false} role={seats.left.characterId ? roleById.get(seats.left.characterId) : undefined} />
               </>
             ) : (
@@ -422,7 +507,7 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
           <div className="seat seatRight">
             {seats.right ? (
               <>
-                <PlayZone dir="right" p={seats.right} />
+                <PlayZone dir="right" p={seats.right} chips={seats.right?.zones.chips ?? {}} marketById={marketById} />
                 <SeatInfo p={seats.right} goal={goal} isPass={snap.passHolderSeat === seats.right.seat} active={!seats.right.phaseReady} isMe={false} role={seats.right.characterId ? roleById.get(seats.right.characterId) : undefined} />
               </>
             ) : (
@@ -431,7 +516,7 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
           </div>
 
           <div className="seat seatMe">
-            <PlayZone dir="me" p={myPlayer} />
+            <PlayZone dir="me" p={myPlayer} chips={myPlayer?.zones.chips ?? {}} marketById={marketById} />
             {myPlayer ? (
               <SeatInfo p={myPlayer} goal={goal} isPass={snap.passHolderSeat === myPlayer.seat} active={!myPlayer.phaseReady} isMe role={myPlayer.characterId ? roleById.get(myPlayer.characterId) : undefined} />
             ) : null}
@@ -571,7 +656,7 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
                 aria-label={`${selected.has(c.id) ? "已选" : "未选"} ${c.rank ?? "JOKER"}${c.suit ?? ""}`}
               >
                 <span className="check">{selected.has(c.id) ? "✓" : ""}</span>
-                <CardFace card={c} />
+                <CardFace card={c} chipDefId={myPlayer?.zones.chips[c.id]} marketById={marketById} />
               </button>
             ))}
             {myHand.length === 0 ? <span className="emptyHint">手牌为空</span> : null}
