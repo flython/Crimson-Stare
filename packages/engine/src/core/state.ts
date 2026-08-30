@@ -104,7 +104,11 @@ export type PendingPrompt =
       effectId: string;
       playerId: string;
       candidates: string[];
-      from: ZoneId;
+      /**
+       * 候选来源区域。ZoneId 之外新增 "deck" = 全牌库（抽牌堆 + 弃牌区），
+       * 供清洁工"从全牌库删除 1 张"这类跨区域选牌使用（票据 20）。
+       */
+      from: ZoneId | "deck";
       promptText?: string;
     }
   | {

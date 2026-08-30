@@ -9,11 +9,12 @@
  * 遗留：黑市牌名暂以 defId 展示、分类色暂以 subtype 映射（server 未下发卡池元数据）。
  */
 import { useState } from "react";
-import type { Card, CardDef, CardPool, ZoneId } from "@crimson/engine";
+import type { Card, CardDef, CardPool } from "@crimson/engine";
 import type { TablePlayer, ViewPendingPrompt } from "../lib/types.js";
 import type { SnapState } from "../lib/ws.js";
 import PendingPromptBanner from "./PendingPromptBanner.js";
 import CardPicker from "./CardPicker.js";
+import type { CardSource } from "./CardPicker.js";
 
 export interface TableProps {
   snap: SnapState;
@@ -323,11 +324,12 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
 
   // 交互挂起：目标玩家见完整候选（本人视角），他人见 waitingFor
   const prompt = (snap.pendingPrompt as ViewPendingPrompt | null) ?? null;
-  const cardsByZone: Partial<Record<ZoneId, Card[]>> = {
+  const cardsByZone: Partial<Record<CardSource, Card[]>> = {
     hand: myHand,
     discard: myDiscard,
     play: myPlayer ? cardsOf(myPlayer.zones.play) : [],
     deleted: myPlayer ? cardsOf(myPlayer.zones.deleted) : [],
+    deck: [...(myPlayer ? cardsOf(myPlayer.zones.draw) : []), ...myDiscard], // 全牌库（清洁工）
   };
 
   // ===== 对局结束：胜者 + 日志 =====

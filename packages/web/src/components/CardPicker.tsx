@@ -8,20 +8,24 @@ const SUIT_SYMBOL: Record<string, string> = {
   C: "♣",
 };
 
+/** 候选来源：区域 id 或 "deck" = 全牌库（抽牌堆+弃牌区，票据 20 清洁工） */
+export type CardSource = ZoneId | "deck";
+
 /** 区域名展示（chooseCard 的 from） */
-export const ZONE_LABEL: Record<ZoneId, string> = {
+export const ZONE_LABEL: Record<CardSource, string> = {
   hand: "手牌",
   discard: "弃牌区",
   draw: "抽牌堆",
   play: "出牌区",
   deleted: "删牌区",
+  deck: "全牌库",
 };
 
 export interface CardPickerProps {
   /** 候选牌实例 id（engine pendingPrompt.candidates，chooseCard） */
   candidates: string[];
   /** 来源区域 */
-  from: ZoneId;
+  from: CardSource;
   /** 区域内全部牌（我方可见的完整列表，含非候选；draw 对我亦不可见时由调用方传空/摘要） */
   cards: Card[];
   /** 是否多选（默认 true，chooseCard 支持多选） */

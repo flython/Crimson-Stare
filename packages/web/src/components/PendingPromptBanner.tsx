@@ -1,8 +1,9 @@
-import type { Card, ZoneId } from "@crimson/engine";
+import type { Card } from "@crimson/engine";
 import type { TablePlayer, ViewPendingPrompt } from "../lib/types.js";
 import { pendingPromptForMe, pendingPromptWaiter } from "../lib/types.js";
 import TargetPicker from "./TargetPicker.js";
 import CardPicker from "./CardPicker.js";
+import type { CardSource } from "./CardPicker.js";
 
 export interface PendingPromptBannerProps {
   /** stateUpdate.pendingPrompt（裁剪后形状；null = 无挂起） */
@@ -11,8 +12,8 @@ export interface PendingPromptBannerProps {
   myPlayerId: string;
   /** 牌桌玩家（名字查询 + TargetPicker 数据源） */
   players: TablePlayer[];
-  /** 我方各区域牌（chooseCard 渲染数据源：from → cards） */
-  cardsByZone?: Partial<Record<ZoneId, Card[]>>;
+  /** 我方各区域牌（chooseCard 渲染数据源：from → cards；"deck" = 抽牌堆+弃牌区） */
+  cardsByZone?: Partial<Record<CardSource, Card[]>>;
   /** 确认选择 → 发送 resolvePrompt */
   onResolve: (choice: string | string[]) => void;
   /** 取消交互 */

@@ -22,6 +22,7 @@
  */
 import type { EffectBody } from "./primitives.js";
 import {
+  clearPlayZone,
   deleteFromDiscard,
   findCardInZones,
   getPlayer,
@@ -31,7 +32,8 @@ import {
   registerDeleteHook,
   afterCardsDeleted,
 } from "./primitives.js";
-import { promptChooseCard, promptChoosePlayer } from "./interactive.js";
+import { promptChooseCard, promptChooseOption, promptChoosePlayer } from "./interactive.js";
+import { shuffle } from "../core/rng.js";
 import type { EffectContext } from "../core/effects.js";
 import { registerActionHook, registerEffect } from "../core/effects.js";
 import type { GameState, PlayerState } from "../core/state.js";
@@ -250,9 +252,29 @@ export function registerRoleEffects(): void {
     resolve: friedChickenSettleResolve,
   });
 
+  // role:16 高中生【对决阶段】前：弃置出牌区全部牌（牌型视为高牌 0 点）+ 2 血筹 + 执行一次删牌。
+  // 两段式交互：chooseOption（是否发动）→ resolve 内再挂 chooseCard（选 1 张删）。
+  registerEffect({
+    id: "role:16:duel",
+    source: "character",
+    roleId: "role:16",
+    phase: "duel",
+    timing: "before",
+    run: highSchoolDuel,
+    resolve: highSchoolDuelResolve,
+  });
+  // role:18 清洁工【重整阶段】结束：从全牌库（抽牌堆+弃牌区）删 1 张；删到抽牌堆的牌则重洗抽牌堆
+  registerEffect({
+    id: "role:18:reshape",
+    source: "character",
+    roleId: "role:18",
+    phase: "reshape",
+    timing: "after",
+    run: cleanerReshape,
+    resolve: cleanerReshapeResolve,
+  });
+
   registerEffect({ id: "role:08:purchase", source: "character", roleId: "role:08", phase: "purchase", timing: "after", run: placeholderFor("role:08") }); // TODO: 【购买阶段】前抢劫：放弃/抵抗 + 轮流掷骰（复杂交互留 M3）
-  registerEffect({ id: "role:16:duel", source: "character", roleId: "role:16", phase: "duel", timing: "before", run: placeholderFor("role:16") }); // TODO: 【对决阶段】前弃出牌区全部牌 + 删牌一次（需"是否发动"选项交互）
-  registerEffect({ id: "role:18:reshape", source: "character", roleId: "role:18", phase: "reshape", timing: "after", run: placeholderFor("role:18") }); // TODO: 【重整阶段】结束从全牌库删 1 张（需跨区域选牌交互）
 }
 
 /** role:06 矿工：对决阶段若打出的牌均为黑色则获得 3 血筹（JOKER 无花色，不算黑色） */
@@ -343,6 +365,102 @@ const gamblerSettle: EffectBody = (state, ctx) => {
     if (!holder || holder.id !== guess) return;
     gainChips(s.players.length + 2)(s, c);
   });
+};
+
+/**
+ * role:16 高中生【对决阶段】前：是否弃置出牌区（弃置后牌型视为高牌 0 点）。
+ * 选项顺序约定：options[0] 为默认（不发动），超时托管取它。
+ */
+const highSchoolDuel: EffectBody = (state, ctx) => {
+  applyToHolders(state, ctx, "role:16", (s, c) => {
+    const p = getPlayer(s, c);
+    if (p.skillDisabled) return;
+    if (p.zones.play.length === 0) return;
+    promptChooseOption(
+      s,
+      c.effectId,
+      p.id,
+      [
+        { id: "no", label: "不发动" },
+        { id: "yes", label: "弃置出牌区：获得 2 血筹并删除 1 张牌" },
+      ],
+      "【对决阶段】前：是否弃置出牌区的全部牌？",
+    );
+  });
+};
+
+/**
+ * role:16 两段式 resolve：
+ * - 第一段 choice = 选项 id（"yes"/"no"）；选 yes 则弃置出牌区 + 2 血筹，并续挂选牌交互；
+ * - 第二段 choice = 牌 id 数组（链式挂起），删除其中 1 张。
+ */
+const highSchoolDuelResolve = (state: GameState, ctx: EffectContext, choice: string | string[]): void => {
+  const p = getPlayer(state, ctx);
+  if (Array.isArray(choice)) {
+    const ids = choice.slice(0, 1);
+    const moved: Card[] = [];
+    for (const id of ids) {
+      const idx = p.zones.discard.findIndex((cd) => cd.id === id);
+      if (idx === -1) continue;
+      const [cd] = p.zones.discard.splice(idx, 1);
+      p.zones.deleted.push(cd!);
+      delete p.zones.chips[cd!.id];
+      moved.push(cd!);
+    }
+    if (moved.length > 0) {
+      logText(state, `${p.name} 删除 1 张牌`);
+      afterCardsDeleted(state, ctx, moved);
+    }
+    return;
+  }
+  if (choice !== "yes") return;
+  clearPlayZone()(state, ctx);
+  gainChips(2)(state, ctx);
+  if (p.zones.discard.length === 0) return;
+  promptChooseCard(
+    state,
+    ctx.effectId,
+    p.id,
+    p.zones.discard.map((cd) => cd.id),
+    "discard",
+    "选择 1 张要删除的牌",
+  );
+};
+
+/** role:18 清洁工【重整阶段】结束：从全牌库（抽牌堆+弃牌区）挑 1 张删除 */
+const cleanerReshape: EffectBody = (state, ctx) => {
+  applyToHolders(state, ctx, "role:18", (s, c) => {
+    const p = getPlayer(s, c);
+    if (p.skillDisabled) return;
+    const ids = [...p.zones.draw, ...p.zones.discard].map((cd) => cd.id);
+    if (ids.length === 0) return;
+    promptChooseCard(s, c.effectId, p.id, ids, "deck", "从全牌库删除 1 张牌（不选则跳过）");
+  });
+};
+
+/** role:18 删除所选 1 张；若删的是抽牌堆的牌则重洗抽牌堆（chooseCard 超时/不选 = 不删） */
+const cleanerReshapeResolve = (state: GameState, ctx: EffectContext, choice: string | string[]): void => {
+  const p = getPlayer(state, ctx);
+  const ids = (Array.isArray(choice) ? choice : []).slice(0, 1);
+  if (ids.length === 0) return;
+  const id = ids[0]!;
+  const drawIdx = p.zones.draw.findIndex((cd) => cd.id === id);
+  if (drawIdx !== -1) {
+    const [cd] = p.zones.draw.splice(drawIdx, 1);
+    p.zones.deleted.push(cd!);
+    delete p.zones.chips[cd!.id];
+    p.zones.draw = shuffle(state, p.zones.draw);
+    logText(state, `${p.name} 从抽牌堆删除 1 张牌并重洗抽牌堆`);
+    afterCardsDeleted(state, ctx, [cd!]);
+    return;
+  }
+  const discardIdx = p.zones.discard.findIndex((cd) => cd.id === id);
+  if (discardIdx === -1) return;
+  const [cd] = p.zones.discard.splice(discardIdx, 1);
+  p.zones.deleted.push(cd!);
+  delete p.zones.chips[cd!.id];
+  logText(state, `${p.name} 从弃牌区删除 1 张牌`);
+  afterCardsDeleted(state, ctx, [cd!]);
 };
 
 /** role:12 炸鸡店老板【结算阶段】结束：候选为本回合打出且仍在弃牌区的牌，血筹不足则不挂起 */

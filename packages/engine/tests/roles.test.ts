@@ -171,8 +171,8 @@ describe("动作钩子(swapZero)", () => {
 describe("占位效果降级", () => {
   // 交互/机制缺失的角色：仅验证「不抛错 + 日志提示」（占位降级约定，不阻塞）
   // 已真身化故不在本列表：05/07/17（判定视图）、13（重洗钩子）、20（武士结算）、
-  // 10（先抽后弃）/11（半价）/12（付费抽牌+结算删牌）/14（任意数量换牌）/15（弃 3 得筹）/21（免费额度）/19（猜特权证）
-  const PLACEHOLDER_ROLES = ["role:08", "role:16", "role:18"];
+  // 19（猜特权证）、16（弃出牌区）、18（全牌库删牌）
+  const PLACEHOLDER_ROLES = ["role:08"];
 
   it("占位角色:推进一整回合不抛错且日志降级提示", () => {
     for (const roleId of PLACEHOLDER_ROLES) {
@@ -438,6 +438,62 @@ describe("阶段内交互型角色（票据 20）", () => {
     g = reduce(g, { type: "resolvePrompt", playerId: "a", choice: ["f1", "f2", "f3", "f4"] }, CFG);
     expect(g.players[0]!.zones.deleted.map((c) => c.id)).toEqual(["f1", "f2", "f3"]); // 截断到 3 张
     expect(g.players[0]!.chips).toBe(2);
+  });
+});
+
+describe("两段式交互型角色（票据 20）", () => {
+  it("role:16 高中生：弃置出牌区 + 2 筹，续挂选牌删 1 张，判定为高牌 0 点", () => {
+    let g = bothPlayed("role:16", ["h1", "h2", "h3", "h4", "h5"]);
+    expect(g.pendingPrompt?.kind).toBe("chooseOption");
+    const before = g.players[0]!.chips;
+    g = reduce(g, { type: "resolvePrompt", playerId: "a", choice: "yes" }, CFG);
+    const a = g.players[0]!;
+    expect(a.zones.play.length).toBe(0);
+    expect(a.chips).toBe(before + 2);
+    expect(g.pendingPrompt?.kind).toBe("chooseCard"); // 续挂选牌
+    const targetId = a.zones.discard[0]!.id;
+    g = reduce(g, { type: "resolvePrompt", playerId: "a", choice: [targetId] }, CFG);
+    expect(g.players[0]!.zones.deleted.map((c) => c.id)).toEqual([targetId]);
+    const entry = g.duelResult!.find((r) => r.playerId === "a")!;
+    expect(entry.category).toBe(1); // 高牌
+    expect(entry.totalPoints).toBe(0);
+    expect(entry.cards).toEqual([]);
+  });
+
+  it("role:16 高中生：选不发动则出牌区保留、不给筹", () => {
+    let g = bothPlayed("role:16", ["h1", "h2", "h3", "h4", "h5"]);
+    const before = g.players[0]!.chips;
+    g = reduce(g, { type: "resolvePrompt", playerId: "a", choice: "no" }, CFG);
+    expect(g.players[0]!.chips).toBe(before);
+    expect(g.duelResult!.find((r) => r.playerId === "a")!.cards.length).toBe(5);
+  });
+
+  it("role:18 清洁工：重整末从全牌库删 1 张，删到抽牌堆的牌则重洗", () => {
+    let g = makeGame("role:18");
+    g = driveTo(g, "reshape");
+    g = reduce(g, { type: "reshape", playerId: "a", reshuffle: false }, CFG);
+    g = reduce(g, { type: "reshape", playerId: "b", reshuffle: false }, CFG);
+    const prompt = g.pendingPrompt!;
+    expect(prompt.kind).toBe("chooseCard");
+    expect(prompt.from).toBe("deck");
+    const a = g.players[0]!;
+    expect(a.zones.draw.length).toBeGreaterThan(0);
+    const drawId = a.zones.draw[0]!.id;
+    g = reduce(g, { type: "resolvePrompt", playerId: "a", choice: [drawId] }, CFG);
+    expect(g.players[0]!.zones.deleted.map((c) => c.id)).toEqual([drawId]);
+    expect(g.players[0]!.zones.draw.some((c) => c.id === drawId)).toBe(false);
+    expect(g.log.some((l) => l.text.includes("重洗抽牌堆"))).toBe(true);
+    expect(g.turn).toBe(2); // 阶段推进在交互完成后继续
+  });
+
+  it("role:18 清洁工：不选则不删牌", () => {
+    let g = makeGame("role:18");
+    g = driveTo(g, "reshape");
+    g = reduce(g, { type: "reshape", playerId: "a", reshuffle: false }, CFG);
+    g = reduce(g, { type: "reshape", playerId: "b", reshuffle: false }, CFG);
+    const before = g.players[0]!.zones.deleted.length;
+    g = reduce(g, { type: "resolvePrompt", playerId: "a", choice: [] }, CFG);
+    expect(g.players[0]!.zones.deleted.length).toBe(before);
   });
 });
 

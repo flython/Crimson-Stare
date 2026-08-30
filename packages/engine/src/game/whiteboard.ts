@@ -10,7 +10,7 @@ import { card, joker, SUITS } from "../cards.js";
 import type { GameConfig } from "../core/config.js";
 import type { GameState, PlayerState, PhaseId, Suspended } from "../core/state.js";
 import { shuffle } from "../core/rng.js";
-import { evaluateHand, compareHands } from "../hand-evaluator.js";
+import { evaluateHand, compareHands, HandCategory } from "../hand-evaluator.js";
 import type { ChipView } from "../hand-evaluator.js";
 import { resolveTiming, runTimingQueue, runActionHook, getEffect } from "../core/effects.js";
 import { validateChoice } from "../effects/interactive.js";
@@ -234,7 +234,11 @@ function enterPhase(state: GameState, phase: PhaseId, config: GameConfig): void 
 function resolveDuel(state: GameState, config: GameConfig): void {
   const evaluated = state.players.map((p) => {
     const view: ChipView | undefined = roleChipView(p);
-    const ev = p.zones.play.length > 0 ? evaluateHand(p.zones.play, view) : null;
+    // 出牌区为空（高中生弃置 / 手牌打空）：视为高牌 0 点参与排名，而非"不参与"
+    const ev =
+      p.zones.play.length > 0
+        ? evaluateHand(p.zones.play, view)
+        : { category: HandCategory.高牌, totalPoints: 0, cards: [] };
     if (ev && (p.duelPointsBonus ?? 0) !== 0) {
       ev.totalPoints += p.duelPointsBonus!; // 赌场荷官【结算阶段】牌型总点数+20
     }
@@ -244,9 +248,6 @@ function resolveDuel(state: GameState, config: GameConfig): void {
   const holder = state.passHolderSeat ?? 0;
   // 牌型降序 → 总点数降序 → 顺时针离特权证近者先
   evaluated.sort((a, b) => {
-    if (!a.ev && !b.ev) return 0;
-    if (!a.ev) return 1;
-    if (!b.ev) return -1;
     const c = compareHands(b.ev, a.ev); // compareHands 正数=前者大
     if (c !== 0) return c;
     return (a.p.seat - holder + n) % n - ((b.p.seat - holder + n) % n);
@@ -266,15 +267,13 @@ function resolveDuel(state: GameState, config: GameConfig): void {
       state.passHolderSeat = p.seat;
       log(state, `${p.name} 夺魁，获得临时特权证`);
     }
-    if (ev) {
-      results.push({
-        playerId: p.id,
-        category: ev.category,
-        totalPoints: ev.totalPoints,
-        rank,
-        cards: ev.cards.map((c) => ({ id: c.id, rank: c.rank, suit: c.suit, wasJoker: c.wasJoker })),
-      });
-    }
+    results.push({
+      playerId: p.id,
+      category: ev.category,
+      totalPoints: ev.totalPoints,
+      rank,
+      cards: ev.cards.map((c) => ({ id: c.id, rank: c.rank, suit: c.suit, wasJoker: c.wasJoker })),
+    });
     p.zones.discard.push(...p.zones.play.splice(0)); // 出牌区置入弃牌区
   });
   state.duelResult = results;
@@ -455,12 +454,11 @@ function resolvePrompt(state: GameState, action: Extract<Action, { type: "resolv
   const def = getEffect(prompt.effectId);
   if (!def?.resolve) throw new Error(`效果 ${prompt.effectId} 无 resolve 实现`);
   validateChoice(prompt, action.choice);
+  // 先解除挂起：resolve 内可链式续挂新交互（如"是否发动"→"选哪张牌"）
+  state.pendingPrompt = null;
   def.resolve(state, { config, playerId: prompt.playerId, effectId: prompt.effectId }, action.choice);
   log(state, `${state.players.find((p) => p.id === prompt.playerId)?.name ?? prompt.playerId} 完成交互选择`);
-  // 链式挂起：resolve 内可以再挂一个新交互（如"是否发动"→"选哪张牌"），此时不清空、也不恢复阶段推进
-  const chained = state.pendingPrompt !== prompt;
-  if (!chained) state.pendingPrompt = null;
-  if (!chained) resumePhase(state, config);
+  if (!state.pendingPrompt) resumePhase(state, config); // 未续挂才继续被暂停的阶段推进
 }
 
 /** 纯函数 reducer：输入当前 state 与 Action，返回全新 state */

@@ -36,7 +36,7 @@ export function promptChooseCard(
   effectId: string,
   playerId: string,
   candidates: string[],
-  from: ZoneId,
+  from: ZoneId | "deck", // "deck" = 全牌库（抽牌堆+弃牌区），跨区域选牌（清洁工）
   promptText?: string,
 ): void {
   if (state.pendingPrompt) throw new Error(`已有待决交互 ${state.pendingPrompt.effectId}，不能并发挂起`);
