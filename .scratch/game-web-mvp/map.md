@@ -37,6 +37,7 @@ spec.md（`.scratch/game-web-mvp/spec.md`）全部 user stories 达成：内部�
 - [18 - 卡牌图片上图](issues/18-卡牌图片上图.md)（已 resolved）：sync-assets 脚本（predev/prebuild）把根 assets/cards 拷进 web public/cards（gitignore 不入库，Dockerfile 补 COPY assets）；CardImg 组件 onError 隐藏即回退文字占位；黑市卡与座位角色卡上图，URL 映射 assets/→/cards/。
 - [19 - 卡池元数据下发与 SQLite 局摘要](issues/19-卡池元数据下发与SQLite局摘要.md)（已 resolved）：hello 后下发 `cardPool` 消息（完整 CardPool，静态一次）；web Table 用 roleById/marketById 查找表渲染卡名/效果文本/角色技能 tooltip，分类边框改 colorTag 三分类（cat-green/blue/red），元数据未到回退 defId；`server/src/db.ts` SummaryStore 用 node:sqlite（process.getBuiltinModule 运行时获取绕过打包器解析）终局写 game_records，DB_PATH 未设为 no-op；e2e 增 2 用例共 8 绿。21 号芯片可视化已解锁。
 - [20 - 效果真身化](issues/20-效果真身化.md)（已 resolved）：芯片判定视图改候选集语义（suitOptions/rankOptions/duplicate/asJoker，chipViewFromChips 构建 + mergeChipView 与角色映射叠加，008-012/017 声明判定阶段消费）；特权证条件类用 passHolderBonus 工厂（self 购买即结算/chip 结算对持有者、negate 若不持有）落地 018/019/020/037，特权证芯片补 chipInstall 接通购买链路（noJoker=true 与卡面「不可插入 Joker」一致）；黑市区交互 from 扩展 "market"，043 再来一批（先全回堆底再补位）真身化 + purchase「购买先摘牌」保证效果视角正确；新状态字段 skipPhases/nextTurnSwapDelta/nextTurnSkillDisabled 由 whiteboard enterPhase 消费（038/040/044）；026/032 用 chooseCard.carry 中间态做跨玩家链式交互、033 金科玉律 2 下落地为对手本人自选删 1；025 自毁芯片 settle 按 duelResult 删本回合打出牌（去 #dup 后缀、同步清芯片）。引擎 155 用例全绿。遗留：道具 045-052 使用时结算、芯片 014/015/016/023/024、035 黑厢抢夺、role:05/21/08（均标注 TODO，详见票据 Answer）。
+- [21 - 芯片可视化](issues/21-芯片可视化.md)（已 resolved）：Card.baseRank 保存原始点数；CardFace 改造支持角标（.chipIcon + title tooltip）+ 数值括号「9 (5+4)」+ 花色括号「♠(原♥)」；CHIP_DELTA/CHIP_SUIT_MAP 硬编码与 engine 注册表一致；手牌区/PlayZone（4向）全部透传 chipDefId+marketById；build 通过，178 测试全绿。
 
 ## Not yet specified
 
@@ -53,13 +54,11 @@ spec.md「M3' 批次增补」为设计依据。推进顺序：**19（元数据�
 - [18 - 卡牌图片上图](issues/18-卡牌图片上图.md)：resolved
 - [19 - 卡池元数据下发与 SQLite 局摘要](issues/19-卡池元数据下发与SQLite局摘要.md)：resolved
 - [20 - 效果真身化（17 标准角色 + 28 非黄边黑市牌）](issues/20-效果真身化.md)：resolved
-- [21 - 芯片可视化](issues/21-芯片可视化.md)：open
-- [22 - 暗扣交互式声明与六七条放宽](issues/22-暗扣交互式声明与六七条放宽.md)：open，blocked by 21
-- [23 - 自动化集成测试与 CI](issues/23-自动化集成测试与CI.md)：open，blocked by 18-22
+- [21 - 芯片可视化](issues/21-芯片可视化.md)：resolved（2026-08-31，commit 2486330）
+- [22 - 暗扣交互式声明与六七条放宽](issues/22-暗扣交互式声明与六七条放宽.md)：open，blocked by 21（已解锁）
+- [23 - 自动化集成测试与 CI](issues/23-自动化集成测试与CI.md)：open，blocked by 21-22
 
-**当前 frontier = 21（芯片可视化）**
-
-**当前 frontier = 20**（21 已解锁待做；22/23 被阻塞）。
+**当前 frontier = 22（暗扣交互式声明与六七条放宽）**
 
 ## Out of scope
 
