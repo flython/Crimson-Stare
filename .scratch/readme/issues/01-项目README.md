@@ -1,8 +1,12 @@
 # 01 - 项目 README
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: —
+
+## Answer
+
+根 `README.md` 已落地，中文 6 节（简介+一行进度 / 快速开始 / Docker 部署 / 目录结构 / 测试与构建 / 文档索引），约 80 行，无截图/badge。写作时的事实核验补充进 spec「事实锚点」：server 本地 dev 依赖 engine dist（首次需 `npm run build`，两个 Dockerfile 同样先 build engine）；端口 8080/5173/8088；game-config.json 内容为奖励表+票数目标+回合参数。
 
 ## Question
 
