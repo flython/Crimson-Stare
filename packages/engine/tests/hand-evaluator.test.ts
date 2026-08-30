@@ -156,3 +156,48 @@ describe("手牌不足场景", () => {
 
 // 引用避免未使用告警
 void Suit;
+
+// ===== 票据 20：芯片声明视图 =====
+describe("芯片声明视图（票据 20）", () => {
+  it("改花色芯片：把一张牌改花色后判定为同花", () => {
+    const cards = [card(3, "S", "c1"), card(5, "S", "c2"), card(7, "S", "c3"), card(9, "S", "c4"), card(11, "H", "c5")];
+    expect(evaluateHand(cards).category).toBe(HandCategory.高牌);
+    const withChip = evaluateHand(cards, { suitOverride: { c5: "S" } });
+    expect(withChip.category).toBe(HandCategory.同花);
+    // 复制牌不改变原卡 id（复制品带 #dup）
+    expect(withChip.cards.map((c) => c.id)).toEqual(["c1", "c2", "c3", "c4", "c5"]);
+  });
+
+  it("视为 2 张芯片：四条 + 复制 → 五条", () => {
+    const cards = [card(7, "S", "d1"), card(7, "H", "d2"), card(7, "D", "d3"), card(7, "C", "d4")];
+    expect(evaluateHand(cards).category).toBe(HandCategory.四条);
+    const ev = evaluateHand(cards, { duplicate: ["d1"] });
+    expect(ev.category).toBe(HandCategory.五条);
+    expect(ev.cards.filter((c) => c.id === "d1#dup")).toHaveLength(1);
+  });
+
+  it("复制牌可造六条（6 张出牌 + 复制）", () => {
+    const cards = [
+      card(9, "S", "e1"),
+      card(9, "H", "e2"),
+      card(9, "D", "e3"),
+      card(9, "C", "e4"),
+      card(9, "S", "e5"),
+      card(9, "H", "e6"),
+    ];
+    expect(evaluateHand(cards).category).toBe(HandCategory.六条);
+    // 5 张 + 复制 1 张 = 6 张同点 → 六条
+    const five = cards.slice(0, 5);
+    expect(evaluateHand(five).category).toBe(HandCategory.五条);
+    expect(evaluateHand(five, { duplicate: ["e1"] }).category).toBe(HandCategory.六条);
+  });
+
+  it("超上限（含复制）抛错，JOKER 不受芯片影响", () => {
+    const cards = [card(2, "S", "f1"), card(3, "S", "f2"), card(4, "S", "f3"), card(5, "S", "f4"), card(6, "S", "f5"), card(7, "S", "f6"), card(8, "S", "f7")];
+    expect(() => evaluateHand(cards, { duplicate: ["f1"] })).toThrow(/最多 7 张/);
+    // JOKER 不可插芯片：改花色对 JOKER 无效（仍由求解器赋值）
+    const withJoker = [joker("j1"), card(10, "S", "g2"), card(11, "S", "g3"), card(12, "S", "g4"), card(13, "S", "g5")];
+    const ev = evaluateHand(withJoker, { suitOverride: { j1: "H" } });
+    expect(ev.category).toBe(HandCategory.同花顺);
+  });
+});

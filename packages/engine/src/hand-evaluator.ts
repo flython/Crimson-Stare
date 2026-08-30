@@ -1,5 +1,5 @@
 /**
- * 牌型判定与 JOKER 赋值求解器（票据 03）。
+ * 牌型判定与 JOKER 赋值求解器（票据 03；票据 20 增加芯片声明视图）。
  *
  * 输入：出牌区的牌（默认 5 张；规则效果可能更多；"手牌不足 5 张出全部"时更少）。
  * 输出：单一最大牌型（金科玉律 5：只取单一最大牌型，同花顺不计为同花）与总点数。
@@ -187,15 +187,43 @@ export function evaluateResolved(cards: { rank: number; suit: Suit }[]): RawEval
 }
 
 /**
+ * 芯片声明视图（票据 20）：牌型判定时生效的芯片效果。
+ *
+ * 声明值由出牌阶段交互确定（票据 22 落库），判定器只消费，不负责交互。
+ * JOKER 不可插芯片（金科玉律），故视图对 JOKER 无效。
+ */
+export interface ChipView {
+  /** 改花色类芯片（如变色墨水）：cardId → 判定时视为的花色 */
+  suitOverride?: Record<string, Suit>;
+  /** 双生镜片等"该牌视为 2 张"：参与判定时复制一份同点数同花色 */
+  duplicate?: string[];
+}
+
+/** 应用芯片视图：改花色 / 复制牌（复制品 id 加 #dup 后缀以便展示层识别） */
+function applyChipView(cards: Card[], view?: ChipView): Card[] {
+  if (!view) return cards;
+  const dup = new Set(view.duplicate ?? []);
+  const out: Card[] = [];
+  for (const c of cards) {
+    const eff: Card = { ...c, suit: view.suitOverride?.[c.id] ?? c.suit };
+    out.push(eff);
+    if (dup.has(c.id)) out.push({ ...eff, id: `${c.id}#dup` });
+  }
+  return out;
+}
+
+/**
  * 主入口：判定出牌区的牌（可含 JOKER），返回单一最大牌型。
  * 牌数下限 1（手牌不足时出全部），上限 7（六条/七条为规则明示的合法造出牌型）。
+ * chipView 为芯片声明视图（票据 20），缺省即票据 03 的原行为。
  */
-export function evaluateHand(input: Card[]): HandEvaluation {
+export function evaluateHand(input: Card[], chipView?: ChipView): HandEvaluation {
+  const cards = applyChipView(input, chipView);
   if (input.length === 0) throw new Error("出牌区不能为空");
-  if (input.length > 7) throw new Error("出牌区最多 7 张牌");
+  if (cards.length > 7) throw new Error("出牌区最多 7 张牌（含芯片复制）");
 
-  const jokers = input.filter((c) => c.isJoker);
-  const plain = input.filter((c) => !c.isJoker);
+  const jokers = cards.filter((c) => c.isJoker);
+  const plain = cards.filter((c) => !c.isJoker);
 
   // 无 JOKER：直接判定
   if (jokers.length === 0) {
@@ -204,7 +232,7 @@ export function evaluateHand(input: Card[]): HandEvaluation {
     return {
       category: raw.category,
       totalPoints: raw.totalPoints,
-      cards: input.map((c) => ({ id: c.id, rank: c.rank!, suit: c.suit!, wasJoker: false })),
+      cards: cards.map((c) => ({ id: c.id, rank: c.rank!, suit: c.suit!, wasJoker: false })),
     };
   }
 
@@ -222,7 +250,7 @@ export function evaluateHand(input: Card[]): HandEvaluation {
         (raw.category === best.value.raw.category && raw.totalPoints > best.value.raw.totalPoints);
       if (better) {
         let j = 0;
-        const resolved = input.map((c) =>
+        const resolved = cards.map((c) =>
           c.isJoker
             ? { id: c.id, rank: current[plain.length + j]!.rank, suit: current[plain.length + j++]!.suit, wasJoker: true }
             : { id: c.id, rank: c.rank!, suit: c.suit!, wasJoker: false },
