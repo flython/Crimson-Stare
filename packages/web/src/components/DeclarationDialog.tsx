@@ -21,12 +21,10 @@ interface DeclaredCard {
   card: Card;
   chipDefId: string;
   chipDef: CardDef;
-  /** 当前声明值 */
-  value: string;
 }
 
 interface DeclarationDialogProps {
-  cards: Array<{ card: Card; chipDefId: string; chipDef: CardDef }>;
+  cards: DeclaredCard[];
   onConfirm: (declarations: Record<string, string>) => void;
   onCancel: () => void;
 }
@@ -238,7 +236,7 @@ export default function DeclarationDialog({ cards, onConfirm, onCancel }: Declar
           const red = card.suit === "H" || card.suit === "D";
           const suitSym = card.suit ? SUIT_SYMBOL[card.suit] : "";
           const rankStr = card.rank ?? "JOKER";
-          const cardLabel = `${suitSym}${rankStr} ${chipDef.name}`;
+          const cardLabel = `${suitSym}${rankStr} ${chipDef?.name ?? chipDefId}`;
 
           return (
             <div
@@ -255,7 +253,7 @@ export default function DeclarationDialog({ cards, onConfirm, onCancel }: Declar
                 {cardLabel}
               </div>
               <div style={{ color: "#a88", fontSize: 11, marginBottom: 8 }}>
-                {chipDef.effectText}
+                {chipDef?.effectText ?? ""}
               </div>
 
               {suitChips.includes(chipDefId) && (
