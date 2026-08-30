@@ -12,3 +12,6 @@ dist/
 
 # 卡牌图片由 sync-assets 脚本从 /assets 同步生成，不入库
 packages/web/public/cards/
+
+# 卡图压缩前原图备份（手动回滚用）
+/assets/_original/
