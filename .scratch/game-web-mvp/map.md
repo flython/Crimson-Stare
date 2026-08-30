@@ -55,10 +55,10 @@ spec.md「M3' 批次增补」为设计依据。推进顺序：**19（元数据�
 - [19 - 卡池元数据下发与 SQLite 局摘要](issues/19-卡池元数据下发与SQLite局摘要.md)：resolved
 - [20 - 效果真身化（17 标准角色 + 28 非黄边黑市牌）](issues/20-效果真身化.md)：resolved
 - [21 - 芯片可视化](issues/21-芯片可视化.md)：resolved（2026-08-31，commit 2486330）
-- [22 - 暗扣交互式声明与六七条放宽](issues/22-暗扣交互式声明与六七条放宽.md)：open，blocked by 21（已解锁）
-- [23 - 自动化集成测试与 CI](issues/23-自动化集成测试与CI.md)：open，blocked by 21-22
+- [22 - 暗扣交互式声明与六七条放宽](issues/22-暗扣交互式声明与六七条放宽.md)：resolved（2026-08-31，commit c16035f）
+- [23 - 自动化集成测试与 CI](issues/23-自动化集成测试与CI.md)：open，blocked by 21-22（已解锁）
 
-**当前 frontier = 22（暗扣交互式声明与六七条放宽）**
+**当前 frontier = 23（自动化集成测试与 CI）**
 
 ## Out of scope
 
