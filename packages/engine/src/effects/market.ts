@@ -374,15 +374,60 @@ function pinpointBlast(): EffectDef {
   };
 }
 
-/** 秘密交易占位：依赖缺失状态/交互的牌，注册 run 仅记 TODO 日志（保持购买链路，不挂起不报错） */
-function placeholderTrade(defId: string, reason: string): EffectDef {
+/**
+ * 043 再来一批：黑市区选 0-2 张放回黑市牌堆底 → 补齐黑市 → 可立即再购买一次。
+ * 候选是栏位序号（"market" 来源），resolve 时先把选中的牌全部压入 supply 尾部，
+ * 再统一从 supply 顶部补位（避免刚放回的牌被自己补回原位）；「购买先摘牌」保证
+ * 候选里不含刚买走的牌。purchaseFlipped 显式置 false 表达「可再购买」（防将来加限购）。
+ */
+function restock(): EffectDef {
   return {
-    id: `market:${defId}`,
+    id: "market:043",
     source: "blackMarket",
     phase: "purchase",
     timing: "during",
     run: (state, ctx) => {
-      logText(state, `${ctx.effectId} ${reason}（TODO 占位）`);
+      const candidates = state.blackMarket.slots
+        .map((s, i) => (s.defId ? String(i) : null))
+        .filter((x): x is string => x !== null);
+      if (candidates.length === 0) {
+        logText(state, "market:043 黑市已空，无事发生");
+        return;
+      }
+      promptChooseCard(
+        state,
+        "market:043",
+        ctx.playerId!,
+        candidates,
+        "market",
+        "选择放回牌堆底的牌（至多 2 张，不选即只补位）",
+      );
+    },
+    resolve: (state, ctx, choice) => {
+      const p = getPlayer(state, ctx);
+      const picked = (Array.isArray(choice) ? choice : []).slice(0, 2).map(Number);
+      // 先全部回堆底再统一补位：避免刚放回的牌被自己补回原位
+      const emptied: number[] = [];
+      for (const i of picked) {
+        const slot = state.blackMarket.slots[i];
+        if (!slot?.defId) continue;
+        state.blackMarket.supply.push({ defId: slot.defId, price: slot.price, subtype: slot.subtype });
+        slot.defId = null;
+        slot.bonusChips = 0;
+        emptied.push(i);
+      }
+      for (const i of emptied) {
+        const next = state.blackMarket.supply.shift();
+        const slot = state.blackMarket.slots[i];
+        if (!slot) continue;
+        if (next) {
+          slot.defId = next.defId;
+          slot.price = next.price;
+          slot.subtype = next.subtype;
+        }
+      }
+      p.purchaseFlipped = false; // 可立即再进行一次购买
+      logText(state, `market:043 回堆 ${picked.length} 张并补位，${p.name} 可再购买一次`);
     },
   };
 }
@@ -424,12 +469,18 @@ export function registerMarketEffects(): void {
     registerEffect(chipInstall({ defId }));
   }
   // TODO: 008 变色墨水（花色任意）/009 黑色芯片（♠♣）/010 红色芯片（♦♥）/011 数字滑轨（点数任意）/
-  // 012 百变影像（花色点数任意）/017 双生镜片（视为 2 张，不可插 JOKER）的对决声明，
-  // 019/020 血筹镀层（胜/败）"结算时若持有【临时特权证】"（引擎需特权证持有判定）——均需 hand-evaluator/状态扩展，留后续票据。
+  // 012 百变影像（花色点数任意）/017 双生镜片（视为 2 张，不可插 JOKER）的对决声明——
+  // 已由 chipViewFromChips 在判定阶段消费（见 mergeChipView）。
 
+  // 018/019/020 血筹镀层（车票/胜/败）：结算时按特权证条件对芯片持有者结算（settle 注册见下）。
+  // 019/020 的插牌已由上方声明类批量注册覆盖；018 在此单独补注册。
+  // chipInstall 默认 noJoker=true，与卡面「不可插入【Joker牌】中」一致。
+  registerEffect(chipInstall({ defId: "018" }));
   // 021/022 血筹镀层（出/夺）：简单声明类，对决时实际生效（见下方阶段时机效果）
   registerEffect(chipInstall({ defId: "021" }));
   registerEffect(chipInstall({ defId: "022" }));
+  // 025 自毁芯片：结算结束时删除本回合打出的所有牌（含芯片所在牌），见 market:025:settle
+  registerEffect(chipInstall({ defId: "025" }));
 
   // ── 秘密交易：黄边 ────────────────────────────────────────────────
   registerEffect(cheapDelete()); // 027 廉价删除
@@ -438,7 +489,7 @@ export function registerMarketEffects(): void {
   registerEffect(diceGain()); // 036 对赌协议
   // 037 特权分红：若持有【临时特权证】，获得 3 血筹（购买立即结算）
   registerEffect(passHolderSelfBonus("037", { chips: 3 }));
-  registerEffect(placeholderTrade("043", "再来一批：黑市区选牌入堆底/补位/再购买交互，MVP 未实现"));
+  registerEffect(restock()); // 043 再来一批：选牌回堆底 + 补位 + 可再购买
 
   // ── 秘密交易：非黄边（尽量注册简单/自动类）──────────────────────────────
   registerEffect(closingBonus("028", 4)); // 闭店礼·小
@@ -492,9 +543,33 @@ export function registerMarketEffects(): void {
   registerEffect(
     passHolderBonus("market:020:settle", { chips: 3 }, "chip", { chipDefId: "020", negate: true }),
   );
+  // 025 自毁芯片（结算结束时）：删除持有者本回合打出的所有牌（含插芯片的牌）
+  // 打出牌在结算时已入弃牌区（resolveDuel 的 play→discard），按 duelResult 回溯本回合打出的牌 id（去 #dup 后缀），
+  // 删除时同步清理其上挂载的芯片（金科玉律 10）。
+  registerEffect({
+    id: "market:025:settle",
+    source: "blackMarket",
+    phase: "settle",
+    timing: "after",
+    run: (state) => {
+      for (const p of chipHolders(state, "025")) {
+        const entry = state.duelResult?.find((e) => e.playerId === p.id);
+        if (!entry || entry.cards.length === 0) continue;
+        const ids = new Set(entry.cards.map((c) => c.id.split("#")[0]!));
+        const doomed = p.zones.discard.filter((c) => ids.has(c.id));
+        if (doomed.length === 0) continue;
+        p.zones.discard = p.zones.discard.filter((c) => !ids.has(c.id));
+        for (const c of doomed) {
+          delete p.zones.chips[c.id];
+          p.zones.deleted.push(c);
+        }
+        logText(state, `${p.name} 自毁芯片：删除本回合打出的 ${doomed.length} 张牌`);
+      }
+    },
+  });
   // TODO: 014 仿制印章（视为出牌区另一张，需选牌交互）、015 复制芯片（复制他人芯片，需选芯片交互）、
-  // 016 磁力线圈（重洗前挑牌放顶）、023 弹簧夹层（花血筹临时改点数）、024 屏蔽器（令一张芯片失效）、
-  // 025 自毁芯片（结算末删本回合打出牌）——需交互或状态扩展，留后续。
+  // 016 磁力线圈（重洗前挑牌放顶）、023 弹簧夹层（花血筹临时改点数）、024 屏蔽器（令一张芯片失效）——
+  // 需交互或状态扩展，留后续。
 
   // ── 阶段时机效果（对决/结算 during，resolveTiming 触发）───────────────────
   registerEffect({

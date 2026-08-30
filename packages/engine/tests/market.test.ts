@@ -591,4 +591,97 @@ describe("黑市牌效果（票据 12）", () => {
       expect(b.tickets).toBe(bBefore);
     });
   });
+
+  describe("黑市区交互与结算末芯片（票据 20）", () => {
+    it("043 再来一批：选 2 张回堆底并补位，候选不含刚买走的牌", () => {
+      let g = makeGame();
+      g.blackMarket.slots = [
+        { defId: "028", price: 1, bonusChips: 0 },
+        { defId: "029", price: 2, bonusChips: 0 },
+        { defId: "030", price: 3, bonusChips: 0 },
+      ];
+      g.blackMarket.supply = [
+        { defId: "034", price: 1 },
+        { defId: "035", price: 1 },
+      ];
+      g = buy(g, "043"); // 购买先摘牌：043 被买走后 refill 用 supply 顶补 034
+      expect(g.pendingPrompt).toMatchObject({ kind: "chooseCard", effectId: "market:043", from: "market" });
+      expect(g.pendingPrompt!.candidates).toEqual(["1", "2"]); // 槽位 0 已摘牌，不在候选
+      g = resolve(g, ["1", "2"]);
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.blackMarket.slots.map((s) => s.defId)).toEqual(["034", "035", "029"]);
+      expect(g.blackMarket.supply.map((s) => s.defId)).toEqual(["030"]);
+      expect(g.players[0]!.purchaseFlipped).toBe(false); // 可再购买
+    });
+
+    it("043 再来一批：不选 → 只补位，黑市不变更", () => {
+      let g = makeGame();
+      g.blackMarket.slots = [
+        { defId: "043", price: 1, bonusChips: 0 },
+        { defId: "029", price: 2, bonusChips: 0 },
+        { defId: null, price: 0, bonusChips: 0 },
+      ];
+      g.blackMarket.supply = [];
+      g = buy(g, "043");
+      expect(g.pendingPrompt!.candidates).toEqual(["1"]);
+      g = resolve(g, []);
+      expect(g.blackMarket.slots.map((s) => s.defId)).toEqual([null, "029", null]);
+      expect(g.blackMarket.supply).toHaveLength(0);
+      expect(g.players[0]!.purchaseFlipped).toBe(false);
+    });
+
+    it("043 再来一批：黑市已空 → 不挂起", () => {
+      let g = makeGame();
+      g.blackMarket.slots = [
+        { defId: "043", price: 1, bonusChips: 0 },
+        { defId: null, price: 0, bonusChips: 0 },
+        { defId: null, price: 0, bonusChips: 0 },
+      ];
+      g.blackMarket.supply = [];
+      g = buy(g, "043");
+      expect(g.pendingPrompt).toBeNull();
+    });
+
+    it("025 自毁芯片：结算结束时删除本回合打出的牌（含芯片所在牌）", () => {
+      const g = makeGame();
+      const a = g.players[0]!;
+      a.zones.discard = [card(5, "S", "p0-C1"), card(9, "H", "p0-C2"), card(2, "C", "p0-C3")];
+      a.zones.chips["p0-C1"] = "025"; // 芯片插在打出的牌上
+      g.duelResult = [
+        {
+          playerId: "a",
+          category: HandCategory.对子,
+          totalPoints: 10,
+          rank: 1,
+          cards: [
+            { id: "p0-C1", rank: 5, suit: "S", wasJoker: false },
+            { id: "p0-C2", rank: 9, suit: "H", wasJoker: false },
+          ],
+        },
+      ];
+      runTimingQueue(g, resolveTiming(g, "settle", "after", CFG), CFG);
+      expect(a.zones.discard.map((c) => c.id)).toEqual(["p0-C3"]);
+      expect(a.zones.deleted.map((c) => c.id).sort()).toEqual(["p0-C1", "p0-C2"]);
+      expect(a.zones.chips["p0-C1"]).toBeUndefined(); // 芯片随牌销毁（金科玉律 10）
+    });
+
+    it("025 自毁芯片：本回合未打出牌 → 不删除", () => {
+      const g = makeGame();
+      const a = g.players[0]!;
+      a.zones.discard = [card(5, "S", "p0-C1")];
+      a.zones.chips["p0-C1"] = "025";
+      g.duelResult = [
+        {
+          playerId: "b",
+          category: HandCategory.高牌,
+          totalPoints: 3,
+          rank: 1,
+          cards: [{ id: "p0-D1", rank: 3, suit: "D", wasJoker: false }],
+        },
+      ];
+      runTimingQueue(g, resolveTiming(g, "settle", "after", CFG), CFG);
+      expect(a.zones.discard.map((c) => c.id)).toEqual(["p0-C1"]);
+      expect(a.zones.deleted).toHaveLength(0);
+    });
+  });
 });

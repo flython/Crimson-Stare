@@ -611,6 +611,10 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       log(next, `${p.name} 购买 ${slot.defId}（${price}筹${price !== slot.price ? `，原价 ${slot.price}` : ""}${slot.bonusChips > 0 ? `，含叠加 ${slot.bonusChips} 筹` : ""}）`);
       const defId = slot.defId;
       const subtype = slot.subtype;
+      // 购买先摘牌：效果 run（handlePurchase 内）看到的黑市全景不含刚买走的牌
+      // （043 再来一批的候选是栏位序号，若先结算后摘牌会把刚买的牌自己也放回堆底）
+      slot.defId = null;
+      slot.bonusChips = 0;
       handlePurchase(next, p, defId, subtype, config);
       refillSlot(next, action.slotIndex);
       break;

@@ -36,7 +36,7 @@ export function promptChooseCard(
   effectId: string,
   playerId: string,
   candidates: string[],
-  from: ZoneId | "deck", // "deck" = 全牌库（抽牌堆+弃牌区），跨区域选牌（清洁工）
+  from: ZoneId | "deck" | "market", // "deck" = 全牌库；"market" = 黑市区栏位序号（043）
   promptText?: string,
   /** 交互中间态：resolve 时由 ctx.carry 原样回传（跨玩家链式交互用） */
   carry?: string,
