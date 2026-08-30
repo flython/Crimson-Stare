@@ -194,13 +194,16 @@ export function evaluateResolved(cards: { rank: number; suit: Suit }[]): RawEval
  * rankOptions / asJoker 由角色技能提供（2 视为 5 / 6↔9 / 4 视为小丑）。
  */
 export interface ChipView {
-  /** 改花色类芯片（如变色墨水）：cardId → 判定时视为的花色 */
-  suitOverride?: Record<string, Suit>;
+  /**
+   * 候选花色：cardId → 可视为的花色集合（变色墨水 = 四花色全开、黑色芯片 = ♠♣、红色芯片 = ♦♥）。
+   * 单元素数组即"改花色"；候选含原花色时"全部纳入"只会让结果更好或相等。
+   */
+  suitOptions?: Record<string, Suit[]>;
   /** 双生镜片等"该牌视为 2 张"：参与判定时复制一份同点数同花色 */
   duplicate?: string[];
-  /** 可选点数：cardId → 候选点数（含原值），求解器枚举取最优（2 视为 5 / 6↔9） */
+  /** 可选点数：cardId → 候选点数（含原值），求解器枚举取最优（2 视为 5 / 6↔9 / 数字滑轨全点数） */
   rankOptions?: Record<string, number[]>;
-  /** 视为 JOKER 参与求解（4 视为小丑；由玩家在出牌时声明，票据 22 交互确定） */
+  /** 视为 JOKER 参与求解（4 视为小丑 / 百变影像；由玩家在出牌时声明，票据 22 交互确定） */
   asJoker?: string[];
 }
 
@@ -220,16 +223,24 @@ interface ViewedCard {
   tieGroup?: string;
 }
 
-/** 应用判定视图：改花色 / 复制牌（复制品 id 加 #dup 后缀以便展示层识别）/ 点数候选 / 视为 JOKER */
+/**
+ * 应用判定视图：候选花色 / 候选点数（笛卡尔积）/ 复制牌（复制品 id 加 #dup 后缀）/ 视为 JOKER。
+ * 点数与花色候选同时存在时取笛卡尔积；两者全开等价 JOKER，由注册方直接用 asJoker 表示。
+ */
 function applyChipView(cards: Card[], view?: ChipView): ViewedCard[] {
   const dup = new Set(view?.duplicate ?? []);
   const asJoker = new Set(view?.asJoker ?? []);
   const out: ViewedCard[] = [];
-  const push = (c: Card, suit: Suit | null, isDup: boolean) => {
+  const push = (c: Card, isDup: boolean) => {
     const free = c.isJoker || asJoker.has(c.id);
-    const base = free ? null : { rank: c.rank!, suit: suit ?? c.suit! };
-    const opts = free ? undefined : view?.rankOptions?.[c.id];
-    const cands = free ? ALL_ASSIGNMENTS : opts && opts.length > 0 ? opts.map((rank) => ({ rank, suit: base!.suit })) : [base!];
+    let cands: readonly { rank: number; suit: Suit }[];
+    if (free) {
+      cands = ALL_ASSIGNMENTS;
+    } else {
+      const ranks = view?.rankOptions?.[c.id] ?? [c.rank!];
+      const suits = view?.suitOptions?.[c.id] ?? [c.suit!];
+      cands = ranks.flatMap((rank) => suits.map((suit) => ({ rank, suit })));
+    }
     out.push({
       id: isDup ? `${c.id}#dup` : c.id,
       wasJoker: free,
@@ -238,9 +249,8 @@ function applyChipView(cards: Card[], view?: ChipView): ViewedCard[] {
     });
   };
   for (const c of cards) {
-    const suit = view?.suitOverride?.[c.id] ?? c.suit;
-    push(c, suit, false);
-    if (dup.has(c.id)) push(c, suit, true);
+    push(c, false);
+    if (dup.has(c.id)) push(c, true);
   }
   return out;
 }

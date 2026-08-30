@@ -358,7 +358,7 @@ describe("购买与删牌额度角色（票据 20）", () => {
     expect(g.players[0]!.chips).toBe(before - CFG.deleteChipCost + 8);
 
     // 路径二：效果原语 deleteCards（黑市牌触发）同样触发奖励
-    let g2 = makeGame("role:15");
+    const g2 = makeGame("role:15");
     const p2 = g2.players[0]!;
     p2.zones.discard = [card(3, "C", "y4")];
     p2.chips = 20;

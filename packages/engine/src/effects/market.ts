@@ -33,6 +33,51 @@ import {
   spendChips,
 } from "./primitives.js";
 import { promptChooseCard, promptChoosePlayer } from "./interactive.js";
+import { SUITS } from "../cards.js";
+import type { ChipView } from "../hand-evaluator.js";
+
+/** 数字滑轨：点数可视为 2-14 任意值（含原值，求解器取最优） */
+const ALL_RANKS = Array.from({ length: 13 }, (_, i) => i + 2);
+
+/**
+ * 由玩家已插入的强化芯片构建判定视图（票据 20）。
+ * 声明类芯片只是"可视为"，故一律给候选集而非定值，由求解器取最优：
+ * - 008 变色墨水 花色任意 / 009 黑色芯片 ♠♣ / 010 红色芯片 ♦♥ / 011 数字滑轨点数任意
+ * - 012 百变影像 花色点数任意（等价 JOKER）/ 017 双生镜片 视为 2 张（复制品）
+ * 数值芯片（001-007）在插入时已改牌面，不进视图；013 无效果；其余为结算/交互类，另行注册。
+ * 芯片失效（全局 chipsDisabled 或单张 disabledChipCards）时不进视图。
+ */
+export function chipViewFromChips(p: PlayerState): ChipView | undefined {
+  if (p.chipsDisabled) return undefined;
+  const dead = new Set(p.disabledChipCards ?? []);
+  const view: ChipView = {};
+  for (const [cardId, defId] of Object.entries(p.zones.chips)) {
+    if (dead.has(cardId)) continue;
+    switch (defId) {
+      case "008":
+        (view.suitOptions ??= {})[cardId] = [...SUITS];
+        break;
+      case "009":
+        (view.suitOptions ??= {})[cardId] = ["S", "C"];
+        break;
+      case "010":
+        (view.suitOptions ??= {})[cardId] = ["D", "H"];
+        break;
+      case "011":
+        (view.rankOptions ??= {})[cardId] = ALL_RANKS;
+        break;
+      case "012":
+        (view.asJoker ??= []).push(cardId);
+        break;
+      case "017":
+        (view.duplicate ??= []).push(cardId);
+        break;
+      default:
+        break;
+    }
+  }
+  return Object.keys(view).length > 0 ? view : undefined;
+}
 
 /**
  * 强化芯片插入（购买结算）。
@@ -106,6 +151,47 @@ function itemEffect(defId: string): EffectDef {
   };
 }
 
+/**
+ * 特权证条件类效果的工厂（票据 20）。
+ * mode="self" 用于秘密交易（购买即结算，如 037 特权分红）；
+ * mode="chip" 用于强化芯片（结算阶段对芯片持有者结算，如 018/019/020 血筹镀层）。
+ * 判定：玩家 seat === state.passHolderSeat；negate=true 则取反（"若不持有"，如 020 血筹镀层·败）。
+ */
+function passHolderBonus(
+  id: string,
+  reward: { chips?: number; tickets?: number },
+  mode: "self" | "chip",
+  opts: { chipDefId?: string; negate?: boolean } = {},
+): EffectDef {
+  return {
+    id,
+    source: "blackMarket",
+    phase: mode === "self" ? "purchase" : "settle",
+    timing: mode === "self" ? "during" : "after",
+    run: (state, ctx) => {
+      const targets =
+        mode === "self"
+          ? [getPlayer(state, ctx)]
+          : state.players.filter((p) => Object.values(p.zones.chips).includes(opts.chipDefId!));
+      for (const p of targets) {
+        const isHolder = p.seat === state.passHolderSeat;
+        if (isHolder === Boolean(opts.negate)) continue; // negate 时要求"不持有"
+        if (reward.chips) gainChips(reward.chips)(state, { ...ctx, playerId: p.id });
+        if (reward.tickets) {
+          p.tickets += reward.tickets;
+          p.ticketsGainedThisTurn = (p.ticketsGainedThisTurn ?? 0) + reward.tickets;
+          logText(state, `${p.name} 获得 ${reward.tickets} 车票`);
+        }
+      }
+    },
+  };
+}
+
+/** 037 类：购买即结算的"若持有特权证"秘密交易 */
+function passHolderSelfBonus(defId: string, reward: { chips?: number; tickets?: number }): EffectDef {
+  return passHolderBonus(`market:${defId}`, reward, "self");
+}
+
 /** 秘密交易占位：依赖缺失状态/交互的牌，注册 run 仅记 TODO 日志（保持购买链路，不挂起不报错） */
 function placeholderTrade(defId: string, reason: string): EffectDef {
   return {
@@ -168,7 +254,8 @@ export function registerMarketEffects(): void {
   registerEffect(violentDelete()); // 031 暴力删除
   registerEffect(freeTopCard()); // 034 货箱盲掏
   registerEffect(diceGain()); // 036 对赌协议
-  registerEffect(placeholderTrade("037", "特权分红：依赖【临时特权证】持有判定，MVP 未实现"));
+  // 037 特权分红：若持有【临时特权证】，获得 3 血筹（购买立即结算）
+  registerEffect(passHolderSelfBonus("037", { chips: 3 }));
   registerEffect(placeholderTrade("043", "再来一批：黑市区选牌入堆底/补位/再购买交互，MVP 未实现"));
 
   // ── 秘密交易：非黄边（尽量注册简单/自动类）──────────────────────────────
@@ -192,9 +279,15 @@ export function registerMarketEffects(): void {
 
   // ── 强化芯片：非黄边（简单类注册，复杂类 TODO）────────────────────────────
   registerEffect(chipInstall({ defId: "013" })); // 空白模板：无效果
-  // TODO: 014 仿制印章（视为出牌区另一张）、015 复制芯片（复制他人芯片）、016 磁力线圈（重洗前挑牌放顶）、
-  // 018 加密线路（若持有【临时特权证】得 2 【车票】）、023 弹簧夹层（花血筹临时改点数）、024 屏蔽器（令一张芯片失效）、
-  // 025 自毁芯片（结算末删本回合打出牌）——对决/结算声明或需状态扩展，留后续。
+  // 018/019/020 血筹镀层系：结算阶段对芯片持有者按特权证条件结算（020 为"若不持有"）
+  registerEffect(passHolderBonus("market:018:settle", { tickets: 2 }, "chip", { chipDefId: "018" }));
+  registerEffect(passHolderBonus("market:019:settle", { chips: 4 }, "chip", { chipDefId: "019" }));
+  registerEffect(
+    passHolderBonus("market:020:settle", { chips: 3 }, "chip", { chipDefId: "020", negate: true }),
+  );
+  // TODO: 014 仿制印章（视为出牌区另一张，需选牌交互）、015 复制芯片（复制他人芯片，需选芯片交互）、
+  // 016 磁力线圈（重洗前挑牌放顶）、023 弹簧夹层（花血筹临时改点数）、024 屏蔽器（令一张芯片失效）、
+  // 025 自毁芯片（结算末删本回合打出牌）——需交互或状态扩展，留后续。
 
   // ── 阶段时机效果（对决/结算 during，resolveTiming 触发）───────────────────
   registerEffect({
@@ -214,7 +307,7 @@ export function registerMarketEffects(): void {
     source: "blackMarket",
     phase: "duel",
     timing: "during",
-    run: (state, ctx) => {
+    run: (state) => {
       const holder = chipHolders(state, "022")[0];
       if (!holder || state.pendingPrompt) return;
       const opponents = state.players.filter((p) => p.id !== holder.id).map((p) => p.id);
@@ -229,7 +322,8 @@ export function registerMarketEffects(): void {
       gainChips(1)(state, { ...ctx, playerId: holder.id });
     },
   });
-  // TODO: 008-012/017 的花色-点数声明、019/020 的"结算时若持有【临时特权证】" 对应 (duel/settle, during) 注册 —— 待 hand-evaluator 芯片视图。
+  // 008-012/017 的声明已由 chipViewFromChips 在判定阶段消费（见 mergeChipView），
+  // 019/020 的"结算时若（不）持有【临时特权证】"已注册为 (settle, after)。
 
   // ── 秘密交易（购买立即结算，非交互自动类）─────────────────────────────────
 }

@@ -331,7 +331,7 @@
       }
     ],
     "effectId": "market:020",
-    "effectText": "结算时若持有【临时特权证】，获得3【血筹】（不可插入【Joker牌】中）。",
+    "effectText": "结算时若不持有【临时特权证】，获得3【血筹】（不可插入【Joker牌】中）。",
     "image": "assets/cards/market/020.png"
   },
   {

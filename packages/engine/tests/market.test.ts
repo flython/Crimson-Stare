@@ -8,9 +8,11 @@ import { createGame, reduce } from "../src/game/whiteboard.js";
 import { DEFAULT_GAME_CONFIG } from "../src/core/config.js";
 import { resolveTiming, runTimingQueue } from "../src/core/effects.js";
 import { card } from "../src/cards.js";
-import type { GameState } from "../src/core/state.js";
+import { evaluateHand, HandCategory } from "../src/hand-evaluator.js";
+import type { ChipView } from "../src/hand-evaluator.js";
+import type { GameState, PlayerState } from "../src/core/state.js";
 // 副作用导入：加载 market.ts 使注册表生效（whiteboard 只 import roles.js）
-import "../src/effects/market.js";
+import { chipViewFromChips } from "../src/effects/market.js";
 
 const CFG = DEFAULT_GAME_CONFIG;
 
@@ -277,6 +279,151 @@ describe("黑市牌效果（票据 12）", () => {
       g.players[0]!.zones.discard = [card(5, "S", "t1")];
       g = buy(g, "042");
       expect(g.pendingPrompt).toBeNull();
+    });
+  });
+
+  describe("芯片判定视图（票据 20）", () => {
+    /** 由玩家已插入的芯片构建判定视图；extra 可覆盖 chipsDisabled / disabledChipCards */
+    function viewOf(chips: Record<string, string>, extra?: Partial<PlayerState>): ChipView | undefined {
+      const g = makeGame();
+      const p = g.players[0]!;
+      p.zones.chips = chips;
+      return chipViewFromChips(Object.assign(p, extra));
+    }
+
+    it("008 变色墨水：该牌四花色全开", () => {
+      expect(viewOf({ t1: "008" })).toEqual({ suitOptions: { t1: ["S", "H", "D", "C"] } });
+    });
+
+    it("009/010 黑/红芯片：仅对应两花色候选", () => {
+      expect(viewOf({ t1: "009" })).toEqual({ suitOptions: { t1: ["S", "C"] } });
+      expect(viewOf({ t1: "010" })).toEqual({ suitOptions: { t1: ["D", "H"] } });
+    });
+
+    it("011 数字滑轨：点数 2-14 全开", () => {
+      const v = viewOf({ t1: "011" });
+      expect(v?.rankOptions?.["t1"]).toHaveLength(13);
+      expect(v?.rankOptions?.["t1"]).toContain(14);
+    });
+
+    it("012 百变影像：视为 JOKER 参与求解", () => {
+      expect(viewOf({ t1: "012" })).toEqual({ asJoker: ["t1"] });
+    });
+
+    it("017 双生镜片：该牌视为 2 张", () => {
+      expect(viewOf({ t1: "017" })).toEqual({ duplicate: ["t1"] });
+    });
+
+    it("数值芯片（001-007）与 013 空白模板在插入时结算，不进判定视图", () => {
+      expect(viewOf({ t1: "001" })).toBeUndefined();
+      expect(viewOf({ t1: "013" })).toBeUndefined();
+    });
+
+    it("芯片失效：全局 chipsDisabled 与单张 disabledChipCards 均剔除", () => {
+      expect(viewOf({ t1: "008", t2: "011" }, { chipsDisabled: true })).toBeUndefined();
+      const v = viewOf({ t1: "008", t2: "011" }, { disabledChipCards: ["t1"] });
+      expect(v).toEqual({ rankOptions: { t2: expect.any(Array) } });
+    });
+
+    it("008 变色墨水促成同花：4 张 ♠ + 1 张 ♥ 判定为同花", () => {
+      const hand = [card(2, "S", "a1"), card(5, "S", "a2"), card(9, "S", "a3"), card(11, "S", "a4"), card(7, "H", "a5")];
+      expect(evaluateHand(hand).category).toBeLessThan(HandCategory.同花);
+      expect(evaluateHand(hand, { suitOptions: { a5: ["S", "H", "D", "C"] } }).category).toBe(HandCategory.同花);
+    });
+
+    it("009 黑色芯片只能取黑花色：♠♣ 命中同花，♦♥ 不命中", () => {
+      const hand = [card(2, "S", "a1"), card(5, "S", "a2"), card(9, "S", "a3"), card(11, "S", "a4"), card(7, "H", "a5")];
+      expect(evaluateHand(hand, { suitOptions: { a5: ["S", "C"] } }).category).toBe(HandCategory.同花);
+      const red = evaluateHand(hand, { suitOptions: { a5: ["D", "H"] } });
+      expect(red.category).toBeLessThan(HandCategory.同花);
+    });
+
+    it("011 数字滑轨凑五条：4 张 A + 1 张 2 可视为 A", () => {
+      const hand = [card(14, "S", "a1"), card(14, "H", "a2"), card(14, "D", "a3"), card(14, "C", "a4"), card(2, "S", "a5")];
+      expect(evaluateHand(hand).category).toBe(HandCategory.四条);
+      const ranks = Array.from({ length: 13 }, (_, i) => i + 2);
+      expect(evaluateHand(hand, { rankOptions: { a5: ranks } }).category).toBe(HandCategory.五条);
+    });
+
+    it("012 百变影像等同 JOKER：4 张 A + 1 张杂牌凑五条", () => {
+      const hand = [card(14, "S", "a1"), card(14, "H", "a2"), card(14, "D", "a3"), card(14, "C", "a4"), card(7, "S", "a5")];
+      expect(evaluateHand(hand, { asJoker: ["a5"] }).category).toBe(HandCategory.五条);
+    });
+
+    it("017 双生镜片复制一张：四条 → 五条，且复制品与原牌同点同花", () => {
+      const hand = [card(5, "S", "a1"), card(5, "H", "a2"), card(5, "D", "a3"), card(5, "C", "a4"), card(7, "S", "a5")];
+      expect(evaluateHand(hand).category).toBe(HandCategory.四条);
+      const ev = evaluateHand(hand, { duplicate: ["a1"] });
+      expect(ev.category).toBe(HandCategory.五条);
+      const dup = ev.cards.find((c) => c.id === "a1#dup");
+      expect(dup).toMatchObject({ rank: 5, suit: "S" });
+    });
+  });
+
+  describe("特权证条件效果（票据 20）", () => {
+    it("037 特权分红：持有特权证 +3 血筹，不持有则无", () => {
+      let g = makeGame();
+      g.passHolderSeat = g.players[0]!.seat;
+      g = buy(g, "037");
+      expect(g.players[0]!.chips).toBe(23); // 20 + 3
+
+      let g2 = makeGame();
+      g2.passHolderSeat = g2.players[1]!.seat;
+      g2 = buy(g2, "037");
+      expect(g2.players[0]!.chips).toBe(20);
+    });
+
+    it("019 血筹镀层（胜）：结算时芯片持有者持有特权证 +4 血筹", () => {
+      const g = makeGame();
+      const a = g.players[0]!;
+      a.zones.chips["t1"] = "019";
+      g.passHolderSeat = a.seat;
+      const before = a.chips;
+      runTimingQueue(g, resolveTiming(g, "settle", "after", CFG), CFG);
+      expect(a.chips).toBe(before + 4);
+    });
+
+    it("019 血筹镀层（胜）：未持有特权证不给筹；未插该芯片的玩家也不给", () => {
+      const g = makeGame();
+      const a = g.players[0]!;
+      const b = g.players[1]!;
+      a.zones.chips["t1"] = "019";
+      g.passHolderSeat = b.seat;
+      const aBefore = a.chips;
+      const bBefore = b.chips;
+      runTimingQueue(g, resolveTiming(g, "settle", "after", CFG), CFG);
+      expect(a.chips).toBe(aBefore);
+      expect(b.chips).toBe(bBefore); // b 持证但未插 019
+    });
+
+    it("020 血筹镀层（败）：不持有特权证 +3 血筹，持有则无", () => {
+      const g = makeGame();
+      const a = g.players[0]!;
+      const b = g.players[1]!;
+      a.zones.chips["t1"] = "020";
+      g.passHolderSeat = b.seat;
+      const aBefore = a.chips;
+      runTimingQueue(g, resolveTiming(g, "settle", "after", CFG), CFG);
+      expect(a.chips).toBe(aBefore + 3);
+
+      const g2 = makeGame();
+      const a2 = g2.players[0]!;
+      a2.zones.chips["t1"] = "020";
+      g2.passHolderSeat = a2.seat;
+      const before2 = a2.chips;
+      runTimingQueue(g2, resolveTiming(g2, "settle", "after", CFG), CFG);
+      expect(a2.chips).toBe(before2);
+    });
+
+    it("018 加密线路：结算时持有特权证的芯片持有者 +2 车票", () => {
+      const g = makeGame();
+      const a = g.players[0]!;
+      a.zones.chips["t1"] = "018";
+      g.passHolderSeat = a.seat;
+      const before = a.tickets;
+      runTimingQueue(g, resolveTiming(g, "settle", "after", CFG), CFG);
+      expect(a.tickets).toBe(before + 2);
+      expect(a.ticketsGainedThisTurn).toBe(2);
     });
   });
 });

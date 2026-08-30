@@ -15,6 +15,7 @@ import type { ChipView } from "../hand-evaluator.js";
 import { resolveTiming, runTimingQueue, runActionHook, getEffect } from "../core/effects.js";
 import { validateChoice } from "../effects/interactive.js";
 import { afterCardsDeleted } from "../effects/primitives.js";
+import { chipViewFromChips } from "../effects/market.js";
 import { roleSetup, roleChipView, roleTurnSetup, characterPurchasePrice } from "../effects/roles.js";
 import type { DuelResultEntry } from "../core/state.js";
 import type { CardPool } from "../cardPool.js";
@@ -226,6 +227,18 @@ function enterPhase(state: GameState, phase: PhaseId, config: GameConfig): void 
   // swap / play / purchase / delete：等待玩家 Action
 }
 
+/** 合并两个判定视图：角色映射（2 视为 5 等）与芯片声明（变色墨水等）可叠加作用于同一张牌 */
+function mergeChipView(a: ChipView | undefined, b: ChipView | undefined): ChipView | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return {
+    suitOptions: { ...a.suitOptions, ...b.suitOptions },
+    rankOptions: { ...a.rankOptions, ...b.rankOptions },
+    duplicate: [...(a.duplicate ?? []), ...(b.duplicate ?? [])],
+    asJoker: [...(a.asJoker ?? []), ...(b.asJoker ?? [])],
+  };
+}
+
 /**
  * 对决自动结算（票据 20：注入角色判定视图 → 求解 → 记账 duelResult 与本回合所得车票）。
  * 角色映射（2 视为 5 / 6↔9 / 4 视为小丑）由求解器直接取最优，无需玩家交互：
@@ -233,7 +246,7 @@ function enterPhase(state: GameState, phase: PhaseId, config: GameConfig): void 
  */
 function resolveDuel(state: GameState, config: GameConfig): void {
   const evaluated = state.players.map((p) => {
-    const view: ChipView | undefined = roleChipView(p);
+    const view: ChipView | undefined = mergeChipView(roleChipView(p), chipViewFromChips(p));
     // 出牌区为空（高中生弃置 / 手牌打空）：视为高牌 0 点参与排名，而非"不参与"
     const ev =
       p.zones.play.length > 0

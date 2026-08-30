@@ -162,7 +162,7 @@ describe("芯片声明视图（票据 20）", () => {
   it("改花色芯片：把一张牌改花色后判定为同花", () => {
     const cards = [card(3, "S", "c1"), card(5, "S", "c2"), card(7, "S", "c3"), card(9, "S", "c4"), card(11, "H", "c5")];
     expect(evaluateHand(cards).category).toBe(HandCategory.高牌);
-    const withChip = evaluateHand(cards, { suitOverride: { c5: "S" } });
+    const withChip = evaluateHand(cards, { suitOptions: { c5: ["S"] } });
     expect(withChip.category).toBe(HandCategory.同花);
     // 复制牌不改变原卡 id（复制品带 #dup）
     expect(withChip.cards.map((c) => c.id)).toEqual(["c1", "c2", "c3", "c4", "c5"]);
@@ -197,7 +197,7 @@ describe("芯片声明视图（票据 20）", () => {
     expect(() => evaluateHand(cards, { duplicate: ["f1"] })).toThrow(/最多 7 张/);
     // JOKER 不可插芯片：改花色对 JOKER 无效（仍由求解器赋值）
     const withJoker = [joker("j1"), card(10, "S", "g2"), card(11, "S", "g3"), card(12, "S", "g4"), card(13, "S", "g5")];
-    const ev = evaluateHand(withJoker, { suitOverride: { j1: "H" } });
+    const ev = evaluateHand(withJoker, { suitOptions: { j1: ["H"] } });
     expect(ev.category).toBe(HandCategory.同花顺);
   });
 });
