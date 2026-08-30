@@ -200,6 +200,30 @@ export const clearPlayZone = (): EffectBody => (state, ctx) => {
   logText(state, `${p.name} 弃置出牌区全部牌`);
 };
 
+/**
+ * 删除后钩子(票据 20):覆盖"任意时候删除牌"的角色奖励,不局限于删牌阶段。
+ * 依赖反转——本模块不认识角色,由 roles.ts 注册;两条删除路径(删牌阶段 Action、效果原语)都调
+ * afterCardsDeleted,保证特级大厨"任意时候删除 1 张 3 得 4 血筹"在两处都生效。
+ */
+type DeleteHook = (state: GameState, ctx: EffectContext, cards: Card[]) => void;
+const deleteHooks: DeleteHook[] = [];
+
+export function registerDeleteHook(fn: DeleteHook): void {
+  deleteHooks.push(fn);
+}
+
+/** 删除牌后的统一结算入口(异常隔离,坏卡不毁局) */
+export function afterCardsDeleted(state: GameState, ctx: EffectContext, cards: Card[]): void {
+  if (cards.length === 0) return;
+  for (const h of deleteHooks) {
+    try {
+      h(state, ctx, cards);
+    } catch (err) {
+      logText(state, `删除后效果 ${ctx.effectId ?? "?"} 执行失败: ${(err as Error).message}`);
+    }
+  }
+}
+
 /** 免费/付费删除一次的可复用器:付费删除 n 张(金科玉律:只可删自己弃牌区) */
 export function deleteCards(
   cardIds: string[],
@@ -222,6 +246,7 @@ export function deleteCards(
       delete p.zones.chips[c.id];
     }
     logText(state, `${p.name} 删除 ${moving.length} 张牌${cost > 0 ? `（付 ${cost} 筹）` : "（免费）"}`);
+    afterCardsDeleted(state, ctx, moving);
   };
 }
 

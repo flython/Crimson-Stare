@@ -21,7 +21,14 @@
  *   故该效果改挂 draw 阶段 before（turn===1 时触发），该时机在初始血筹赋值之后。
  */
 import type { EffectBody } from "./primitives.js";
-import { deleteFromDiscard, findCardInZones, getPlayer, gainChips, placeholderEffect } from "./primitives.js";
+import {
+  deleteFromDiscard,
+  findCardInZones,
+  getPlayer,
+  gainChips,
+  placeholderEffect,
+  registerDeleteHook,
+} from "./primitives.js";
 import type { EffectContext } from "../core/effects.js";
 import { registerActionHook, registerEffect } from "../core/effects.js";
 import type { GameState, PlayerState } from "../core/state.js";
@@ -68,6 +75,33 @@ export function roleChipView(p: PlayerState): ChipView | undefined {
   if (Object.keys(rankOptions).length > 0) view.rankOptions = rankOptions;
   if (asJoker.length > 0) view.asJoker = asJoker;
   return Object.keys(view).length > 0 ? view : undefined;
+}
+
+/**
+ * 角色常驻能力复位（票据 20）：每回合开始由 whiteboard resetTurnState 调用。
+ * 常驻能力不随回合标记清理而消失（如黑客每回合都可免费多删 1 张）。
+ */
+export function roleTurnSetup(p: PlayerState): void {
+  const off = p.skillDisabled === true; // 技能失效时常驻能力一并失效
+  p.freeDeleteExtra = !off && p.characterId === "role:21" ? 1 : 0; // 黑客【删牌阶段】额外免费删 1 张
+  p.swapPolicy = off
+    ? undefined
+    : p.characterId === "role:10"
+      ? "drawFirst"
+      : p.characterId === "role:14"
+        ? "anyCount"
+        : undefined;
+}
+
+/**
+ * 购买价格修正（票据 20）：吉祥物每回合首次购买半价。
+ * 卡面示例「3 血筹的牌以 1 血筹购入」= 向下取整（与"向上取整"四字冲突，按示例实现，见票据 20 Answer）。
+ */
+export function characterPurchasePrice(p: PlayerState, price: number): number {
+  if (p.characterId === "role:11" && !p.skillDisabled && !p.purchasedThisTurn) {
+    return Math.floor(price / 2);
+  }
+  return price;
 }
 
 /** 设置玩家 bonus 字段（roleSetup 用；字段由 whiteboard 对应接入点消费） */
@@ -168,21 +202,25 @@ export function registerRoleEffects(): void {
   registerActionHook("role:13", "reshuffle", gainChips(1));
   registerActionHook("role:13", "noReshuffle", gainChips(2));
 
+  // role:15 特级大厨「任意时候，每当你删除 1 张 3，获得 4 血筹」（组队模式已排除，只计本人）。
+  // 走删除钩子而非阶段效果：删牌阶段 Action 与效果原语 deleteCards 两条路径共用 afterCardsDeleted 入口。
+  registerDeleteHook((state, ctx, cards) => {
+    const p = state.players.find((x) => x.id === ctx.playerId);
+    if (!p || p.characterId !== "role:15" || p.skillDisabled) return;
+    const threes = cards.filter((c) => c.rank === 3).length;
+    if (threes > 0) gainChips(threes * 4)(state, ctx);
+  });
+
   // —— 交互/机制缺失：占位注册（不阻塞；真身待交互机制或 reducer 钩子落地） ——
-  // role:05/07/17 的牌型映射已由 roleChipView 在判定层真身化（无需阶段效果注册）；
-  // role:13 重洗/不重洗已由动作钩子真身化；role:20 武士已真身化。
+  // 已真身化但不在阶段效果层的：role:05/07/17 牌型映射（roleChipView 判定层）、
+  // role:13 重洗/不重洗（动作钩子）、role:10 先抽后弃 / role:12 付费抽牌（reducer 新 Action）、
+  // role:11 半价 / role:21 免费额度 / role:14 任意数量换牌 / role:15 弃 3 得筹（reducer 分支内角色分支）。
   registerEffect({ id: "role:08:purchase", source: "character", roleId: "role:08", phase: "purchase", timing: "after", run: placeholderFor("role:08") }); // TODO: 【购买阶段】前抢劫：放弃/抵抗 + 轮流掷骰（复杂交互留 M3）
-  registerEffect({ id: "role:10:swap", source: "character", roleId: "role:10", phase: "swap", timing: "after", run: placeholderFor("role:10") }); // TODO: 【换牌阶段】先抽再弃、每次最多 2 抽 2 弃（需改 swap 行为）
-  registerEffect({ id: "role:11:purchase", source: "character", roleId: "role:11", phase: "purchase", timing: "after", run: placeholderFor("role:11") }); // TODO: 【购买阶段】首次购买半价（需拦截 purchase 价格计算）
-  registerEffect({ id: "role:12:swap", source: "character", roleId: "role:12", phase: "swap", timing: "after", run: placeholderFor("role:12") }); // TODO: 【换牌阶段】花 1 筹抽 1 张（无次数限制）
   registerEffect({ id: "role:12:settle", source: "character", roleId: "role:12", phase: "settle", timing: "after", run: placeholderFor("role:12") }); // TODO: 【结算阶段】结束花 1 筹删 1 张本回合打出的牌（最多 3，需选牌交互）
-  registerEffect({ id: "role:14:swap", source: "character", roleId: "role:14", phase: "swap", timing: "after", run: placeholderFor("role:14") }); // TODO: 【换牌阶段】可选任意数量换牌；一次弃 4+ 得 1 筹（需改 swap 行为）
-  registerEffect({ id: "role:15:swap", source: "character", roleId: "role:15", phase: "swap", timing: "after", run: placeholderFor("role:15") }); // TODO: 【换牌阶段】弃置 1 张 3 得 1 筹（需 swap 弃牌感知钩子）
   registerEffect({ id: "role:16:duel", source: "character", roleId: "role:16", phase: "duel", timing: "before", run: placeholderFor("role:16") }); // TODO: 【对决阶段】前弃出牌区全部牌 + 删牌一次（需主动发动选择 + 选牌交互）
   registerEffect({ id: "role:18:reshape", source: "character", roleId: "role:18", phase: "reshape", timing: "after", run: placeholderFor("role:18") }); // TODO: 【重整阶段】结束从全牌库删 1 张（需选牌交互）
   registerEffect({ id: "role:19:duel", source: "character", roleId: "role:19", phase: "duel", timing: "before", run: placeholderFor("role:19") }); // TODO: 【对决阶段】前猜本回合特权证玩家（需两段式中间状态，PlayerState 无临时字段）
   registerEffect({ id: "role:19:settle", source: "character", roleId: "role:19", phase: "settle", timing: "after", run: placeholderFor("role:19") }); // TODO: 【结算阶段】猜对得（人数+2）筹（依赖 role:19:duel 的猜测记录）
-  registerEffect({ id: "role:21:delete", source: "character", roleId: "role:21", phase: "delete", timing: "after", run: placeholderFor("role:21") }); // TODO: 【删牌阶段】额外免费删除 1 张（需 delete 免费额度钩子）
 }
 
 /** role:06 矿工：对决阶段若打出的牌均为黑色则获得 3 血筹（JOKER 无花色，不算黑色） */

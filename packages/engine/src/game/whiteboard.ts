@@ -14,12 +14,17 @@ import { evaluateHand, compareHands } from "../hand-evaluator.js";
 import type { ChipView } from "../hand-evaluator.js";
 import { resolveTiming, runTimingQueue, runActionHook, getEffect } from "../core/effects.js";
 import { validateChoice } from "../effects/interactive.js";
-import { roleSetup, roleChipView } from "../effects/roles.js";
+import { afterCardsDeleted } from "../effects/primitives.js";
+import { roleSetup, roleChipView, roleTurnSetup, characterPurchasePrice } from "../effects/roles.js";
 import type { DuelResultEntry } from "../core/state.js";
 import type { CardPool } from "../cardPool.js";
 
 export type Action =
   | { type: "swap"; playerId: string; discardIds: string[] }
+  /** 塔罗师（role:10）：先抽 2 张再弃至多 2 张，消耗 1 次换牌 */
+  | { type: "swapDrawFirst"; playerId: string; discardIds: string[] }
+  /** 炸鸡店老板（role:12）：花 1 血筹抽 1 张，不消耗换牌次数、无次数限制 */
+  | { type: "buyDraw"; playerId: string }
   | { type: "stopSwap"; playerId: string }
   | { type: "playCards"; playerId: string; cardIds: string[] }
   | { type: "purchase"; playerId: string; slotIndex: number }
@@ -76,8 +81,8 @@ function resetTurnState(state: GameState, config: GameConfig): void {
     p.purchasedThisTurn = false;
     p.skipPhases = [];
     p.declarations = {};
-    p.freeDeleteExtra = 0;
     p.disabledChipCards = [];
+    roleTurnSetup(p); // 角色常驻能力（黑客免费删牌额度、塔罗师/偶像换牌变体）
   }
   state.duelResult = [];
   void config;
@@ -89,6 +94,19 @@ function drawToHandLimit(state: GameState, p: PlayerState, config: GameConfig): 
   while (p.zones.hand.length < limit) {
     if (p.zones.draw.length === 0) {
       if (p.zones.discard.length === 0) return; // 无牌可抽（牌打空的现实边界）
+      p.zones.draw = shuffle(state, p.zones.discard.splice(0));
+      log(state, `${p.name} 重洗弃牌堆组成新抽牌堆`);
+      runActionHook(state, p.characterId, "reshuffle", config, p.id); // 洗衣房店主：重洗得 1 血筹
+    }
+    p.zones.hand.push(p.zones.draw.shift()!);
+  }
+}
+
+/** 抽 n 张（抽牌堆不足时重洗弃牌堆；两者皆空则少抽，不做补齐） */
+function drawCards(state: GameState, p: PlayerState, config: GameConfig, n: number): void {
+  for (let i = 0; i < n; i++) {
+    if (p.zones.draw.length === 0) {
+      if (p.zones.discard.length === 0) return;
       p.zones.draw = shuffle(state, p.zones.discard.splice(0));
       log(state, `${p.name} 重洗弃牌堆组成新抽牌堆`);
       runActionHook(state, p.characterId, "reshuffle", config, p.id); // 洗衣房店主：重洗得 1 血筹
@@ -395,18 +413,61 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
     case "swap": {
       if (next.phase !== "swap") throw new Error("当前不在换牌阶段");
       if (p.phaseReady) throw new Error("已停止换牌");
-      if (action.discardIds.length > Math.min(3, p.swapLeft)) throw new Error("换牌张数超限");
+      // 偶像（role:14）可弃任意数量；其余至多 3 张
+      const maxDiscard = p.swapPolicy === "anyCount" ? p.zones.hand.length : Math.min(3, p.swapLeft);
+      if (action.discardIds.length > maxDiscard) throw new Error("换牌张数超限");
       const ids = new Set(action.discardIds);
       const moving = p.zones.hand.filter((c) => ids.has(c.id));
       if (moving.length !== action.discardIds.length) throw new Error("手牌中找不到待弃的牌");
       p.zones.hand = p.zones.hand.filter((c) => !ids.has(c.id));
       p.zones.discard.push(...moving);
+      // 特级大厨（role:15）：每弃置 1 张 3 得 1 血筹
+      const threes = moving.filter((c) => c.rank === 3).length;
+      if (threes > 0 && p.characterId === "role:15" && !p.skillDisabled) {
+        p.chips += threes;
+        log(next, `${p.name} 弃置 ${threes} 张 3，获得 ${threes} 血筹`);
+      }
+      // 偶像（role:14）：一次弃 4 张及以上得 1 血筹
+      if (moving.length >= 4 && p.characterId === "role:14" && !p.skillDisabled) {
+        p.chips += 1;
+        log(next, `${p.name} 一次弃置 ${moving.length} 张，获得 1 血筹`);
+      }
       drawToHandLimit(next, p, config);
       p.swapLeft -= 1;
       if (p.swapLeft === 0) {
         p.phaseReady = true;
         runActionHook(next, p.characterId, "swapZero", config, p.id); // 酒保：剩余换牌次数归 0 得 1 血筹
       }
+      break;
+    }
+    case "swapDrawFirst": {
+      // 塔罗师（role:10）【换牌阶段】先抽再弃，每次最多抽 2 张再弃 2 张
+      if (next.phase !== "swap") throw new Error("当前不在换牌阶段");
+      if (p.phaseReady) throw new Error("已停止换牌");
+      if (p.swapPolicy !== "drawFirst" || p.skillDisabled) throw new Error("该角色不支持先抽后弃");
+      if (action.discardIds.length > 2) throw new Error("先抽后弃每次最多弃 2 张");
+      drawCards(next, p, config, 2);
+      const ids = new Set(action.discardIds);
+      const moving = p.zones.hand.filter((c) => ids.has(c.id));
+      if (moving.length !== action.discardIds.length) throw new Error("手牌中找不到待弃的牌");
+      p.zones.hand = p.zones.hand.filter((c) => !ids.has(c.id));
+      p.zones.discard.push(...moving);
+      p.swapLeft -= 1;
+      if (p.swapLeft === 0) {
+        p.phaseReady = true;
+        runActionHook(next, p.characterId, "swapZero", config, p.id);
+      }
+      break;
+    }
+    case "buyDraw": {
+      // 炸鸡店老板（role:12）【换牌阶段】花 1 血筹抽 1 张（无次数限制，不消耗换牌次数）
+      if (next.phase !== "swap") throw new Error("当前不在换牌阶段");
+      if (p.phaseReady) throw new Error("已停止换牌");
+      if (p.characterId !== "role:12" || p.skillDisabled) throw new Error("该角色不支持付费抽牌");
+      if (p.chips < 1) throw new Error("血筹不足");
+      p.chips -= 1;
+      drawCards(next, p, config, 1);
+      log(next, `${p.name} 花 1 血筹抽 1 张牌`);
       break;
     }
     case "stopSwap": {
@@ -447,10 +508,12 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       if (p.purchaseFlipped) throw new Error("已翻面，不可购买");
       const slot = next.blackMarket.slots[action.slotIndex];
       if (!slot?.defId) throw new Error("该栏位无黑市牌");
-      if (p.chips < slot.price) throw new Error("血筹不足");
-      p.chips -= slot.price;
+      const price = characterPurchasePrice(p, slot.price); // 吉祥物：本回合首次购买半价
+      if (p.chips < price) throw new Error("血筹不足");
+      p.chips -= price;
       p.chips += slot.bonusChips;
-      log(next, `${p.name} 购买 ${slot.defId}（${slot.price}筹${slot.bonusChips > 0 ? `，含叠加 ${slot.bonusChips} 筹` : ""}）`);
+      p.purchasedThisTurn = true;
+      log(next, `${p.name} 购买 ${slot.defId}（${price}筹${price !== slot.price ? `，原价 ${slot.price}` : ""}${slot.bonusChips > 0 ? `，含叠加 ${slot.bonusChips} 筹` : ""}）`);
       const defId = slot.defId;
       const subtype = slot.subtype;
       handlePurchase(next, p, defId, subtype, config);
@@ -468,7 +531,8 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       if (next.phase !== "delete") throw new Error("当前不在删牌阶段");
       const ids = new Set(action.cardIds);
       const moving = p.zones.discard.filter((c) => ids.has(c.id));
-      const extra = Math.max(0, moving.length - config.deleteFreePerRound);
+      const freeQuota = config.deleteFreePerRound + (p.freeDeleteExtra ?? 0); // 黑客额外免费额度
+      const extra = Math.max(0, moving.length - freeQuota);
       const cost = extra * config.deleteChipCost;
       if (p.chips < cost) throw new Error(`血筹不足，需 ${cost} 筹`);
       if (moving.length !== action.cardIds.length) throw new Error("弃牌区中找不到待删的牌");
@@ -476,6 +540,8 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       p.zones.discard = p.zones.discard.filter((c) => !ids.has(c.id));
       p.zones.deleted.push(...moving);
       log(next, `${p.name} 删除 ${moving.length} 张牌${cost > 0 ? `（付 ${cost} 筹）` : "（免费）"}`);
+      // 特级大厨等"任意时候删除"类奖励（与原语删除路径共用同一入口）
+      afterCardsDeleted(next, { config, playerId: p.id, effectId: "action:deleteCards" }, moving);
       break;
     }
     case "ready": {

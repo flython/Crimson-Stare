@@ -10,6 +10,8 @@ import { createGame, reduce } from "../src/game/whiteboard.js";
 import { DEFAULT_GAME_CONFIG } from "../src/core/config.js";
 import { card } from "../src/cards.js";
 import type { GameState } from "../src/core/state.js";
+import { characterPurchasePrice } from "../src/effects/roles.js";
+import { deleteCards } from "../src/effects/primitives.js";
 
 const CFG = DEFAULT_GAME_CONFIG;
 
@@ -142,10 +144,14 @@ describe("EffectDef 阶段效果", () => {
     expect(g.log.some((l) => l.text.includes("A 获得 3 血筹"))).toBe(true);
   });
 
-  it("role:15 特级大厨:换牌弃 3 得筹未实现(占位日志)", () => {
+  it("role:15 特级大厨:换牌弃置 3 每张得 1 血筹", () => {
     let g = makeGame("role:15");
-    g = driveTo(g, "play"); // 经过换牌阶段 → swap after 占位触发
-    expect(g.log.some((l) => l.text.includes("效果未实现: role:15:swap"))).toBe(true);
+    g = driveTo(g, "swap");
+    const a = g.players[0]!;
+    a.zones.hand = [card(3, "S", "x1"), card(3, "H", "x2"), card(9, "D", "x3"), card(11, "C", "x4"), card(13, "S", "x5")];
+    const before = a.chips;
+    g = reduce(g, { type: "swap", playerId: "a", discardIds: ["x1", "x2"] }, CFG);
+    expect(g.players[0]!.chips).toBe(before + 2);
   });
 });
 
@@ -164,18 +170,9 @@ describe("动作钩子(swapZero)", () => {
 
 describe("占位效果降级", () => {
   // 交互/机制缺失的角色：仅验证「不抛错 + 日志提示」（占位降级约定，不阻塞）
-  // 已真身化的角色（05/07/17 判定视图、13 重洗钩子、20 武士）不在本列表，见下方真身用例
-  const PLACEHOLDER_ROLES = [
-    "role:08",
-    "role:10",
-    "role:11",
-    "role:12",
-    "role:14",
-    "role:16",
-    "role:18",
-    "role:19",
-    "role:21",
-  ];
+  // 已真身化故不在本列表：05/07/17（判定视图）、13（重洗钩子）、20（武士结算）、
+  // 10（先抽后弃）/11（半价）/12（付费抽牌部分）/14（任意数量换牌）/15（弃 3 得筹）/21（免费额度）
+  const PLACEHOLDER_ROLES = ["role:08", "role:12", "role:16", "role:18", "role:19"];
 
   it("占位角色:推进一整回合不抛错且日志降级提示", () => {
     for (const roleId of PLACEHOLDER_ROLES) {
@@ -231,6 +228,143 @@ describe("判定视图型角色（票据 20）", () => {
     const a = hero.state.players[0]!;
     expect(a.zones.deleted.map((c) => c.id).sort()).toEqual(["c1", "c2"]);
     expect(a.zones.discard.some((c) => c.rank === 4)).toBe(false);
+  });
+});
+
+// ===== 票据 20 批次 2c：reducer 钩子 / 新 Action 型角色（10/11/12/14/15/21）=====
+describe("换牌变体角色（票据 20）", () => {
+  it("role:10 塔罗师：先抽 2 再弃 2，且消耗 1 次换牌", () => {
+    let g = makeGame("role:10");
+    g = driveTo(g, "swap");
+    const a = g.players[0]!;
+    a.zones.hand = [card(2, "S", "p1"), card(5, "H", "p2"), card(9, "D", "p3"), card(11, "C", "p4"), card(13, "S", "p5")];
+    a.zones.draw = [card(7, "S", "dr1"), card(8, "H", "dr2")]; // 确定性：抽的必是这两张
+    const swapLeftBefore = a.swapLeft;
+    g = reduce(g, { type: "swapDrawFirst", playerId: "a", discardIds: ["p1", "p2"] }, CFG);
+    const after = g.players[0]!;
+    // 先抽 2 再弃 2：净手牌数不变，抽进来的两张留在手里，弃掉的两张进弃牌区
+    expect(after.zones.hand.length).toBe(5);
+    expect(after.zones.hand.some((c) => c.id === "dr1")).toBe(true);
+    expect(after.zones.hand.some((c) => c.id === "dr2")).toBe(true);
+    expect(after.zones.discard.some((c) => c.id === "p1")).toBe(true);
+    expect(after.swapLeft).toBe(swapLeftBefore - 1);
+  });
+
+  it("role:10 塔罗师：非该角色使用先抽后弃会被拒绝", () => {
+    let g = makeGame(null);
+    g = driveTo(g, "swap");
+    expect(() => reduce(g, { type: "swapDrawFirst", playerId: "a", discardIds: [] }, CFG)).toThrow(
+      "该角色不支持先抽后弃",
+    );
+  });
+
+  it("role:14 偶像：一次可弃任意数量，弃 4 张及以上得 1 血筹", () => {
+    let g = makeGame("role:14");
+    g = driveTo(g, "swap");
+    const a = g.players[0]!;
+    a.zones.hand = [
+      card(2, "S", "q1"),
+      card(5, "H", "q2"),
+      card(9, "D", "q3"),
+      card(11, "C", "q4"),
+      card(13, "S", "q5"),
+      card(4, "H", "q6"),
+    ];
+    const before = a.chips;
+    g = reduce(g, { type: "swap", playerId: "a", discardIds: ["q1", "q2", "q3", "q4"] }, CFG);
+    expect(g.players[0]!.chips).toBe(before + 1);
+    // 普通角色一次至多 3 张
+    let base = makeGame(null);
+    base = driveTo(base, "swap");
+    const bp = base.players[0]!;
+    expect(() =>
+      reduce(base, { type: "swap", playerId: "a", discardIds: bp.zones.hand.slice(0, 4).map((c) => c.id) }, CFG),
+    ).toThrow("换牌张数超限");
+  });
+
+  it("role:12 炸鸡店老板：花 1 血筹抽 1 张，不消耗换牌次数", () => {
+    let g = makeGame("role:12");
+    g = driveTo(g, "swap");
+    const a = g.players[0]!;
+    a.zones.draw.push(card(7, "S", "dr9"));
+    const before = a.chips;
+    const handBefore = a.zones.hand.length;
+    const swapBefore = a.swapLeft;
+    g = reduce(g, { type: "buyDraw", playerId: "a" }, CFG);
+    expect(g.players[0]!.chips).toBe(before - 1);
+    expect(g.players[0]!.zones.hand.length).toBe(handBefore + 1);
+    expect(g.players[0]!.swapLeft).toBe(swapBefore);
+    // 非该角色不可用
+    let base = makeGame(null);
+    base = driveTo(base, "swap");
+    expect(() => reduce(base, { type: "buyDraw", playerId: "a" }, CFG)).toThrow("该角色不支持付费抽牌");
+  });
+});
+
+describe("购买与删牌额度角色（票据 20）", () => {
+  it("role:11 吉祥物：每回合首次购买半价（向下取整），第二次恢复原价", () => {
+    expect(characterPurchasePrice({ characterId: "role:11" } as never, 3)).toBe(1);
+    expect(characterPurchasePrice({ characterId: "role:11" } as never, 4)).toBe(2);
+    expect(characterPurchasePrice({ characterId: "role:11", purchasedThisTurn: true } as never, 3)).toBe(3);
+    expect(characterPurchasePrice({ characterId: "role:11", skillDisabled: true } as never, 3)).toBe(3);
+    expect(characterPurchasePrice({ characterId: "role:01" } as never, 3)).toBe(3);
+  });
+
+  it("role:11 吉祥物：端到端购买实际只扣半价", () => {
+    const spend = (characterId: string | null) => {
+      let g = makeGame(characterId);
+      g = driveTo(g, "purchase");
+      const slot = g.blackMarket.slots[0]!;
+      // 无人造卡池时供应堆为空，直接构造一个「备用道具」栏位（买后入道具区，不改血筹）
+      slot.defId = "item:test";
+      slot.price = 3;
+      slot.bonusChips = 0;
+      slot.subtype = "备用道具";
+      const p = g.players[0]!;
+      p.chips = 20;
+      const before = p.chips;
+      g = reduce(g, { type: "purchase", playerId: "a", slotIndex: 0 }, CFG);
+      return before - g.players[0]!.chips;
+    };
+    expect(spend(null)).toBe(3);
+    expect(spend("role:11")).toBe(1);
+  });
+
+  it("role:21 黑客：删牌阶段额外免费 1 张（删 2 张不扣筹）", () => {
+    const deleteCost = (characterId: string | null, ids: string[]) => {
+      let g = makeGame(characterId);
+      g = driveTo(g, "delete");
+      const p = g.players[0]!;
+      p.zones.discard = [card(2, "S", "z1"), card(5, "H", "z2"), card(9, "D", "z3")];
+      p.chips = 20;
+      const before = p.chips;
+      g = reduce(g, { type: "deleteCards", playerId: "a", cardIds: ids }, CFG);
+      return before - g.players[0]!.chips;
+    };
+    expect(deleteCost(null, ["z1", "z2"])).toBe(CFG.deleteChipCost); // 超免费额度 1 张
+    expect(deleteCost("role:21", ["z1", "z2"])).toBe(0); // 免费额度 2 张
+  });
+
+  it("role:15 特级大厨：任意时候删除 1 张 3 得 4 血筹（覆盖两条删除路径）", () => {
+    // 路径一：删牌阶段 Action
+    let g = makeGame("role:15");
+    g = driveTo(g, "delete");
+    const p = g.players[0]!;
+    p.zones.discard = [card(3, "S", "y1"), card(3, "H", "y2"), card(9, "D", "y3")];
+    p.chips = 20;
+    const before = p.chips;
+    g = reduce(g, { type: "deleteCards", playerId: "a", cardIds: ["y1", "y2"] }, CFG);
+    // 删 2 张：1 张免费 + 1 张付费（deleteChipCost），2 张都是 3 → +8 筹
+    expect(g.players[0]!.chips).toBe(before - CFG.deleteChipCost + 8);
+
+    // 路径二：效果原语 deleteCards（黑市牌触发）同样触发奖励
+    let g2 = makeGame("role:15");
+    const p2 = g2.players[0]!;
+    p2.zones.discard = [card(3, "C", "y4")];
+    p2.chips = 20;
+    const before2 = p2.chips;
+    deleteCards(["y4"], { free: 1 })(g2, { config: CFG, playerId: "a", effectId: "test:delete" });
+    expect(g2.players[0]!.chips).toBe(before2 + 4);
   });
 });
 
