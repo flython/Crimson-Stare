@@ -9,3 +9,6 @@ dist/
 
 # vitest/vite 临时编译产物
 *.ts.timestamp-*.mjs
+
+# 卡牌图片由 sync-assets 脚本从 /assets 同步生成，不入库
+packages/web/public/cards/

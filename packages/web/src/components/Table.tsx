@@ -120,6 +120,7 @@ function SeatInfo({
         className="charCard"
         title={role ? `${role.name}·${role.title ?? ""}：${role.effectText}` : "角色元数据加载中"}
       >
+        {role ? <CardImg image={role.image} /> : null}
         {role?.name ?? p.characterId?.slice(-3) ?? p.name.slice(0, 1)}
       </div>
       <div className="name">
@@ -184,6 +185,27 @@ function PlayZone({ dir, p }: { dir: SeatDir | "me"; p?: SnapPlayer }) {
   );
 }
 
+/** 卡牌图片 URL（票据 18）：元数据 assets/cards/<类>/<ID>.png → public 的 /cards/<类>/<ID>.png */
+function cardImgUrl(image: string): string {
+  return "/" + image.replace(/^assets\//, "");
+}
+
+/** 卡面图片：加载失败自动隐藏（onError），露出下层文字占位——零状态回退 */
+function CardImg({ image }: { image: string }) {
+  return (
+    <img
+      className="cardImg"
+      src={cardImgUrl(image)}
+      alt=""
+      loading="lazy"
+      draggable={false}
+      onError={(e) => {
+        e.currentTarget.style.display = "none";
+      }}
+    />
+  );
+}
+
 /** 黑市卡分类色：优先用元数据 colorTag（牌型绿/容错蓝/互动暗红），缺省回退 subtype 映射 */
 function marketCat(subtype: string | undefined, colorTag?: string): string {
   if (colorTag === "牌型绿") return "cat-green";
@@ -215,6 +237,7 @@ function MarketCard({
       title={meta?.effectText ?? ""}
     >
       {slot.bonusChips > 0 ? <span className="bonus">{slot.bonusChips}</span> : null}
+      {meta ? <CardImg image={meta.image} /> : null}
       <span className="bmName">{meta?.name ?? slot.defId}</span>
       <span className="bmSub">{meta?.effectText ?? slot.subtype ?? ""}</span>
       <span className="bmPrice">

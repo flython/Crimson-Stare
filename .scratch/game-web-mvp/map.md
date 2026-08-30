@@ -34,6 +34,7 @@ spec.md（`.scratch/game-web-mvp/spec.md`）全部 user stories 达成：内部�
 - [15 - 简易模式 web 端联调](issues/15-简易模式web联调.md)（已 resolved）：server 内存房间模型落地（RoomManager+Room，hello/createRoom/joinRoom/startGame/action/resolvePrompt/reconnect），redactState 按连接裁剪广播全量 snapshot；`resolvePrompt {choice}` 协议定稿入 docs/protocol.md（playerId 由 server 从连接推断）；简易模式开局从 4 张 simpleOnly 角色随机分配；prompt 超时走 engine autoResolve（chooseCard 空选择兜底改选首候选，规避数值芯片 resolve 抛错卡死）+ 阶段级掉线托管；server WS 集成测试 4 用例（完整一回合含购买芯片 resolvePrompt 断言、超时托管、错误路径、断线重连）全绿；web 端最小接线（GameClient/Lobby/Table + App 三阶段路由，build 通过，冒烟打通建房→入房→开局→snapshot）。
 - [17 - 牌桌 UI 对齐原型](issues/17-牌桌UI对齐原型.md)（已 resolved）：Table.tsx 按 `prototypes/table-ui.html` v4 基线重构为四向实体牌桌——顶栏 8 阶段条 + 目标票数、grid `top/left/center/right/me`、座位信息条+手牌背+出牌区（左右牌旋转 90°）、中心黑市 5 格 bm-card 分类边框色、操作台（手牌多选 + swap/playCards/purchase/deleteCards/ready/reshape/stopSwap/skipPurchase + 弃牌/删牌/道具/芯片概览）；样式并入 styles.css（含 max-height 560px 横屏断点）；删牌改走 CardPicker 弹层选牌（修复 15 号弃牌区无法选牌死逻辑）；黑市牌名仍以 defId、分类色以 subtype 近似映射（元数据下发遗留）。build 通过、eslint 0 error、假数据冒烟 38 项骨架类命中。
 - [16 - 房间流程修复](issues/16-房间流程修复.md)（已 resolved）：新增 `leaveRoom`/`leftRoom` 协议（docs/protocol.md）；server 未开局非房主离开移出座位广播、房主离开解散房间、已开局等同断开托管；前端 Lobby 未开局「离开/解散房间」按钮 + 大厅态「断开连接」+ conn「返回」，收到 leftRoom 回大厅可再建房；ws-e2e 增 2 用例（红→绿）。
+- [18 - 卡牌图片上图](issues/18-卡牌图片上图.md)（已 resolved）：sync-assets 脚本（predev/prebuild）把根 assets/cards 拷进 web public/cards（gitignore 不入库，Dockerfile 补 COPY assets）；CardImg 组件 onError 隐藏即回退文字占位；黑市卡与座位角色卡上图，URL 映射 assets/→/cards/。
 - [19 - 卡池元数据下发与 SQLite 局摘要](issues/19-卡池元数据下发与SQLite局摘要.md)（已 resolved）：hello 后下发 `cardPool` 消息（完整 CardPool，静态一次）；web Table 用 roleById/marketById 查找表渲染卡名/效果文本/角色技能 tooltip，分类边框改 colorTag 三分类（cat-green/blue/red），元数据未到回退 defId；`server/src/db.ts` SummaryStore 用 node:sqlite（process.getBuiltinModule 运行时获取绕过打包器解析）终局写 game_records，DB_PATH 未设为 no-op；e2e 增 2 用例共 8 绿。21 号芯片可视化已解锁。
 
 ## Not yet specified
@@ -48,14 +49,14 @@ spec.md（`.scratch/game-web-mvp/spec.md`）全部 user stories 达成：内部�
 
 spec.md「M3' 批次增补」为设计依据。推进顺序：**19（元数据下发+SQLite 摘要）→ 18（卡牌图片）→ 20（效果真身化）→ 21（芯片可视化，blocked by 19）→ 22（暗扣声明+六七条，blocked by 20/21）→ 23（集成测试+CI，blocked by 全部）**。
 
-- [18 - 卡牌图片上图](issues/18-卡牌图片上图.md)：open
+- [18 - 卡牌图片上图](issues/18-卡牌图片上图.md)：resolved
 - [19 - 卡池元数据下发与 SQLite 局摘要](issues/19-卡池元数据下发与SQLite局摘要.md)：resolved
 - [20 - 效果真身化（17 标准角色 + 28 非黄边黑市牌）](issues/20-效果真身化.md)：open
 - [21 - 芯片可视化](issues/21-芯片可视化.md)：open，blocked by 19
 - [22 - 暗扣交互式声明与六七条放宽](issues/22-暗扣交互式声明与六七条放宽.md)：open，blocked by 20, 21
 - [23 - 自动化集成测试与 CI](issues/23-自动化集成测试与CI.md)：open，blocked by 18-22
 
-**当前 frontier = 18, 20**（21 已解锁待做；22/23 被阻塞）。
+**当前 frontier = 20**（21 已解锁待做；22/23 被阻塞）。
 
 ## Out of scope
 

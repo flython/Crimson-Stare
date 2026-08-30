@@ -9,6 +9,8 @@ RUN npm ci
 COPY tsconfig.base.json ./
 COPY packages/engine packages/engine
 COPY packages/web packages/web
+# 卡牌图片事实源（票据 18：prebuild 脚本从这里同步进 public/cards）
+COPY assets ./assets
 RUN npm run build -w @crimson/engine && npm run build -w @crimson/web
 
 FROM nginx:1.27-alpine

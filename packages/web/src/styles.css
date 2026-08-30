@@ -1755,3 +1755,21 @@ body:has(.table-root) {
     font-size: 12px;
   }
 }
+
+/* 卡牌图片（票据 18）：绝对定位铺满卡面，加载失败 onError 隐藏即回退下层文字占位 */
+.charCard {
+  position: relative;
+}
+.charCard {
+  position: relative;
+}
+.bm-card .cardImg,
+.charCard .cardImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  pointer-events: none;
+}
