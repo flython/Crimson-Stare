@@ -293,7 +293,7 @@
       }
     ],
     "effectId": "market:018",
-    "effectText": "结算若[皇冠]，获得2[星星]（不可插入【Joker牌】中）。",
+    "effectText": "结算时若持有【临时特权证】，获得2【车票】（不可插入【Joker牌】中）。",
     "image": "assets/cards/market/018.png"
   },
   {
@@ -312,7 +312,7 @@
       }
     ],
     "effectId": "market:019",
-    "effectText": "结算若[皇冠]，获得4【血筹】（不可插入【Joker牌】中）。",
+    "effectText": "结算时若持有【临时特权证】，获得4【血筹】（不可插入【Joker牌】中）。",
     "image": "assets/cards/market/019.png"
   },
   {
@@ -331,7 +331,7 @@
       }
     ],
     "effectId": "market:020",
-    "effectText": "结算若[皇冠]，获得3【血筹】（不可插入【Joker牌】中）。",
+    "effectText": "结算时若持有【临时特权证】，获得3【血筹】（不可插入【Joker牌】中）。",
     "image": "assets/cards/market/020.png"
   },
   {
@@ -609,7 +609,7 @@
     "colorTag": "容错蓝",
     "triggers": [],
     "effectId": "market:037",
-    "effectText": "若你持有[皇冠]，获得3【血筹】。",
+    "effectText": "若你持有【临时特权证】，获得3【血筹】。",
     "image": "assets/cards/market/037.png"
   },
   {
@@ -794,7 +794,7 @@
       }
     ],
     "effectId": "market:047",
-    "effectText": "对决前，猜测一位玩家的牌型。结算若猜测正确，获得3【血筹】，该玩家本回合获得的[星星]-4（最低为0）。",
+    "effectText": "对决前，猜测一位玩家的牌型。结算若猜测正确，获得3【血筹】，该玩家本回合获得的【车票】-4（最低为0）。",
     "image": "assets/cards/market/047.png"
   },
   {

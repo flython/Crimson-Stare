@@ -451,7 +451,7 @@
       }
     ],
     "effectId": "role:20",
-    "effectText": "【结算阶段】你额外获得本回合获得的★数量的血筹。",
+    "effectText": "【结算阶段】你额外获得本回合获得的【车票】数量的血筹。",
     "image": "assets/cards/role/20.png"
   },
   {

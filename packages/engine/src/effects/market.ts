@@ -157,7 +157,7 @@ export function registerMarketEffects(): void {
   }
   // TODO: 008 变色墨水（花色任意）/009 黑色芯片（♠♣）/010 红色芯片（♦♥）/011 数字滑轨（点数任意）/
   // 012 百变影像（花色点数任意）/017 双生镜片（视为 2 张，不可插 JOKER）的对决声明，
-  // 019/020 血筹镀层（胜/败）"结算若[皇冠]"（引擎无皇冠状态）——均需 hand-evaluator/状态扩展，留后续票据。
+  // 019/020 血筹镀层（胜/败）"结算时若持有【临时特权证】"（引擎需特权证持有判定）——均需 hand-evaluator/状态扩展，留后续票据。
 
   // 021/022 血筹镀层（出/夺）：简单声明类，对决时实际生效（见下方阶段时机效果）
   registerEffect(chipInstall({ defId: "021" }));
@@ -168,7 +168,7 @@ export function registerMarketEffects(): void {
   registerEffect(violentDelete()); // 031 暴力删除
   registerEffect(freeTopCard()); // 034 货箱盲掏
   registerEffect(diceGain()); // 036 对赌协议
-  registerEffect(placeholderTrade("037", "特权分红：依赖[皇冠]状态，MVP 未实现"));
+  registerEffect(placeholderTrade("037", "特权分红：依赖【临时特权证】持有判定，MVP 未实现"));
   registerEffect(placeholderTrade("043", "再来一批：黑市区选牌入堆底/补位/再购买交互，MVP 未实现"));
 
   // ── 秘密交易：非黄边（尽量注册简单/自动类）──────────────────────────────
@@ -193,7 +193,7 @@ export function registerMarketEffects(): void {
   // ── 强化芯片：非黄边（简单类注册，复杂类 TODO）────────────────────────────
   registerEffect(chipInstall({ defId: "013" })); // 空白模板：无效果
   // TODO: 014 仿制印章（视为出牌区另一张）、015 复制芯片（复制他人芯片）、016 磁力线圈（重洗前挑牌放顶）、
-  // 018 加密线路（若[皇冠]得 2 星星）、023 弹簧夹层（花血筹临时改点数）、024 屏蔽器（令一张芯片失效）、
+  // 018 加密线路（若持有【临时特权证】得 2 【车票】）、023 弹簧夹层（花血筹临时改点数）、024 屏蔽器（令一张芯片失效）、
   // 025 自毁芯片（结算末删本回合打出牌）——对决/结算声明或需状态扩展，留后续。
 
   // ── 阶段时机效果（对决/结算 during，resolveTiming 触发）───────────────────
@@ -229,7 +229,7 @@ export function registerMarketEffects(): void {
       gainChips(1)(state, { ...ctx, playerId: holder.id });
     },
   });
-  // TODO: 008-012/017 的花色-点数声明、019/020 的"结算若[皇冠]" 对应 (duel/settle, during) 注册 —— 待 hand-evaluator 芯片视图。
+  // TODO: 008-012/017 的花色-点数声明、019/020 的"结算时若持有【临时特权证】" 对应 (duel/settle, during) 注册 —— 待 hand-evaluator 芯片视图。
 
   // ── 秘密交易（购买立即结算，非交互自动类）─────────────────────────────────
 }

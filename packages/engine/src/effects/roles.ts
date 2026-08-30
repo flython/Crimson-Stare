@@ -139,7 +139,7 @@ export function registerRoleEffects(): void {
   registerEffect({ id: "role:18:reshape", source: "character", roleId: "role:18", phase: "reshape", timing: "after", run: placeholderFor("role:18") }); // TODO: 【重整阶段】结束从全牌库删 1 张（需选牌交互）
   registerEffect({ id: "role:19:duel", source: "character", roleId: "role:19", phase: "duel", timing: "before", run: placeholderFor("role:19") }); // TODO: 【对决阶段】前猜本回合特权证玩家（需两段式中间状态，PlayerState 无临时字段）
   registerEffect({ id: "role:19:settle", source: "character", roleId: "role:19", phase: "settle", timing: "after", run: placeholderFor("role:19") }); // TODO: 【结算阶段】猜对得（人数+2）筹（依赖 role:19:duel 的猜测记录）
-  registerEffect({ id: "role:20:settle", source: "character", roleId: "role:20", phase: "settle", timing: "after", run: placeholderFor("role:20") }); // TODO: 【结算阶段】额外获得本回合获得的 ★ 数量血筹（★ 语义待规则书确认）
+  registerEffect({ id: "role:20:settle", source: "character", roleId: "role:20", phase: "settle", timing: "after", run: placeholderFor("role:20") }); // TODO: 【结算阶段】额外获得本回合获得的【车票】数量的血筹（依赖 ticketsGainedThisTurn 记账）
   registerEffect({ id: "role:21:delete", source: "character", roleId: "role:21", phase: "delete", timing: "after", run: placeholderFor("role:21") }); // TODO: 【删牌阶段】额外免费删除 1 张（需 delete 免费额度钩子）
 }
 
