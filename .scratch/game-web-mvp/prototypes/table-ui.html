@@ -372,7 +372,7 @@ let S = {
     right:{name:"银行职员", char:"银行职员", skill:"【重整阶段】获得2血筹。（若因效果跳过重整阶段则无法发动）", chips:3, tickets:12, swap:0, swapMax:4, deck:40, handCount:6, flipped:true,  pass:false},
   },
   market:[
-    {id:"bm1",name:"血筹镀层(夺)",cat:"econ",price:3,bonus:1,eff:"对决阶段：抢夺任意玩家1血筹"},
+    {id:"bm1",name:"血幕镀层(夺)",cat:"econ",price:3,bonus:1,eff:"对决阶段：抢夺任意玩家1血筹"},
     {id:"bm2",name:"限流阀-2",cat:"tol",price:3,bonus:0,eff:"插入：一张牌点数永久-2"},
     {id:"bm3",name:"廉价销毁",cat:"del",price:3,bonus:0,eff:"秘密交易：从弃牌区删除2张牌"},
     {id:"bm4",name:"荷官证",cat:"inter",price:6,bonus:1,eff:"查看黑市牌堆顶3张，选1张购买"},
@@ -775,7 +775,7 @@ function declareStep(step){
   else if(step===2) body.innerHTML=`
     <div class="stepTag">宣告步骤 3/3 · 强化芯片</div>
     <div class="optGrid">
-      <button class="opt" onclick="declareStep(3)">发动「血筹镀层(夺)」→ 抢银行职员1筹</button>
+      <button class="opt" onclick="declareStep(3)">发动「血幕镀层(夺)」→ 抢银行职员1筹</button>
       <button class="opt" onclick="declareStep(3)">无可用芯片</button>
     </div>`;
   else {

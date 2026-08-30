@@ -1,7 +1,7 @@
 /**
  * 黑市牌效果单测（票据 12，M2.3）。
  * 覆盖：黄边秘密交易购买立即结算（血筹/牌区断言）、强化芯片挂起→选牌→挂载与点数变化、
- * 无合法目标弃置、数值越界 2-14 拒绝、每牌限 1 芯片（金科玉律 3）、阶段时机效果（血筹镀层出/夺）、备用道具入区。
+ * 无合法目标弃置、数值越界 2-14 拒绝、每牌限 1 芯片（金科玉律 3）、阶段时机效果（血幕镀层出/夺）、备用道具入区。
  */
 import { describe, it, expect } from "vitest";
 import { createGame, reduce } from "../src/game/whiteboard.js";
@@ -218,8 +218,8 @@ describe("黑市牌效果（票据 12）", () => {
     });
   });
 
-  describe("阶段时机效果（血筹镀层）", () => {
-    it("021 血筹镀层（出）：对决 during 对持有者 +2 血筹", () => {
+  describe("阶段时机效果（血幕镀层）", () => {
+    it("021 血幕镀层（出）：对决 during 对持有者 +2 血筹", () => {
       const g = makeGame();
       const a = g.players[0]!;
       a.zones.chips["t1"] = "021";
@@ -228,7 +228,7 @@ describe("黑市牌效果（票据 12）", () => {
       expect(a.chips).toBe(before + 2);
     });
 
-    it("022 血筹镀层（夺）：对决挂起选对手，夺其 1 血筹给自己", () => {
+    it("022 血幕镀层（夺）：对决挂起选对手，夺其 1 血筹给自己", () => {
       let g = makeGame();
       const a = g.players[0]!;
       const b = g.players[1]!;
@@ -400,7 +400,7 @@ describe("黑市牌效果（票据 12）", () => {
       expect(g2.players[0]!.chips).toBe(20);
     });
 
-    it("019 血筹镀层（胜）：结算时芯片持有者持有特权证 +4 血筹", () => {
+    it("019 血幕镀层（胜）：结算时芯片持有者持有特权证 +4 血筹", () => {
       const g = makeGame();
       const a = g.players[0]!;
       a.zones.chips["t1"] = "019";
@@ -410,7 +410,7 @@ describe("黑市牌效果（票据 12）", () => {
       expect(a.chips).toBe(before + 4);
     });
 
-    it("019 血筹镀层（胜）：未持有特权证不给筹；未插该芯片的玩家也不给", () => {
+    it("019 血幕镀层（胜）：未持有特权证不给筹；未插该芯片的玩家也不给", () => {
       const g = makeGame();
       const a = g.players[0]!;
       const b = g.players[1]!;
@@ -423,7 +423,7 @@ describe("黑市牌效果（票据 12）", () => {
       expect(b.chips).toBe(bBefore); // b 持证但未插 019
     });
 
-    it("020 血筹镀层（败）：不持有特权证 +3 血筹，持有则无", () => {
+    it("020 血幕镀层（败）：不持有特权证 +3 血筹，持有则无", () => {
       const g = makeGame();
       const a = g.players[0]!;
       const b = g.players[1]!;

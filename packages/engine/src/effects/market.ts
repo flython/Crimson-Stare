@@ -10,7 +10,7 @@
  * - 数值类（校准器/限流阀）在 resolve 用 addPermanentRank(cardId, delta)（含 2-14 校验）；
  * - 花色/牌型类（变色墨水/双生镜片/百变影像等）是对决时生效的声明效果：插入（chipInstall）已实现，
  *   生效逻辑依赖 hand-evaluator 支持芯片视图，本轮以 TODO 注释占位（不改 hand-evaluator）。
- * - 血筹镀层（出/夺）为简单声明类：以 (duel, during) EffectDef 注册，run 对芯片持有者实际生效。
+ * - 血幕镀层（出/夺）为简单声明类：以 (duel, during) EffectDef 注册，run 对芯片持有者实际生效。
  *
  * 阶段时机效果：triggerText 含【对决】【结算】的牌，注册对应 (phase, timing) 的 EffectDef（可复用同一 run 工厂）。
  *
@@ -155,8 +155,8 @@ function itemEffect(defId: string): EffectDef {
 /**
  * 特权证条件类效果的工厂（票据 20）。
  * mode="self" 用于秘密交易（购买即结算，如 037 特权分红）；
- * mode="chip" 用于强化芯片（结算阶段对芯片持有者结算，如 018/019/020 血筹镀层）。
- * 判定：玩家 seat === state.passHolderSeat；negate=true 则取反（"若不持有"，如 020 血筹镀层·败）。
+ * mode="chip" 用于强化芯片（结算阶段对芯片持有者结算，如 018/019/020 血幕镀层）。
+ * 判定：玩家 seat === state.passHolderSeat；negate=true 则取反（"若不持有"，如 020 血幕镀层·败）。
  */
 function passHolderBonus(
   id: string,
@@ -472,11 +472,11 @@ export function registerMarketEffects(): void {
   // 012 百变影像（花色点数任意）/017 双生镜片（视为 2 张，不可插 JOKER）的对决声明——
   // 已由 chipViewFromChips 在判定阶段消费（见 mergeChipView）。
 
-  // 018/019/020 血筹镀层（车票/胜/败）：结算时按特权证条件对芯片持有者结算（settle 注册见下）。
+  // 018/019/020 血幕镀层（车票/胜/败）：结算时按特权证条件对芯片持有者结算（settle 注册见下）。
   // 019/020 的插牌已由上方声明类批量注册覆盖；018 在此单独补注册。
   // chipInstall 默认 noJoker=true，与卡面「不可插入【Joker牌】中」一致。
   registerEffect(chipInstall({ defId: "018" }));
-  // 021/022 血筹镀层（出/夺）：简单声明类，对决时实际生效（见下方阶段时机效果）
+  // 021/022 血幕镀层（出/夺）：简单声明类，对决时实际生效（见下方阶段时机效果）
   registerEffect(chipInstall({ defId: "021" }));
   registerEffect(chipInstall({ defId: "022" }));
   // 025 自毁芯片：结算结束时删除本回合打出的所有牌（含芯片所在牌），见 market:025:settle
@@ -537,7 +537,7 @@ export function registerMarketEffects(): void {
 
   // ── 强化芯片：非黄边（简单类注册，复杂类 TODO）────────────────────────────
   registerEffect(chipInstall({ defId: "013" })); // 空白模板：无效果
-  // 018/019/020 血筹镀层系：结算阶段对芯片持有者按特权证条件结算（020 为"若不持有"）
+  // 018/019/020 血幕镀层系：结算阶段对芯片持有者按特权证条件结算（020 为"若不持有"）
   registerEffect(passHolderBonus("market:018:settle", { tickets: 2 }, "chip", { chipDefId: "018" }));
   registerEffect(passHolderBonus("market:019:settle", { chips: 4 }, "chip", { chipDefId: "019" }));
   registerEffect(
@@ -580,7 +580,7 @@ export function registerMarketEffects(): void {
     run: (state) => {
       for (const p of chipHolders(state, "021")) {
         p.chips += 2;
-        logText(state, `${p.name} 血筹镀层（出）：对决获得 2 血筹`);
+        logText(state, `${p.name} 血幕镀层（出）：对决获得 2 血筹`);
       }
     },
   });

@@ -30,11 +30,20 @@
 
 ## 里程碑：M1 白板标准局 → M2 黑市+角色+简易模式 → M3 单人荷官。
 
+## 票据 18-20 完成（2026-08-31）
+- 18 卡牌图片上图（sync-assets + CardImg 占位回退）、19 元数据下发（hello→cardPool 消息 + SQLite 局摘要 node:sqlite）、20 效果真身化全部 resolved；map.md frontier = 21（芯片可视化）。
+- 票据 20 关键架构沉淀：芯片判定视图候选集语义（ChipView.suitOptions/rankOptions/duplicate/asJoker，chipViewFromChips 构建、mergeChipView 与角色映射叠加）；特权证条件工厂 passHolderBonus（self 购买即结算/chip 结算对持有者、negate 若不持有）落地 018/019/020/037；跨玩家链式交互用 PendingPrompt.chooseCard.carry 中间态经 EffectContext.carry 回传（不污染 GameState）；负面状态字段 skipPhases/nextTurnSwapDelta/nextTurnSkillDisabled 由 whiteboard enterPhase 消费；purchase「购买先摘牌」保证效果看到的黑市不含刚买走的牌；from 联合类型 = ZoneId | "deck" | "market"。
+- 引擎 155 用例全绿（engine 155 + card-data 15 + server e2e 8）。
+- 票据 20 明确遗留（已标注 TODO）：道具 045-052 使用时结算（049 需效果响应栈）、芯片 014/015/016/023/024、035 黑厢抢夺（与 role:08 海盗留 M3 骰子交互）、role:05 特型演员/role:21 黑客（选牌交互）、role:15 特级大厨部分实现。
+- role:11 吉祥物半价：代码 Math.floor（与卡面示例一致），规则书文字写「向上取整」——方向待飞飞核对。
+- 卡面约束「不可插入【Joker牌】」：018-022 血筹镀层系五张均带，由 chipInstall 默认 noJoker=true 满足。
+- 教训：429 限流中断时未落盘的编辑会丢失，恢复会话先 git status 核对工作区再继续。
+
 ## M2 完成（2026-08-30，票据 08-15 全部 closed）
 - 数据管道(08)、效果原语库(09)、交互机制(13)由主线程落地；角色效果(11)、黑市效果(12)、UI 组件(14)、web 联调(15)由并行 subAgent 完成。
 - 简易模式 2 人局端到端可玩：server 内存房间 + resolvePrompt 协议(docs/protocol.md) + prompt 超时 autoResolve + 掉线托管；web GameClient/Lobby/Table 最小接线。
 - 测试：engine 88 + card-data 15 + server e2e 4 = 107 全绿。
-- 已知遗留：resolveTiming 未按 roleId 展开持有者(角色效果 run 内 applyToHolders 兜底)；花色/牌型声明类黑市效果需 hand-evaluator 芯片视图；17 标准角色与 28 非黄边黑市效果部分占位；SQLite 局摘要未做；事件牌/命运牌 handler 待 M3。
+- 已知遗留（M2 时点）：resolveTiming 未按 roleId 展开持有者(角色效果 run 内 applyToHolders 兜底)；花色/牌型声明类需芯片视图、效果占位、SQLite 局摘要——均已由票据 18-20 消化，见上段；事件牌/命运牌 handler 待 M3。
 - 工作流验证有效：4 个并行 subAgent 各加载 wayfinder，claim→实现→resolve→commit，无文件冲突(共享基础设施由主线程先行提交)。
 
 ## 本地启动方式（2026-08-30 验证通过）
