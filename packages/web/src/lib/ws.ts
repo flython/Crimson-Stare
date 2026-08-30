@@ -4,7 +4,7 @@
  * 连接 → hello（带 localStorage 持久化 token 可恢复身份）→ welcome 后进入 lobby；
  * 服务端消息统一回调 onMessage；发送层封装 send()。
  */
-import type { Card } from "@crimson/engine";
+import type { Card, CardPool } from "@crimson/engine";
 
 export interface RoomView {
   roomId: string;
@@ -18,6 +18,7 @@ export interface RoomView {
 /** 服务端 → 客户端消息（protocol.md；snapshot.state 为 redactState 输出，见 SnapState） */
 export type ServerMessage =
   | { type: "welcome"; playerId: string; token: string }
+  | { type: "cardPool"; pool: CardPool }
   | { type: "roomState"; room: RoomView }
   | { type: "snapshot"; state: SnapState; you: string }
   | { type: "leftRoom"; reason: "ownerLeft" | "left" | "roomClosed" }

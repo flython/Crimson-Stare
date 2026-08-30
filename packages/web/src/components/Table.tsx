@@ -9,7 +9,7 @@
  * 遗留：黑市牌名暂以 defId 展示、分类色暂以 subtype 映射（server 未下发卡池元数据）。
  */
 import { useState } from "react";
-import type { Card, ZoneId } from "@crimson/engine";
+import type { Card, CardDef, CardPool, ZoneId } from "@crimson/engine";
 import type { TablePlayer, ViewPendingPrompt } from "../lib/types.js";
 import type { SnapState } from "../lib/ws.js";
 import PendingPromptBanner from "./PendingPromptBanner.js";
@@ -18,6 +18,8 @@ import CardPicker from "./CardPicker.js";
 export interface TableProps {
   snap: SnapState;
   you: string;
+  /** 卡池元数据（票据 19 下发，可选——未收到前按 defId 降级显示） */
+  pool: CardPool | null;
   onAction: (action: Record<string, unknown>) => void;
   onResolve: (choice: string | string[]) => void;
 }
@@ -94,26 +96,31 @@ function CardFace({ card }: { card: Card }) {
   );
 }
 
-/** 座位信息条：角色卡（占位点击查看技能，元数据未下发仅提示）+ 名字/徽章 + 票筹换牌牌库统计 + 手牌 */
+/** 座位信息条：角色卡（卡名+技能 tooltip 来自卡池元数据）+ 名字/徽章 + 票筹换牌牌库统计 + 手牌 */
 function SeatInfo({
   p,
   goal,
   isPass,
   active,
   isMe,
+  role,
 }: {
   p: SnapPlayer;
   goal: number;
   isPass: boolean;
   active: boolean;
   isMe: boolean;
+  role: CardDef | undefined;
 }) {
   const handCount = countOf(p.zones.hand);
   const backs = Math.min(handCount, MAX_HAND_BACKS);
   return (
     <div className={`seatInfo${active ? " active" : ""}`}>
-      <div className="charCard" title="查看角色技能">
-        {p.characterId?.slice(-3) ?? p.name.slice(0, 1)}
+      <div
+        className="charCard"
+        title={role ? `${role.name}·${role.title ?? ""}：${role.effectText}` : "角色元数据加载中"}
+      >
+        {role?.name ?? p.characterId?.slice(-3) ?? p.name.slice(0, 1)}
       </div>
       <div className="name">
         {p.name}
@@ -177,14 +184,24 @@ function PlayZone({ dir, p }: { dir: SeatDir | "me"; p?: SnapPlayer }) {
   );
 }
 
-/** 黑市卡：defId + 分类色边框 + 价格 + 叠加血筹角标（购买阶段可点） */
+/** 黑市卡分类色：优先用元数据 colorTag（牌型绿/容错蓝/互动暗红），缺省回退 subtype 映射 */
+function marketCat(subtype: string | undefined, colorTag?: string): string {
+  if (colorTag === "牌型绿") return "cat-green";
+  if (colorTag === "容错蓝") return "cat-blue";
+  if (colorTag === "互动暗红") return "cat-red";
+  return subtypeCat(subtype);
+}
+
+/** 黑市卡：卡名/效果文本来自卡池元数据（19），元数据未到时回退 defId */
 function MarketCard({
   slot,
   phase,
+  meta,
   onBuy,
 }: {
   slot: SnapState["blackMarket"]["slots"][number];
   phase: string;
+  meta: CardDef | undefined;
   onBuy: () => void;
 }) {
   if (!slot.defId) return <div className="bm-card empty" />;
@@ -192,13 +209,14 @@ function MarketCard({
   return (
     <button
       type="button"
-      className={`bm-card ${subtypeCat(slot.subtype)}${purchasable ? " buyable" : ""}`}
+      className={`bm-card ${marketCat(slot.subtype, meta?.colorTag)}${purchasable ? " buyable" : ""}`}
       disabled={!purchasable}
       onClick={onBuy}
+      title={meta?.effectText ?? ""}
     >
       {slot.bonusChips > 0 ? <span className="bonus">{slot.bonusChips}</span> : null}
-      <span className="bmName">{slot.defId}</span>
-      <span className="bmSub">{slot.subtype ?? ""}</span>
+      <span className="bmName">{meta?.name ?? slot.defId}</span>
+      <span className="bmSub">{meta?.effectText ?? slot.subtype ?? ""}</span>
       <span className="bmPrice">
         <span>{slot.price}筹</span>
         <span>{slot.subtype ?? ""}</span>
@@ -224,10 +242,14 @@ function Log({ log }: { log: SnapState["log"] }) {
   );
 }
 
-export default function Table({ snap, you, onAction, onResolve }: TableProps) {
+export default function Table({ snap, you, pool, onAction, onResolve }: TableProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   /** 删牌阶段：弃牌区选择弹层（复用 14 号 CardPicker，从弃牌区选牌删除） */
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  /** 卡池元数据查找表（19）：角色/黑市 id → CardDef */
+  const roleById = new Map((pool?.roles ?? []).map((r) => [r.id, r]));
+  const marketById = new Map((pool?.market ?? []).map((m) => [m.id, m]));
 
   const players: TablePlayer[] = snap.players.map((p) => ({
     id: p.id,
@@ -332,7 +354,7 @@ export default function Table({ snap, you, onAction, onResolve }: TableProps) {
           <div className="seat seatTop">
             {seats.top ? (
               <>
-                <SeatInfo p={seats.top} goal={goal} isPass={snap.passHolderSeat === seats.top.seat} active={!seats.top.phaseReady} isMe={false} />
+                <SeatInfo p={seats.top} goal={goal} isPass={snap.passHolderSeat === seats.top.seat} active={!seats.top.phaseReady} isMe={false} role={seats.top.characterId ? roleById.get(seats.top.characterId) : undefined} />
                 <PlayZone dir="top" p={seats.top} />
               </>
             ) : (
@@ -344,7 +366,7 @@ export default function Table({ snap, you, onAction, onResolve }: TableProps) {
             {seats.left ? (
               <>
                 <PlayZone dir="left" p={seats.left} />
-                <SeatInfo p={seats.left} goal={goal} isPass={snap.passHolderSeat === seats.left.seat} active={!seats.left.phaseReady} isMe={false} />
+                <SeatInfo p={seats.left} goal={goal} isPass={snap.passHolderSeat === seats.left.seat} active={!seats.left.phaseReady} isMe={false} role={seats.left.characterId ? roleById.get(seats.left.characterId) : undefined} />
               </>
             ) : (
               <div className="seatInfo empty-seat">空位</div>
@@ -360,7 +382,13 @@ export default function Table({ snap, you, onAction, onResolve }: TableProps) {
             </div>
             <div className="marketSlots">
               {snap.blackMarket.slots.map((slot, i) => (
-                <MarketCard key={i} slot={slot} phase={snap.phase} onBuy={() => onAction({ type: "purchase", slotIndex: i })} />
+                <MarketCard
+                  key={i}
+                  slot={slot}
+                  phase={snap.phase}
+                  meta={slot.defId ? marketById.get(slot.defId) : undefined}
+                  onBuy={() => onAction({ type: "purchase", slotIndex: i })}
+                />
               ))}
             </div>
             <div className="zoneTitle">购买阶段结束时最右两格叠加 1 血筹</div>
@@ -370,7 +398,7 @@ export default function Table({ snap, you, onAction, onResolve }: TableProps) {
             {seats.right ? (
               <>
                 <PlayZone dir="right" p={seats.right} />
-                <SeatInfo p={seats.right} goal={goal} isPass={snap.passHolderSeat === seats.right.seat} active={!seats.right.phaseReady} isMe={false} />
+                <SeatInfo p={seats.right} goal={goal} isPass={snap.passHolderSeat === seats.right.seat} active={!seats.right.phaseReady} isMe={false} role={seats.right.characterId ? roleById.get(seats.right.characterId) : undefined} />
               </>
             ) : (
               <div className="seatInfo empty-seat">空位</div>
@@ -380,7 +408,7 @@ export default function Table({ snap, you, onAction, onResolve }: TableProps) {
           <div className="seat seatMe">
             <PlayZone dir="me" p={myPlayer} />
             {myPlayer ? (
-              <SeatInfo p={myPlayer} goal={goal} isPass={snap.passHolderSeat === myPlayer.seat} active={!myPlayer.phaseReady} isMe />
+              <SeatInfo p={myPlayer} goal={goal} isPass={snap.passHolderSeat === myPlayer.seat} active={!myPlayer.phaseReady} isMe role={myPlayer.characterId ? roleById.get(myPlayer.characterId) : undefined} />
             ) : null}
           </div>
         </div>
@@ -390,7 +418,7 @@ export default function Table({ snap, you, onAction, onResolve }: TableProps) {
       <div className="console">
         <div className="consoleBar">
           <span className="name">
-            你 · {myPlayer?.characterId ?? "?"}
+            你 · {myPlayer?.characterId ? (roleById.get(myPlayer.characterId)?.name ?? myPlayer.characterId) : "?"}
             {passHolder && passHolder.id === you ? <span className="badge">临时特权证</span> : null}
             {myPlayer?.purchaseFlipped ? <span className="badge flip">已翻面</span> : null}
           </span>
@@ -486,8 +514,8 @@ export default function Table({ snap, you, onAction, onResolve }: TableProps) {
               <div className="items">
                 {myPlayer && myPlayer.zones.items.length > 0 ? (
                   myPlayer.zones.items.map((it, i) => (
-                    <span key={i} className="itemCard">
-                      {it}
+                    <span key={i} className="itemCard" title={marketById.get(it)?.effectText ?? ""}>
+                      {marketById.get(it)?.name ?? it}
                     </span>
                   ))
                 ) : (
@@ -499,7 +527,9 @@ export default function Table({ snap, you, onAction, onResolve }: TableProps) {
               <span>
                 芯片 <b>{myPlayer ? Object.keys(myPlayer.zones.chips).length : 0}</b>
                 {myPlayer && Object.keys(myPlayer.zones.chips).length > 0
-                  ? `（${Object.values(myPlayer.zones.chips).join(",")}）`
+                  ? `（${Object.values(myPlayer.zones.chips)
+                      .map((d) => marketById.get(d)?.name ?? d)
+                      .join(",")}）`
                   : ""}
               </span>
             </div>

@@ -31,6 +31,7 @@ server ↔ web 的通信契约。02 号票据定稿的引擎抽象（`reduce` �
 | type | 载荷 | 说明 |
 |---|---|---|
 | `welcome` | `{ playerId, token }` | hello 应答，token 由客户端持久化到 localStorage |
+| `cardPool` | `{ pool }` | **卡池元数据（19 号票据）**：welcome 后随 hello 下发一次（静态数据，不随状态重发）。`pool` 为完整 `CardPool`（roles/market/fate/events 的 CardDef：卡名/分类/效果文本/图片路径），客户端建 id→def 查找表渲染卡名、效果文本与分类色 |
 | `roomState` | `{ room }` | 房间 lobby 状态（成员/配置/座位/开始与结束标记），成员进出/开局时全房间广播 |
 | `snapshot` | `{ state, you }` | 全量裁剪快照。`you` 是观察者座位号（playerId），客户端据此渲染"我的视角"；`state` 为 `redactState(state, you)` 输出，含 `pendingPrompt`（目标玩家见完整候选，他人见 `{ kind, waitingFor, promptText }`）与 `log` |
 | `leftRoom` | `{ reason }` | **已离开房间（16 号票据）**：`reason` 为 `"left"`（主动离开）/ `"ownerLeft"`（房主离开，房间解散）/ `"roomClosed"`。收到后客户端回大厅，可再建房 |
@@ -103,6 +104,6 @@ client (重连)      server
                                     └─▶ 广播终局快照（房间保留供查看）
 ```
 
-- 房间**只存内存**；**仅游戏结束时写一局摘要**进 SQLite（胜负/各回合结算/时长），不做逐 Action 回放。**（15 号遗留：SQLite 摘要未实现，优先跑通 WS 链路；终局以 `snapshot.state.finished + winners` 通知客户端）**
+- 房间**只存内存**；**仅游戏结束时写一局摘要**进 SQLite（胜负/各回合结算/时长），不做逐 Action 回放。**（19 号票据已落地：server 用 Node 内置 `node:sqlite` 写 `DB_PATH`（compose 中 `/data/crimson.db`），未配置则不落库；终局以 `snapshot.state.finished + winners` 通知客户端）**
 - 中途关服 = 丢局，内部可接受（已确认）。
-- server 启动时建表 `game_records(id, mode, player_count, started_at, ended_at, winner, summary_json)`（表结构预留，未落库）。
+- server 启动时建表 `game_records(id, mode, player_count, started_at, ended_at, winner, summary_json)`。

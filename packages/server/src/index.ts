@@ -9,13 +9,16 @@ import { ENGINE_VERSION } from "@crimson/engine";
 import { loadGameConfig } from "./config.js";
 import { loadCardPool } from "./cardPool.js";
 import { RoomManager } from "./room.js";
+import { SummaryStore } from "./db.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
 
 export function startServer(opts: { port?: number } = {}): { wss: WebSocketServer; manager: RoomManager } {
   const config = loadGameConfig(process.env.CONFIG_PATH);
   const pool = loadCardPool(process.env.CONFIG_DIR);
-  const manager = new RoomManager(config, pool);
+  // 终局局摘要落库（票据 19）：compose 设 DB_PATH=/data/crimson.db；本地未设则不落库
+  const store = new SummaryStore(process.env.DB_PATH);
+  const manager = new RoomManager(config, pool, { store });
   const wss = new WebSocketServer({ port: opts.port ?? PORT });
   wss.on("connection", (socket) => manager.attach(socket));
 

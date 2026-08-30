@@ -11,11 +11,14 @@
  */
 import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { dirname, join } from "node:path";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, WebSocket } from "ws";
 import { loadGameConfig } from "../src/config.js";
 import { loadCardPool } from "../src/cardPool.js";
 import { RoomManager, type ServerMessage } from "../src/room.js";
+import { SummaryStore } from "../src/db.js";
 
 /** 仓库根 config 目录（vitest cwd 是 packages/server，手动上溯） */
 const rootConfigDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "config");
@@ -410,5 +413,84 @@ describe("leaveRoom（票据 16）", () => {
     expect(leftB.type).toBe("leftRoom");
     const roomAfter = (await a.recv("roomState")) as RoomMsg;
     expect(roomAfter.room.players.length).toBe(1);
+  });
+});
+
+describe("票据 19：cardPool 元数据与 SQLite 局摘要", () => {
+  it("hello 后下发 cardPool 元数据（含卡名/效果文本/图片路径）", async () => {
+    const a = await TestClient.connect(url, "元数据");
+    clients.push(a);
+    const poolMsg = await a.recv("cardPool");
+    expect(poolMsg.type).toBe("cardPool");
+    expect(poolMsg.pool.version).toBeTruthy();
+    expect(poolMsg.pool.roles.length).toBe(21);
+    expect(poolMsg.pool.market.length).toBe(52);
+    const chip = poolMsg.pool.market.find((m) => m.id === "001");
+    expect(chip?.name).toBeTruthy();
+    expect(chip?.effectText).toBeTruthy();
+    expect(chip?.image).toMatch(/^assets\/cards\//);
+    const role = poolMsg.pool.roles.find((r) => r.simpleOnly);
+    expect(role?.effectText).toBeTruthy();
+  });
+
+  it("终局写 SQLite 局摘要（ticketGoals=4 首次结算即终局）", async () => {
+    const dbPath = join(tmpdir(), "crimson-test-" + randomUUID() + ".db");
+    const store = new SummaryStore(dbPath);
+    const config = loadGameConfig(join(rootConfigDir, "game-config.json"));
+    const mgr = new RoomManager(config, loadCardPool(rootConfigDir), { store });
+    const local = new WebSocketServer({ port: 0 });
+    local.on("connection", (socket) => mgr.attach(socket));
+    await new Promise<void>((r) => local.once("listening", () => r()));
+    const addr = local.address() as { port: number };
+    const localUrl = "ws://127.0.0.1:" + addr.port;
+
+    try {
+      const a = await TestClient.connect(localUrl, "快局A");
+      const b = await TestClient.connect(localUrl, "快局B");
+      clients.push(a, b);
+      a.send({ type: "createRoom", mode: "easy", config: { ticketGoals: { "2": 4, "3": 4, "4": 4 } } });
+      const roomMsg = (await a.recv("roomState")) as RoomMsg;
+      b.send({ type: "joinRoom", roomId: roomMsg.room.roomId });
+      await b.recv("roomState");
+      await a.recv("roomState");
+      a.send({ type: "startGame" });
+      await a.recv("roomState");
+      const snapA = await a.waitPhase("swap");
+      const snapB = await b.waitPhase("swap");
+
+      // 换牌停手 → 各出 5 张 → 对决/结算自动推进，第一名 +4 票达标即终局
+      // （目标 4 票时结算即结束，不会进入 purchase，故不 await waitPhase("purchase")）
+      const afterSwap = await playSwap(a, b, snapA, snapB);
+      const handA2 = (me(afterSwap.snapA).zones.hand as { cards: { id: string }[] }).cards;
+      const handB2 = (me(afterSwap.snapB).zones.hand as { cards: { id: string }[] }).cards;
+      await a.act({ type: "action", action: { type: "playCards", cardIds: handA2.slice(0, 5).map((c) => c.id) } });
+      await b.act({ type: "action", action: { type: "playCards", cardIds: handB2.slice(0, 5).map((c) => c.id) } });
+      const finA = await a.recv("snapshot", (m: Snap) => (m.state as SnapState).finished === true);
+      expect(finA.state.finished).toBe(true);
+      expect((finA.state as SnapState).winners.length).toBeGreaterThan(0);
+
+      // 摘要已落库：一行记录，含双方终局数据与胜者（node:sqlite 运行时获取，见 src/db.ts 注释）
+      const { DatabaseSync } = process.getBuiltinModule("node:sqlite") as unknown as {
+        DatabaseSync: new (path: string) => {
+          exec(sql: string): void;
+          prepare(sql: string): { run(...params: unknown[]): unknown; get(...params: unknown[]): unknown };
+        };
+      };
+      const db = new DatabaseSync(dbPath);
+      const row = db.prepare("SELECT * FROM game_records").get() as
+        | { id: string; mode: string; player_count: number; winner: string; summary_json: string }
+        | undefined;
+      db.close();
+      expect(row).toBeTruthy();
+      expect(row!.mode).toBe("easy");
+      expect(row!.player_count).toBe(2);
+      expect(row!.winner.length).toBeGreaterThan(0);
+      const summary = JSON.parse(row!.summary_json) as { turn: number; winners: string[]; players: unknown[] };
+      expect(summary.players.length).toBe(2);
+      expect(summary.winners.length).toBeGreaterThan(0);
+      expect(summary.turn).toBeGreaterThanOrEqual(1);
+    } finally {
+      local.close();
+    }
   });
 });

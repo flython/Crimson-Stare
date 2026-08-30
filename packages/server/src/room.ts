@@ -11,10 +11,9 @@
  * - 超时托管：pendingPrompt 挂起超过 config.promptTimeoutSec 后调 engine autoResolve 取默认选择自动 resolve
  *   （timeoutPolicy="strict" 不托管）；连接断开且正被等待选择时立即托管。
  * - 阶段级掉线托管（最小版）：离线玩家未 ready 超过 autoPassTimeoutSec 后提交该阶段默认 Action。
- * - 终局：state.finished 后广播终局快照，房间保留供查看；SQLite 局摘要为遗留（见票据 Answer）。
+ * - 终局：state.finished 后广播终局快照，房间保留供查看；终局写 SQLite 局摘要（票据 19，store 未配置则跳过）。
  *
  * 遗留标注：
- * - SQLite 局摘要未写（优先跑通 WS 链路，协议 v1 已约定"仅终局写一条"）。
  * - updateConfig 消息未实现（MVP 建房时一次性定配置）。
  * - play 阶段掉线托管的最优出牌用枚举 5 张子集近似（evaluateHand + compareHands）。
  * - engine autoResolve 对 chooseCard 返回 []（"不选"），数值类强化芯片 resolve 会抛错
@@ -36,6 +35,7 @@ import {
   type PlayerState,
   type HandEvaluation,
 } from "@crimson/engine";
+import type { SummaryStore } from "./db.js";
 
 export type Mode = "easy" | "standard";
 
@@ -53,6 +53,7 @@ export type ClientMessage =
 /** 服务端 → 客户端消息 */
 export type ServerMessage =
   | { type: "welcome"; playerId: string; token: string }
+  | { type: "cardPool"; pool: CardPool }
   | { type: "roomState"; room: RoomView }
   | { type: "snapshot"; state: object; you: string }
   | { type: "leftRoom"; reason: "ownerLeft" | "left" | "roomClosed" }
@@ -146,19 +147,30 @@ export class Room {
   readonly ownerId: string;
   readonly config: GameConfig;
   private readonly pool: CardPool;
+  private readonly store: SummaryStore | null;
   readonly seats: Seat[] = [];
   state: GameState | null = null;
   started = false;
   finished = false;
+  /** 开局时间戳（终局摘要用） */
+  startedAt = 0;
   private promptTimer: NodeJS.Timeout | null = null;
   private phaseTimer: NodeJS.Timeout | null = null;
 
-  constructor(opts: { id: string; mode: Mode; ownerId: string; config: GameConfig; pool: CardPool }) {
+  constructor(opts: {
+    id: string;
+    mode: Mode;
+    ownerId: string;
+    config: GameConfig;
+    pool: CardPool;
+    store?: SummaryStore | null;
+  }) {
     this.id = opts.id;
     this.mode = opts.mode;
     this.ownerId = opts.ownerId;
     this.config = opts.config;
     this.pool = opts.pool;
+    this.store = opts.store ?? null;
   }
 
   view(): RoomView {
@@ -236,6 +248,7 @@ export class Room {
       this.pool,
       { simple: this.mode === "easy" },
     );
+    this.startedAt = Date.now();
     this.started = true;
   }
 
@@ -258,10 +271,37 @@ export class Room {
   afterStateChange(): void {
     this.broadcastState();
     this.armTimers();
-    if (this.state?.finished) {
+    if (this.state?.finished && !this.finished) {
       this.finished = true;
       this.clearTimers();
+      this.writeSummary();
     }
+  }
+
+  /** 终局写 SQLite 局摘要（票据 19；store 未配置时 no-op） */
+  private writeSummary(): void {
+    if (!this.state || !this.store) return;
+    const st = this.state;
+    const winners = st.winners;
+    this.store.record({
+      id: this.id,
+      mode: this.mode,
+      playerCount: st.players.length,
+      startedAt: this.startedAt,
+      endedAt: Date.now(),
+      winner: winners.join(","),
+      summaryJson: JSON.stringify({
+        turn: st.turn,
+        winners: winners.map((w) => st.players.find((p) => p.id === w)?.name ?? w),
+        players: st.players.map((p) => ({
+          name: p.name,
+          characterId: p.characterId,
+          seat: p.seat,
+          tickets: p.tickets,
+          chips: p.chips,
+        })),
+      }),
+    });
   }
 
   broadcastRoomState(): void {
@@ -353,6 +393,7 @@ export class Room {
 export class RoomManager {
   private readonly baseConfig: GameConfig;
   private readonly pool: CardPool;
+  private readonly store: SummaryStore | null;
   private readonly rooms = new Map<string, Room>();
   /** token → 身份（本地持久化后可恢复座位） */
   private readonly identities = new Map<string, Identity>();
@@ -361,9 +402,10 @@ export class RoomManager {
   /** playerId → 所在房间 id */
   private readonly playerRooms = new Map<string, string>();
 
-  constructor(config: GameConfig, pool: CardPool) {
+  constructor(config: GameConfig, pool: CardPool, opts: { store?: SummaryStore | null } = {}) {
     this.baseConfig = config;
     this.pool = pool;
+    this.store = opts.store ?? null;
   }
 
   roomOf(identity: Identity): Room | null {
@@ -441,6 +483,8 @@ export class RoomManager {
     }
     this.socketIdentity.set(socket, identity);
     send(socket, { type: "welcome", playerId: identity.playerId, token: identity.token });
+    // 卡池元数据（票据 19）：静态数据随 hello 下发一次，web 侧建 id→def 查找表渲染卡名/效果文本
+    send(socket, { type: "cardPool", pool: this.pool });
 
     // 若身份已在房间（断线重连）→ 恢复座位并补发状态
     const room = this.roomOf(identity);
@@ -472,6 +516,7 @@ export class RoomManager {
       ownerId: identity.playerId,
       config: { ...this.baseConfig, ...(msg.config ?? {}) },
       pool: this.pool,
+      store: this.store,
     });
     this.rooms.set(room.id, room);
     room.addSeat(identity, socket);

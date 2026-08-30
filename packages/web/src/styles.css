@@ -1001,6 +1001,17 @@ body:has(.table-root) {
   cursor: pointer;
 }
 
+/* 黑市牌分类色（票据 19：colorTag 三分类——牌型绿/容错蓝/互动暗红，spec「视觉」节） */
+.bm-card.cat-green {
+  border-color: #3f9d5a;
+}
+.bm-card.cat-blue {
+  border-color: #3f7fbf;
+}
+.bm-card.cat-red {
+  border-color: #b03a44;
+}
+
 .bm-card.buyable:hover {
   outline: 3px solid var(--gold);
   outline-offset: 1px;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ENGINE_VERSION } from "@crimson/engine";
+import { ENGINE_VERSION, type CardPool } from "@crimson/engine";
 import type { RoomView, SnapState } from "./lib/ws.js";
 import { GameClient, defaultWsUrl } from "./lib/ws.js";
 import Lobby from "./components/Lobby.js";
@@ -53,6 +53,8 @@ export default function App() {
   const [room, setRoom] = useState<RoomView | null>(null);
   const [snap, setSnap] = useState<SnapState | null>(null);
   const [you, setYou] = useState("");
+  /** 卡池元数据（票据 19）：hello 后随 cardPool 消息下发一次，静态数据 */
+  const [pool, setPool] = useState<CardPool | null>(null);
   const [error, setError] = useState("");
   const clientRef = useRef<GameClient | null>(null);
 
@@ -74,6 +76,9 @@ export default function App() {
         switch (msg.type) {
           case "welcome":
             localStorage.setItem(TOKEN_KEY, msg.token);
+            break;
+          case "cardPool":
+            setPool(msg.pool);
             break;
           case "roomState":
             setRoom(msg.room);
@@ -198,7 +203,9 @@ export default function App() {
         />
       ) : null}
 
-      {stage === "table" && snap ? <Table snap={snap} you={you} onAction={onAction} onResolve={onResolve} /> : null}
+      {stage === "table" && snap ? (
+        <Table snap={snap} you={you} pool={pool} onAction={onAction} onResolve={onResolve} />
+      ) : null}
 
       {error ? (
         <p className="app-error">

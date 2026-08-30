@@ -36,3 +36,9 @@
 - 测试：engine 88 + card-data 15 + server e2e 4 = 107 全绿。
 - 已知遗留：resolveTiming 未按 roleId 展开持有者(角色效果 run 内 applyToHolders 兜底)；花色/牌型声明类黑市效果需 hand-evaluator 芯片视图；17 标准角色与 28 非黄边黑市效果部分占位；SQLite 局摘要未做；事件牌/命运牌 handler 待 M3。
 - 工作流验证有效：4 个并行 subAgent 各加载 wayfinder，claim→实现→resolve→commit，无文件冲突(共享基础设施由主线程先行提交)。
+
+## 本地启动方式（2026-08-30 验证通过）
+- 后端(WS 8080)：从仓库根跑 `CONFIG_DIR="$(pwd)/config" npm run dev -w @crimson/server`——**必须显式传 CONFIG_DIR**，否则 server 按 cwd/config 找卡池会抛错（设计如此，不静默降级）。
+- 前端(Vite 5173)：`npm run dev -w @crimson/web`，WS 直连 `ws://localhost:8080`（VITE_WS_URL 可覆盖；vite 的 /ws 代理存在但客户端默认不用）。
+- 体验需 2-4 人：开两个浏览器窗口（普通 + 隐身）分别建房/入房，房主点开始。
+- 停止：`pkill -f "tsx watch src/index.ts"`、`pkill -f vite`。
