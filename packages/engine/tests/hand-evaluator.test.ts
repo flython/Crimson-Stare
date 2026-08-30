@@ -201,3 +201,70 @@ describe("芯片声明视图（票据 20）", () => {
     expect(ev.category).toBe(HandCategory.同花顺);
   });
 });
+
+// ===== 票据 20：角色映射视图（可选点数 / 视为 JOKER）=====
+describe("角色映射视图（票据 20）", () => {
+  it("可选点数（2 视为 5）：两张 2 变 5 凑三条", () => {
+    const cards = [card(2, "S", "r1"), card(2, "H", "r2"), card(5, "D", "r3"), card(7, "C", "r4"), card(9, "S", "r5")];
+    expect(evaluateHand(cards).category).toBe(HandCategory.一对);
+    const ev = evaluateHand(cards, { rankOptions: { r1: [2, 5], r2: [2, 5] } });
+    expect(ev.category).toBe(HandCategory.三条);
+    // 变为 5 后点数总和提高（7+9+5*3 = 31）
+    expect(ev.totalPoints).toBe(31);
+  });
+
+  it("可选点数：牌型相同且原值点数更大时保留原值（9 可视为 6）", () => {
+    const cards = [card(9, "S", "s1"), card(7, "H", "s2"), card(5, "D", "s3"), card(3, "C", "s4"), card(2, "S", "s5")];
+    const ev = evaluateHand(cards, { rankOptions: { s1: [9, 6] } });
+    expect(ev.category).toBe(HandCategory.高牌);
+    expect(ev.cards.find((c) => c.id === "s1")!.rank).toBe(9);
+  });
+
+  it("可选点数：变 6 能凑四条时采用（9 可视为 6）", () => {
+    const cards = [card(9, "S", "s6"), card(6, "H", "s7"), card(6, "D", "s8"), card(6, "C", "s9"), card(2, "S", "sa")];
+    expect(evaluateHand(cards).category).toBe(HandCategory.三条);
+    const ev = evaluateHand(cards, { rankOptions: { s6: [9, 6] } });
+    expect(ev.category).toBe(HandCategory.四条);
+    expect(ev.cards.find((c) => c.id === "s6")!.rank).toBe(6);
+  });
+
+  it("视为 JOKER（4 视为小丑）：自由牌补成四条", () => {
+    const cards = [card(4, "S", "t1"), card(4, "H", "t2"), card(9, "S", "t3"), card(9, "H", "t4"), card(9, "D", "t5")];
+    expect(evaluateHand(cards).category).toBe(HandCategory.葫芦);
+    const ev = evaluateHand(cards, { asJoker: ["t1"] });
+    expect(ev.category).toBe(HandCategory.四条); // 4♠ 视为小丑后赋为 9
+    expect(ev.cards.find((c) => c.id === "t1")!.rank).toBe(9);
+    expect(ev.cards.find((c) => c.id === "t1")!.wasJoker).toBe(true);
+  });
+
+  it("视为 JOKER 与真 JOKER 共存：两张自由牌一并求解", () => {
+    const cards = [joker("u0"), card(9, "S", "u1"), card(9, "H", "u2"), card(4, "D", "u3"), card(4, "C", "u4")];
+    const ev = evaluateHand(cards, { asJoker: ["u3"] });
+    // 3 张 9（含赋值）+ 2 张 4 → 取五条：9 需要 3 张自由牌但只有 2 张 → 四条 9
+    expect(ev.category).toBe(HandCategory.四条);
+    expect(ev.cards.filter((c) => c.wasJoker)).toHaveLength(2);
+  });
+
+  it("复制牌与本体共享点数选择（双生镜片 + 点数映射→五条）", () => {
+    const cards = [card(2, "S", "v1"), card(5, "H", "v2"), card(5, "D", "v3"), card(5, "C", "v4")];
+    const ev = evaluateHand(cards, { duplicate: ["v1"], rankOptions: { v1: [2, 5] } });
+    expect(ev.category).toBe(HandCategory.五条);
+    expect(ev.cards.find((c) => c.id === "v1")!.rank).toBe(5);
+    expect(ev.cards.find((c) => c.id === "v1#dup")!.rank).toBe(5);
+  });
+
+  it("自由牌 ≥4 走缩减向量枚举：全同值造同花五条", () => {
+    const cards = [card(4, "S", "w1"), card(4, "H", "w2"), card(4, "D", "w3"), card(4, "C", "w4"), card(7, "H", "w5")];
+    const ev = evaluateHand(cards, { asJoker: ["w1", "w2", "w3", "w4"] });
+    expect(ev.category).toBe(HandCategory.同花五条); // 四张自由牌取固定牌的 7♥ → 5 张 7♥
+    expect(ev.totalPoints).toBe(35);
+    expect(ev.cards.filter((c) => c.wasJoker)).toHaveLength(4);
+  });
+
+  it("自由牌 ≥4 且无同点固定牌：取点数最大的 A", () => {
+    const cards = [card(4, "S", "y1"), card(4, "H", "y2"), card(4, "D", "y3"), card(4, "C", "y4"), card(7, "H", "y5")];
+    const ev = evaluateHand(cards, { asJoker: ["y1", "y2", "y3", "y4", "y5"] });
+    expect(ev.category).toBe(HandCategory.同花五条); // 5 张自由牌全赋同值，取 A♠
+    expect(ev.totalPoints).toBe(70);
+  });
+});

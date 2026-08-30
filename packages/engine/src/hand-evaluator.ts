@@ -187,91 +187,199 @@ export function evaluateResolved(cards: { rank: number; suit: Suit }[]): RawEval
 }
 
 /**
- * 芯片声明视图（票据 20）：牌型判定时生效的芯片效果。
+ * 判定视图（票据 20）：牌型判定时生效的芯片/角色映射声明。
  *
  * 声明值由出牌阶段交互确定（票据 22 落库），判定器只消费，不负责交互。
- * JOKER 不可插芯片（金科玉律），故视图对 JOKER 无效。
+ * JOKER 不可插芯片（金科玉律），故芯片类字段对 JOKER 无效；
+ * rankOptions / asJoker 由角色技能提供（2 视为 5 / 6↔9 / 4 视为小丑）。
  */
 export interface ChipView {
   /** 改花色类芯片（如变色墨水）：cardId → 判定时视为的花色 */
   suitOverride?: Record<string, Suit>;
   /** 双生镜片等"该牌视为 2 张"：参与判定时复制一份同点数同花色 */
   duplicate?: string[];
+  /** 可选点数：cardId → 候选点数（含原值），求解器枚举取最优（2 视为 5 / 6↔9） */
+  rankOptions?: Record<string, number[]>;
+  /** 视为 JOKER 参与求解（4 视为小丑；由玩家在出牌时声明，票据 22 交互确定） */
+  asJoker?: string[];
 }
 
-/** 应用芯片视图：改花色 / 复制牌（复制品 id 加 #dup 后缀以便展示层识别） */
-function applyChipView(cards: Card[], view?: ChipView): Card[] {
-  if (!view) return cards;
-  const dup = new Set(view.duplicate ?? []);
-  const out: Card[] = [];
+/** JOKER / 视为 JOKER 的牌可赋的全部 52 种（点数 2-14 × 4 花色） */
+const ALL_ASSIGNMENTS: readonly { rank: number; suit: Suit }[] = SUITS.flatMap((suit) =>
+  Array.from({ length: 13 }, (_, i) => ({ rank: i + 2, suit })),
+);
+
+/**
+ * 判定视图下的一张牌：cands 长度 1 = 固定牌，>1 = 需枚举赋值的牌。
+ * tieGroup：同一张牌的复制品与被复制牌共享选择（双生镜片 + 点数映射时点数须一致）。
+ */
+interface ViewedCard {
+  id: string;
+  wasJoker: boolean;
+  cands: readonly { rank: number; suit: Suit }[];
+  tieGroup?: string;
+}
+
+/** 应用判定视图：改花色 / 复制牌（复制品 id 加 #dup 后缀以便展示层识别）/ 点数候选 / 视为 JOKER */
+function applyChipView(cards: Card[], view?: ChipView): ViewedCard[] {
+  const dup = new Set(view?.duplicate ?? []);
+  const asJoker = new Set(view?.asJoker ?? []);
+  const out: ViewedCard[] = [];
+  const push = (c: Card, suit: Suit | null, isDup: boolean) => {
+    const free = c.isJoker || asJoker.has(c.id);
+    const base = free ? null : { rank: c.rank!, suit: suit ?? c.suit! };
+    const opts = free ? undefined : view?.rankOptions?.[c.id];
+    const cands = free ? ALL_ASSIGNMENTS : opts && opts.length > 0 ? opts.map((rank) => ({ rank, suit: base!.suit })) : [base!];
+    out.push({
+      id: isDup ? `${c.id}#dup` : c.id,
+      wasJoker: free,
+      cands,
+      tieGroup: dup.has(c.id) ? c.id : undefined,
+    });
+  };
   for (const c of cards) {
-    const eff: Card = { ...c, suit: view.suitOverride?.[c.id] ?? c.suit };
-    out.push(eff);
-    if (dup.has(c.id)) out.push({ ...eff, id: `${c.id}#dup` });
+    const suit = view?.suitOverride?.[c.id] ?? c.suit;
+    push(c, suit, false);
+    if (dup.has(c.id)) push(c, suit, true);
   }
   return out;
+}
+
+/** 组合数上限：超过则改用缩减向量枚举，避免自由牌过多（4 张以上视为 JOKER）时组合爆炸 */
+const MAX_COMBOS = 200_000;
+
+/** evaluateResolved 记忆化（牌序无关，按排序签名缓存；自由牌枚举重复度极高） */
+const memo = new Map<string, RawEvaluation | null>();
+
+function evalMemo(vals: readonly { rank: number; suit: Suit }[]): RawEvaluation | null {
+  const key = vals
+    .map((v) => `${v.rank}${v.suit}`)
+    .sort()
+    .join(",");
+  const hit = memo.get(key);
+  if (hit !== undefined) return hit;
+  if (memo.size > 100_000) memo.clear();
+  const r = evaluateResolved(vals as { rank: number; suit: Suit }[]);
+  memo.set(key, r);
+  return r;
+}
+
+function isBetter(a: RawEvaluation, b: RawEvaluation | null): boolean {
+  return !b || a.category > b.category || (a.category === b.category && a.totalPoints > b.totalPoints);
+}
+
+/**
+ * 降级候选向量（自由牌 ≥4 时使用）：只枚举"全部自由牌取同一赋值"。
+ *
+ * 充分性：设自由牌 f ≥ 4、固定牌 m。全同值 X 使同点张数 ≥ f ≥ 4（至少四条）；
+ * 若 X 命中固定牌的点数则 ≥ 五条/同花五条(10/12)。任何非全同值方案的最好牌型是同花顺(9)，
+ * 劣于五条；f=4 且 m=0 时全同值即四条(8)，此时牌数不足 5，顺子/同花本就不成立。
+ * 值池 = 固定牌的 (点数, 花色) ∪ A×4：前者保证能凑同花五条，后者保证同牌型下点数最大。
+ */
+function fallbackVectors(fixedVals: readonly { rank: number; suit: Suit }[], n: number): { rank: number; suit: Suit }[][] {
+  const pool: { rank: number; suit: Suit }[] = [];
+  const seen = new Set<string>();
+  const add = (v: { rank: number; suit: Suit }) => {
+    const k = `${v.rank}${v.suit}`;
+    if (!seen.has(k)) {
+      seen.add(k);
+      pool.push(v);
+    }
+  };
+  for (const v of fixedVals) add(v);
+  for (const suit of SUITS) add({ rank: 14, suit }); // A：同牌型下点数最大
+  return pool.map((v) => Array.from({ length: n }, () => v));
+}
+
+/** 求解：枚举全部候选赋值，取 (牌型, 总点数) 字典序最大 */
+function solve(cards: ViewedCard[]): { raw: RawEvaluation; resolved: ResolvedCard[] } | null {
+  let combos = 1;
+  const tied = new Set<string>();
+  for (const c of cards) {
+    if (c.tieGroup) {
+      if (tied.has(c.tieGroup)) continue;
+      tied.add(c.tieGroup);
+    }
+    combos *= c.cands.length;
+  }
+
+  const best: { value: { raw: RawEvaluation; resolved: ResolvedCard[] } | null } = { value: null };
+  const consider = (vals: { rank: number; suit: Suit }[]) => {
+    const raw = evalMemo(vals);
+    if (raw && isBetter(raw, best.value?.raw ?? null)) {
+      best.value = {
+        raw,
+        resolved: cards.map((c, i) => ({ id: c.id, rank: vals[i]!.rank, suit: vals[i]!.suit, wasJoker: c.wasJoker })),
+      };
+    }
+  };
+
+  if (combos <= MAX_COMBOS) {
+    const chosen = new Map<string, number>();
+    const current: { rank: number; suit: Suit }[] = [];
+    const rec = (i: number) => {
+      if (i === cards.length) {
+        consider(current);
+        return;
+      }
+      const c = cards[i]!;
+      const tie = c.tieGroup ? chosen.get(c.tieGroup) : undefined;
+      if (tie !== undefined) {
+        current.push(c.cands[tie]!);
+        rec(i + 1);
+        current.pop();
+        return;
+      }
+      for (let k = 0; k < c.cands.length; k++) {
+        if (c.tieGroup) chosen.set(c.tieGroup, k);
+        current.push(c.cands[k]!);
+        rec(i + 1);
+        current.pop();
+      }
+      if (c.tieGroup) chosen.delete(c.tieGroup);
+    };
+    rec(0);
+    return best.value;
+  }
+
+  // 降级：把自由牌按 tieGroup 归并成"槽"，用缩减向量枚举
+  const slots: number[][] = [];
+  const groups = new Map<string, number[]>();
+  for (let i = 0; i < cards.length; i++) {
+    if (cards[i]!.cands.length === 1) continue;
+    const g = cards[i]!.tieGroup;
+    if (g) {
+      const arr = groups.get(g) ?? [];
+      arr.push(i);
+      groups.set(g, arr);
+    } else {
+      slots.push([i]);
+    }
+  }
+  for (const arr of groups.values()) slots.push(arr);
+  const fixedVals = cards.filter((c) => c.cands.length === 1).map((c) => c.cands[0]!);
+  for (const vec of fallbackVectors(fixedVals, slots.length)) {
+    const vals = cards.map((c) => c.cands[0]!);
+    slots.forEach((positions, k) => {
+      for (const pos of positions) vals[pos] = vec[k]!;
+    });
+    consider(vals);
+  }
+  return best.value;
 }
 
 /**
  * 主入口：判定出牌区的牌（可含 JOKER），返回单一最大牌型。
  * 牌数下限 1（手牌不足时出全部），上限 7（六条/七条为规则明示的合法造出牌型）。
- * chipView 为芯片声明视图（票据 20），缺省即票据 03 的原行为。
+ * chipView 为判定视图（票据 20），缺省即票据 03 的原行为。
  */
 export function evaluateHand(input: Card[], chipView?: ChipView): HandEvaluation {
-  const cards = applyChipView(input, chipView);
   if (input.length === 0) throw new Error("出牌区不能为空");
+  const cards = applyChipView(input, chipView);
   if (cards.length > 7) throw new Error("出牌区最多 7 张牌（含芯片复制）");
-
-  const jokers = cards.filter((c) => c.isJoker);
-  const plain = cards.filter((c) => !c.isJoker);
-
-  // 无 JOKER：直接判定
-  if (jokers.length === 0) {
-    const raw = evaluateResolved(plain.map((c) => ({ rank: c.rank!, suit: c.suit! })));
-    if (!raw) throw new Error("无法判定牌型");
-    return {
-      category: raw.category,
-      totalPoints: raw.totalPoints,
-      cards: cards.map((c) => ({ id: c.id, rank: c.rank!, suit: c.suit!, wasJoker: false })),
-    };
-  }
-
-  // 枚举 JOKER 赋值，取 (牌型, 总点数) 字典序最大
-  // 用对象引用规避 TS 闭包赋值导致的 never 收窄问题
-  const best: { value: { raw: RawEvaluation; resolved: ResolvedCard[] } | null } = { value: null };
-
-  const assign = (jokerIdx: number, current: { rank: number; suit: Suit }[]) => {
-    if (jokerIdx === jokers.length) {
-      const raw = evaluateResolved(current);
-      if (!raw) return;
-      const better =
-        !best.value ||
-        raw.category > best.value.raw.category ||
-        (raw.category === best.value.raw.category && raw.totalPoints > best.value.raw.totalPoints);
-      if (better) {
-        let j = 0;
-        const resolved = cards.map((c) =>
-          c.isJoker
-            ? { id: c.id, rank: current[plain.length + j]!.rank, suit: current[plain.length + j++]!.suit, wasJoker: true }
-            : { id: c.id, rank: c.rank!, suit: c.suit!, wasJoker: false },
-        );
-        best.value = { raw, resolved };
-      }
-      return;
-    }
-    for (const rank of Array.from({ length: 13 }, (_, i) => i + 2)) {
-      for (const suit of SUITS) {
-        current.push({ rank, suit });
-        assign(jokerIdx + 1, current);
-        current.pop();
-      }
-    }
-  };
-
-  assign(0, plain.map((c) => ({ rank: c.rank!, suit: c.suit! })));
-
-  if (!best.value) throw new Error("JOKER 求解失败");
-  return { category: best.value.raw.category, totalPoints: best.value.raw.totalPoints, cards: best.value.resolved };
+  const best = solve(cards);
+  if (!best) throw new Error("无法判定牌型");
+  return { category: best.raw.category, totalPoints: best.raw.totalPoints, cards: best.resolved };
 }
 
 /** 比较两手牌：返回正数表示 a 胜，负数表示 b 胜，0 表示需要特权证距离裁决。 */

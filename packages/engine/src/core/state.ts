@@ -53,6 +53,27 @@ export interface PlayerZones {
 export type ZoneId = "hand" | "discard" | "draw" | "play" | "deleted";
 
 /**
+ * 换牌行为变体（票据 20 角色效果）。
+ * - normal：默认「弃至多 3 张 → 抽至手牌上限」
+ * - drawFirst：塔罗师 先抽后弃，每次最多抽 2 弃 2
+ * - anyCount：偶像 每次换牌可选任意数量（弃 4+ 得 1 血筹）
+ */
+export type SwapPolicy = "normal" | "drawFirst" | "anyCount";
+
+/**
+ * 对决结果条目（票据 20）。
+ * 由结算阶段写入，供结算型效果消费（广播喇叭/赌徒虹膜等需知道本回合各玩家牌型与名次）。
+ */
+export interface DuelResultEntry {
+  playerId: string;
+  /** 牌型等级（hand-evaluator 的 HandCategory 数值） */
+  category: number;
+  totalPoints: number;
+  /** 名次，1 起 */
+  rank: number;
+}
+
+/**
  * 待决交互（M2.4 效果挂起）。
  * 同一时刻最多 1 个挂起：效果 run 写入它并返回，reducer 等待对应玩家的 resolvePrompt Action。
  * candidates:choosePlayer = 候选玩家 id 列表;chooseCard = 候选牌实例 id 列表（私密，redact 时只对目标玩家展开）。
@@ -102,6 +123,28 @@ export interface PlayerState {
   duelPointsBonus?: number;
   /** 换牌次数加成（酒保 +1 等，undefined=0） */
   swapBonus?: number;
+  // —— 以下为票据 20 新增的效果状态（全部可选，缺省即无，保持重放兼容） ——
+  /** 换牌行为变体（塔罗师先抽后弃 / 偶像任意数量），undefined=normal */
+  swapPolicy?: SwapPolicy;
+  /** 下回合换牌次数修正（餐车投毒 -2），undefined=0 */
+  nextTurnSwapDelta?: number;
+  /** 下回合技能失效（暂时失忆），undefined=正常 */
+  nextTurnSkillDisabled?: boolean;
+  /** 本回合跳过的阶段（闭店礼跳过购买 / 冻结车厢跳过重整 / 广播喇叭失败） */
+  skipPhases?: PhaseId[];
+  /**
+   * 本回合获得的【车票】（卡面旧记 [星星]/★）。
+   * 武士按它兑换血筹、赌徒虹膜按它扣减（最低 0，不追溯往回合所得）。
+   */
+  ticketsGainedThisTurn?: number;
+  /** 宣告记录：effectId/道具 defId → 宣告值（广播喇叭/赌徒虹膜/魔术橡皮/荷官证/职业赌徒） */
+  declarations?: Record<string, string>;
+  /** 本回合是否已购买过（吉祥物首次购买半价判定） */
+  purchasedThisTurn?: boolean;
+  /** 本回合额外免费删牌额度（黑客 +1 / 高中生执行一次删牌） */
+  freeDeleteExtra?: number;
+  /** 单张强化芯片失效的牌 id 列表（消磁枪 / 屏蔽器），区别于全局 chipsDisabled */
+  disabledChipCards?: string[];
   zones: PlayerZones;
 }
 
@@ -139,6 +182,8 @@ export interface GameState {
   eventCardId: string | null;
   /** 待决交互（M2.4）；非空时 reducer 只接受该玩家的 resolvePrompt */
   pendingPrompt: PendingPrompt | null;
+  /** 本回合对决结果（结算阶段写入；结算型效果消费，票据 20） */
+  duelResult?: DuelResultEntry[];
   /** mulberry32 内部状态（32 位无符号），重放根 */
   rngState: number;
   log: LogEntry[];
