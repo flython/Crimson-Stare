@@ -397,3 +397,23 @@ export function compareHands(a: HandEvaluation, b: HandEvaluation): number {
   if (a.category !== b.category) return a.category - b.category;
   return a.totalPoints - b.totalPoints;
 }
+
+/**
+ * 统计手牌中可造六条/七条的数量（票据 22 六/七条放宽）。
+ * 枚举全部非空子集，找出满足六条(≥6张同点数)或七条(≥7张同点数)的最大集合。
+ * 返回 `{ six, seven }`：可额外出超过 5 张的牌数量（seven=1 时 six=0）。
+ * 用于 playCards 上限 = 5 + six（不超过手牌张数）。
+ */
+export function countSixSeven(cards: Card[]): { six: number; seven: number } {
+  let maxDup = 0;
+  const rankCounts = new Map<number, number>();
+  for (const c of cards) {
+    if (c.isJoker) continue; // JOKER 不贡献固定点数
+    const r = c.rank ?? 0;
+    rankCounts.set(r, (rankCounts.get(r) ?? 0) + 1);
+    maxDup = Math.max(maxDup, rankCounts.get(r)!);
+  }
+  if (maxDup >= 7) return { six: 0, seven: 1 };
+  if (maxDup >= 6) return { six: maxDup - 5, seven: 0 };
+  return { six: 0, seven: 0 };
+}

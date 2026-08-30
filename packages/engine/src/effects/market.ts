@@ -34,7 +34,7 @@ import {
   spendChips,
 } from "./primitives.js";
 import { promptChooseCard, promptChoosePlayer } from "./interactive.js";
-import { SUITS } from "../cards.js";
+import { SUITS, type Suit } from "../cards.js";
 import type { ChipView } from "../hand-evaluator.js";
 
 /** 数字滑轨：点数可视为 2-14 任意值（含原值，求解器取最优） */
@@ -45,31 +45,99 @@ const ALL_RANKS = Array.from({ length: 13 }, (_, i) => i + 2);
  * 声明类芯片只是"可视为"，故一律给候选集而非定值，由求解器取最优：
  * - 008 变色墨水 花色任意 / 009 黑色芯片 ♠♣ / 010 红色芯片 ♦♥ / 011 数字滑轨点数任意
  * - 012 百变影像 花色点数任意（等价 JOKER）/ 017 双生镜片 视为 2 张（复制品）
- * 数值芯片（001-007）在插入时已改牌面，不进视图；013 无效果；其余为结算/交互类，另行注册。
- * 芯片失效（全局 chipsDisabled 或单张 disabledChipCards）时不进视图。
+/**
+ * 芯片 ID → 是否为声明类（需玩家在出牌时声明具体值）。
+ * 变色墨水(008)/黑色芯片(009)/红色芯片(010)/数字滑轨(011)/百变影像(012)。
  */
-export function chipViewFromChips(p: PlayerState): ChipView | undefined {
+export const DECLARE_TYPE_CHIPS = new Set(["008", "009", "010", "011", "012"]);
+
+/**
+ * 从声明值字符串解析花色（008/009/010 有效）。
+ * 格式：直接是花色字母如 "S"、"H"、"D"、"C"，或 "any" 表示任意。
+ */
+function parseDeclaredSuit(val: string): Suit[] | null {
+  if (val === "any") return [...SUITS];
+  if (SUITS.includes(val as "S")) return [val as "S"];
+  return null;
+}
+
+/**
+ * 从声明值字符串解析点数（011 有效）。
+ * 格式："rank:N" 表示具体点数，"any" 表示任意 2-14。
+ */
+function parseDeclaredRank(val: string): number[] | null {
+  if (val === "any") return [...ALL_RANKS];
+  const m = val.match(/^rank:(\d+)$/);
+  if (m) {
+    const r = parseInt(m[1]!, 10);
+    return ALL_RANKS.includes(r) ? [r] : null;
+  }
+  return null;
+}
+
+/**
+ * 芯片失效（全局 chipsDisabled 或单张 disabledChipCards）时不进视图。
+ * declarations：玩家在出牌阶段提交的声明值（票据 22）。
+ * - 有声明时，用声明值替换全开候选（变色墨水"任意"→玩家选的花色；数字滑轨"任意"→玩家选的点数）
+ * - 百变影像(012)声明格式为 "suit:S,rank:7" 或 "any"（表示任意花色+点数，等价于 asJoker）
+ */
+export function chipViewFromChips(
+  p: PlayerState,
+  declarations?: Record<string, string>,
+): ChipView | undefined {
   if (p.chipsDisabled) return undefined;
   const dead = new Set(p.disabledChipCards ?? []);
   const view: ChipView = {};
   for (const [cardId, defId] of Object.entries(p.zones.chips)) {
     if (dead.has(cardId)) continue;
+    const declared = declarations?.[cardId];
     switch (defId) {
-      case "008":
-        (view.suitOptions ??= {})[cardId] = [...SUITS];
+      case "008": {
+        const opts: Suit[] = declared ? (parseDeclaredSuit(declared) ?? [...SUITS]) : [...SUITS];
+        (view.suitOptions ??= {})[cardId] = opts;
         break;
-      case "009":
-        (view.suitOptions ??= {})[cardId] = ["S", "C"];
+      }
+      case "009": {
+        const opts: Suit[] = declared
+          ? (parseDeclaredSuit(declared) ?? (["S", "C"] as Suit[]))
+          : (["S", "C"] as Suit[]);
+        (view.suitOptions ??= {})[cardId] = opts;
         break;
-      case "010":
-        (view.suitOptions ??= {})[cardId] = ["D", "H"];
+      }
+      case "010": {
+        const opts: Suit[] = declared
+          ? (parseDeclaredSuit(declared) ?? (["D", "H"] as Suit[]))
+          : (["D", "H"] as Suit[]);
+        (view.suitOptions ??= {})[cardId] = opts;
         break;
-      case "011":
-        (view.rankOptions ??= {})[cardId] = ALL_RANKS;
+      }
+      case "011": {
+        const opts = declared ? parseDeclaredRank(declared) : [...ALL_RANKS];
+        if (opts) (view.rankOptions ??= {})[cardId] = opts;
         break;
-      case "012":
-        (view.asJoker ??= []).push(cardId);
+      }
+      case "012": {
+        // 百变影像：声明 "any" 或同时含 suit 和 rank
+        if (!declared || declared === "any") {
+          (view.asJoker ??= []).push(cardId);
+        } else {
+          // 格式 "suit:S,rank:7" → 固定花色+点数（降级为 declare suit+rank）
+          const suitMatch = declared.match(/suit:([SHDC])/);
+          const rankMatch = declared.match(/rank:(\d+)/);
+          if (suitMatch && rankMatch) {
+            const r = parseInt(rankMatch[1]!, 10);
+            if (ALL_RANKS.includes(r)) {
+              (view.suitOptions ??= {})[cardId] = [suitMatch[1] as "S"];
+              (view.rankOptions ??= {})[cardId] = [r];
+            } else {
+              (view.asJoker ??= []).push(cardId);
+            }
+          } else {
+            (view.asJoker ??= []).push(cardId);
+          }
+        }
         break;
+      }
       case "017":
         (view.duplicate ??= []).push(cardId);
         break;

@@ -10,12 +10,12 @@ import { card, joker, SUITS } from "../cards.js";
 import type { GameConfig } from "../core/config.js";
 import type { GameState, PlayerState, PhaseId, Suspended } from "../core/state.js";
 import { shuffle } from "../core/rng.js";
-import { evaluateHand, compareHands, HandCategory } from "../hand-evaluator.js";
+import { evaluateHand, compareHands, HandCategory, countSixSeven } from "../hand-evaluator.js";
 import type { ChipView } from "../hand-evaluator.js";
 import { resolveTiming, runTimingQueue, runActionHook, getEffect } from "../core/effects.js";
 import { validateChoice } from "../effects/interactive.js";
 import { afterCardsDeleted } from "../effects/primitives.js";
-import { chipViewFromChips } from "../effects/market.js";
+import { chipViewFromChips, DECLARE_TYPE_CHIPS } from "../effects/market.js";
 import { roleSetup, roleChipView, roleTurnSetup, characterPurchasePrice } from "../effects/roles.js";
 import type { DuelResultEntry } from "../core/state.js";
 import type { CardPool } from "../cardPool.js";
@@ -27,7 +27,7 @@ export type Action =
   /** 炸鸡店老板（role:12）：花 1 血筹抽 1 张，不消耗换牌次数、无次数限制 */
   | { type: "buyDraw"; playerId: string }
   | { type: "stopSwap"; playerId: string }
-  | { type: "playCards"; playerId: string; cardIds: string[] }
+  | { type: "playCards"; playerId: string; cardIds: string[]; declarations?: Record<string, string> }
   | { type: "purchase"; playerId: string; slotIndex: number }
   | { type: "skipPurchase"; playerId: string }
   | { type: "deleteCards"; playerId: string; cardIds: string[] }
@@ -266,7 +266,7 @@ function mergeChipView(a: ChipView | undefined, b: ChipView | undefined): ChipVi
  */
 function resolveDuel(state: GameState, config: GameConfig): void {
   const evaluated = state.players.map((p) => {
-    const view: ChipView | undefined = mergeChipView(roleChipView(p), chipViewFromChips(p));
+    const view: ChipView | undefined = mergeChipView(roleChipView(p), chipViewFromChips(p, p.declarations));
     // 出牌区为空（高中生弃置 / 手牌打空）：视为高牌 0 点参与排名，而非"不参与"
     const ev =
       p.zones.play.length > 0
@@ -585,12 +585,53 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       if (p.phaseReady) throw new Error("已出牌");
       const ids = new Set(action.cardIds);
       const moving = p.zones.hand.filter((c) => ids.has(c.id));
-      const minPlay = Math.min(5, config.handLimit);
       if (moving.length !== action.cardIds.length) throw new Error("手牌中找不到待出的牌");
-      if (moving.length < minPlay && p.zones.hand.length >= minPlay) {
-        throw new Error(`必须出 ${minPlay} 张`);
-      }
       if (moving.length === 0) throw new Error("出牌区不能为空");
+
+      // 六/七条放宽：按可造的额外条数放宽上限（不超过手牌张数）
+      const { six, seven } = countSixSeven(moving);
+      const maxPlay = Math.min(5 + six, config.handLimit, moving.length + (p.zones.hand.length - moving.length));
+      const minPlay = Math.min(5, config.handLimit);
+      if (moving.length < minPlay && p.zones.hand.length >= minPlay) {
+        throw new Error(`必须出至少 ${minPlay} 张`);
+      }
+      if (moving.length > maxPlay) {
+        throw new Error(`最多出 ${maxPlay} 张（芯片可造 ${six > 0 ? `六条额外${six}张` : ""}${seven > 0 ? "七条" : ""}）`);
+      }
+
+      // 声明类芯片校验（票据 22）：出牌含声明类芯片时必须提交对应声明值
+      const declaredCards = moving.filter((c) => {
+        const chipDefId = p.zones.chips[c.id];
+        return chipDefId && DECLARE_TYPE_CHIPS.has(chipDefId);
+      });
+      if (declaredCards.length > 0) {
+        const decl = action.declarations ?? {};
+        for (const c of declaredCards) {
+          if (!decl[c.id]) {
+            throw new Error(`出牌含芯片 ${p.zones.chips[c.id]}，必须提交声明值`);
+          }
+        }
+        // 校验声明值格式
+        for (const [cardId, val] of Object.entries(decl)) {
+          const defId = p.zones.chips[cardId];
+          if (!defId || !DECLARE_TYPE_CHIPS.has(defId)) continue;
+          if (defId === "008" || defId === "009" || defId === "010") {
+            const suits = ["S", "H", "D", "C", "any"];
+            if (!suits.includes(val)) throw new Error(`花色声明值非法：${val}`);
+          } else if (defId === "011") {
+            const rankMatch = val === "any" || /^\d+$/.test(val);
+            if (!rankMatch) throw new Error(`点数声明值非法：${val}`);
+          }
+          // 012 百变影像接受 "any" 或 "suit:X,rank:Y"
+          if (defId === "012") {
+            if (val !== "any" && !/^suit:[SHDC],rank:\d+$/.test(val)) {
+              throw new Error(`百变影像声明值非法：${val}`);
+            }
+          }
+        }
+        p.declarations = { ...p.declarations, ...decl };
+      }
+
       p.zones.hand = p.zones.hand.filter((c) => !ids.has(c.id));
       p.zones.discard.push(...p.zones.hand.splice(0)); // 其余手牌弃置
       p.zones.play = moving;

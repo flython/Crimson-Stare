@@ -15,6 +15,7 @@ import type { SnapState } from "../lib/ws.js";
 import PendingPromptBanner from "./PendingPromptBanner.js";
 import CardPicker from "./CardPicker.js";
 import type { CardSource } from "./CardPicker.js";
+import DeclarationDialog from "./DeclarationDialog.js";
 
 export interface TableProps {
   snap: SnapState;
@@ -70,6 +71,9 @@ const CHIP_SUIT_MAP: Record<string, string[] | null> = {
   "009": ["S", "C"], // 黑色芯片：♠♣
   "010": ["H", "D"], // 红色芯片：♦♥
 };
+
+/** 声明类芯片（出牌时需弹出声明面板，票据 22） */
+const DECLARE_TYPE_CHIPS = new Set(["008", "009", "010", "011", "012"]);
 
 function cardsOf(zone: { count: number } | { cards: Card[] }): Card[] {
   return "cards" in zone ? zone.cards : [];
@@ -355,6 +359,10 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
   const [selected, setSelected] = useState<Set<string>>(new Set());
   /** 删牌阶段：弃牌区选择弹层（复用 14 号 CardPicker，从弃牌区选牌删除） */
   const [deleteOpen, setDeleteOpen] = useState(false);
+  /** 暗扣声明弹层（22）：要出的牌中含声明类芯片时弹出 */
+  const [declOpen, setDeclOpen] = useState(false);
+  /** declOpen=true 时，暂存即将提交出牌的 cardIds */
+  const [pendingPlayIds, setPendingPlayIds] = useState<string[]>([]);
 
   /** 卡池元数据查找表（19）：角色/黑市 id → CardDef */
   const roleById = new Map((pool?.roles ?? []).map((r) => [r.id, r]));
@@ -401,8 +409,41 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
   function submit(type: "swap" | "playCards" | "deleteCards", zoneCards: Card[]) {
     const ids = zoneCards.filter((c) => selected.has(c.id)).map((c) => c.id);
     if (ids.length === 0) return;
+
+    // 暗扣声明拦截（票据 22）：出牌含声明类芯片时弹出声明面板
+    if (type === "playCards") {
+      const chips = myPlayer?.zones.chips ?? {};
+      const declCards = zoneCards
+        .filter((c) => {
+          const defId = chips[c.id];
+          return ids.includes(c.id) && defId && DECLARE_TYPE_CHIPS.has(defId);
+        })
+        .map((c) => {
+          const chipDefId = chips[c.id]!;
+          return {
+            card: c,
+            chipDefId,
+            chipDef: marketById.get(chipDefId)!,
+          };
+        })
+        .filter((x) => x.chipDef); // 过滤掉找不到元数据的
+      if (declCards.length > 0) {
+        setPendingPlayIds(ids);
+        setDeclOpen(true);
+        return;
+      }
+    }
+
     onAction({ type, ...(type === "swap" ? { discardIds: ids } : { cardIds: ids }) });
     setSelected(new Set());
+  }
+
+  /** 声明确认后正式提交 playCards（含 declarations） */
+  function confirmPlayWithDecl(declarations: Record<string, string>) {
+    onAction({ type: "playCards", cardIds: pendingPlayIds, declarations });
+    setSelected(new Set());
+    setDeclOpen(false);
+    setPendingPlayIds([]);
   }
 
   const swapLeft = myPlayer?.swapLeft ?? 0;
@@ -680,6 +721,21 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
             setDeleteOpen(false);
           }}
           onCancel={() => setDeleteOpen(false)}
+        />
+      ) : null}
+
+      {/* 暗扣声明弹层（票据 22）：出牌含声明类芯片时弹出 */}
+      {declOpen ? (
+        <DeclarationDialog
+          cards={myHand
+            .filter((c) => pendingPlayIds.includes(c.id))
+            .map((c) => {
+              const chipDefId = myPlayer?.zones.chips[c.id] ?? "";
+              return { card: c, chipDefId, chipDef: marketById.get(chipDefId)! };
+            })
+            .filter((x) => x.chipDef && DECLARE_TYPE_CHIPS.has(x.chipDefId))}
+          onConfirm={confirmPlayWithDecl}
+          onCancel={() => { setDeclOpen(false); setPendingPlayIds([]); }}
         />
       ) : null}
     </div>
