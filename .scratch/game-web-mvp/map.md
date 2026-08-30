@@ -41,7 +41,20 @@ spec.md（`.scratch/game-web-mvp/spec.md`）全部 user stories 达成：内部�
 - 内测反馈循环：内部游玩后的数值平衡调整流程（奖励表配置热更新？）。
 - 牌桌动效与音效打磨范围。
 
-> M2 全部执行票据已 closed：[10 - M2 卡牌逻辑与数据管道 spec](issues/10-M2卡牌逻辑与数据管道spec.md)、[11 - 角色牌效果注册](issues/11-角色牌效果注册.md)、[12 - 黑市牌效果注册](issues/12-黑市牌效果注册.md)、[13 - 交互机制（效果挂起）](issues/13-交互机制效果挂起.md)、[14 - UI 交互组件](issues/14-UI交互组件.md)、[15 - 简易模式 web 端联调](issues/15-简易模式web联调.md)、[16 - 房间流程修复](issues/16-房间流程修复.md)、[17 - 牌桌 UI 对齐原型](issues/17-牌桌UI对齐原型.md) 均已 resolved。M2 主线完成（简易模式 2 人局端到端可玩 + 四向牌桌对齐 v4 原型 + 房间进出闭环）。**当前 frontier = 无（M2 收束）**，下一步候选：M3 单人机械荷官；或先清遗留（SQLite 局摘要、黑市牌名/分类元数据下发）。
+> M2 全部执行票据已 closed：[10 - M2 卡牌逻辑与数据管道 spec](issues/10-M2卡牌逻辑与数据管道spec.md)、[11 - 角色牌效果注册](issues/11-角色牌效果注册.md)、[12 - 黑市牌效果注册](issues/12-黑市牌效果注册.md)、[13 - 交互机制（效果挂起）](issues/13-交互机制效果挂起.md)、[14 - UI 交互组件](issues/14-UI交互组件.md)、[15 - 简易模式 web 端联调](issues/15-简易模式web联调.md)、[16 - 房间流程修复](issues/16-房间流程修复.md)、[17 - 牌桌 UI 对齐原型](issues/17-牌桌UI对齐原型.md) 均已 resolved。M2 主线完成（简易模式 2 人局端到端可玩 + 四向牌桌对齐 v4 原型 + 房间进出闭环）。**当前 frontier = 无（M2 收束）**。
+
+## M3' 批次 frontier（2026-08-30 grilling 定稿，单人模式暂缓）
+
+spec.md「M3' 批次增补」为设计依据。推进顺序：**19（元数据下发+SQLite 摘要）→ 18（卡牌图片）→ 20（效果真身化）→ 21（芯片可视化，blocked by 19）→ 22（暗扣声明+六七条，blocked by 20/21）→ 23（集成测试+CI，blocked by 全部）**。
+
+- [18 - 卡牌图片上图](issues/18-卡牌图片上图.md)：open
+- [19 - 卡池元数据下发与 SQLite 局摘要](issues/19-卡池元数据下发与SQLite局摘要.md)：open
+- [20 - 效果真身化（17 标准角色 + 28 非黄边黑市牌）](issues/20-效果真身化.md)：open
+- [21 - 芯片可视化](issues/21-芯片可视化.md)：open，blocked by 19
+- [22 - 暗扣交互式声明与六七条放宽](issues/22-暗扣交互式声明与六七条放宽.md)：open，blocked by 20, 21
+- [23 - 自动化集成测试与 CI](issues/23-自动化集成测试与CI.md)：open，blocked by 18-22
+
+**当前 frontier = 18, 19, 20**（21/22/23 被阻塞）。
 
 ## Out of scope
 
