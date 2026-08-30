@@ -44,6 +44,33 @@ function resolve(state: GameState, choice: string | string[]): GameState {
   return reduce(state, { type: "resolvePrompt", playerId: "a", choice }, CFG);
 }
 
+/** 指定玩家对挂起交互做出选择（跨玩家交互，如定点爆破由对手本人选牌） */
+function resolveAs(state: GameState, playerId: string, choice: string | string[]): GameState {
+  return reduce(state, { type: "resolvePrompt", playerId, choice }, CFG);
+}
+
+/** 傻瓜策略推进到指定阶段（换/出/买/删/重整一律最小操作） */
+function driveTo(state: GameState, phase: string): GameState {
+  for (let guard = 0; guard < 500 && state.phase !== phase && !state.finished; guard++) {
+    for (const pid of state.players.map((p) => p.id)) {
+      if (state.pendingPrompt) break;
+      try {
+        if (state.phase === "swap") state = reduce(state, { type: "stopSwap", playerId: pid }, CFG);
+        else if (state.phase === "play") {
+          const p = state.players.find((x) => x.id === pid)!;
+          const cards = p.zones.hand.slice(0, 5).map((c) => c.id);
+          if (cards.length > 0) state = reduce(state, { type: "playCards", playerId: pid, cardIds: cards }, CFG);
+        } else if (state.phase === "purchase") state = reduce(state, { type: "skipPurchase", playerId: pid }, CFG);
+        else if (state.phase === "delete") state = reduce(state, { type: "ready", playerId: pid }, CFG);
+        else if (state.phase === "reshape") state = reduce(state, { type: "reshape", playerId: pid, reshuffle: false }, CFG);
+      } catch {
+        /* 该玩家此阶段已就绪，跳过 */
+      }
+    }
+  }
+  return state;
+}
+
 describe("黑市牌效果（票据 12）", () => {
   describe("黄边秘密交易：购买立即结算", () => {
     it("027 廉价删除：购买挂起选牌 → 免费删除至多 2 张，血筹不变", () => {
@@ -415,6 +442,131 @@ describe("黑市牌效果（票据 12）", () => {
       expect(a2.chips).toBe(before2);
     });
 
+  });
+
+  describe("负面状态类秘密交易（票据 20）", () => {
+    it("038 冻结车厢：选对手 → 其 skipPhases 含 reshape，进入重整阶段自动跳过", () => {
+      let g = makeGame();
+      g = buy(g, "038");
+      expect(g.pendingPrompt).toMatchObject({ kind: "choosePlayer", effectId: "market:038" });
+      g = resolve(g, "b");
+      expect(g.players[1]!.skipPhases).toContain("reshape");
+      expect(g.players[0]!.skipPhases ?? []).not.toContain("reshape");
+
+      // 推进到重整：B 被冻结自动就绪，A 需自行操作
+      g = driveTo(g, "reshape");
+      expect(g.phase).toBe("reshape");
+      expect(g.players[1]!.phaseReady).toBe(true);
+      expect(g.log.some((l) => l.text.includes("跳过 重整 阶段"))).toBe(true);
+      expect(() => reduce(g, { type: "reshape", playerId: "b", reshuffle: false }, CFG)).toThrow();
+    });
+
+    it("038 冻结车厢：2 人局全员被冻结 → 重整阶段自动结束回合", () => {
+      let g = makeGame();
+      g.players[0]!.skipPhases = ["reshape"];
+      g.players[1]!.skipPhases = ["reshape"];
+      const turnBefore = g.turn;
+      g = driveTo(g, "reshape");
+      expect(g.turn).toBe(turnBefore + 1); // 双方都跳过重整 → 直接进入下一回合
+    });
+
+    it("040 餐车投毒：选对手 → 下回合换牌次数 -2", () => {
+      let g = makeGame();
+      g = buy(g, "040");
+      g = resolve(g, "b");
+      expect(g.players[1]!.nextTurnSwapDelta).toBe(-2);
+    });
+
+    it("044 暂时失忆：可选自己 → 下回合技能失效", () => {
+      let g = makeGame();
+      g = buy(g, "044");
+      expect(g.pendingPrompt!.candidates).toEqual(["a", "b"]); // 含自己
+      g = resolve(g, "a");
+      expect(g.players[0]!.nextTurnSkillDisabled).toBe(true);
+    });
+
+    it("033 定点爆破：选对手后由对手本人从自己的弃牌堆删 1 张（金科玉律 2）", () => {
+      let g = makeGame();
+      g.players[1]!.zones.discard = [card(5, "S", "b1"), card(9, "H", "b2")];
+      g = buy(g, "033");
+      expect(g.pendingPrompt).toMatchObject({ kind: "choosePlayer", effectId: "market:033" });
+      g = resolve(g, "b");
+      expect(g.pendingPrompt).toMatchObject({ kind: "chooseCard", playerId: "b", from: "discard" });
+      expect(g.pendingPrompt!.candidates).toEqual(["b1", "b2"]);
+      g = resolveAs(g, "b", ["b1"]);
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.players[1]!.zones.deleted.map((c) => c.id)).toEqual(["b1"]);
+      expect(g.players[1]!.zones.discard.map((c) => c.id)).toEqual(["b2"]);
+    });
+
+    it("033 定点爆破：对手弃牌堆为空 → 不挂起，无事发生", () => {
+      let g = makeGame();
+      g.players[1]!.zones.discard = [];
+      g = buy(g, "033");
+      g = resolve(g, "b");
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.log.some((l) => l.text.includes("弃牌堆为空"))).toBe(true);
+    });
+
+    it("026 共享信息：自己删 2 张 → 逐位对手各删 1 张", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(2, "S", "a1"), card(3, "H", "a2"), card(4, "D", "a3")];
+      g.players[1]!.zones.discard = [card(5, "S", "b1"), card(6, "H", "b2")];
+      g = buy(g, "026");
+      expect(g.pendingPrompt).toMatchObject({ kind: "chooseCard", playerId: "a", from: "discard" });
+      g = resolve(g, ["a1", "a2"]);
+      expect(g.players[0]!.zones.deleted.map((c) => c.id)).toEqual(["a1", "a2"]);
+      // 链式：轮到 b 选至多 1 张
+      expect(g.pendingPrompt).toMatchObject({ kind: "chooseCard", playerId: "b", from: "discard" });
+      g = resolveAs(g, "b", ["b1"]);
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.players[1]!.zones.deleted.map((c) => c.id)).toEqual(["b1"]);
+      expect(g.players[1]!.zones.discard.map((c) => c.id)).toEqual(["b2"]);
+    });
+
+    it("026 共享信息：最多删 2 张，多选的部分被截断", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(2, "S", "a1"), card(3, "H", "a2"), card(4, "D", "a3")];
+      g.players[1]!.zones.discard = [];
+      g = buy(g, "026");
+      g = resolve(g, ["a1", "a2", "a3"]);
+      expect(g.players[0]!.zones.deleted.map((c) => c.id)).toEqual(["a1", "a2"]);
+      expect(g.pendingPrompt).toBeNull(); // b 弃牌堆为空 → 跳过不挂起
+    });
+
+    it("032 精准删除：抽 3 张 → 删 2 张、弃 1 张，原手牌不受影响", () => {
+      let g = makeGame();
+      g.players[0]!.zones.hand = [card(14, "S", "h1")];
+      g.players[0]!.zones.draw = [card(2, "S", "d1"), card(3, "H", "d2"), card(4, "D", "d3"), card(5, "C", "d4")];
+      g.players[0]!.zones.discard = [];
+      g = buy(g, "032");
+      expect(g.pendingPrompt).toMatchObject({ kind: "chooseCard", effectId: "market:032", from: "hand" });
+      expect(g.pendingPrompt!.candidates).toEqual(["d1", "d2", "d3"]);
+      g = resolve(g, ["d1", "d2"]);
+      expect(g.pendingPrompt).toBeNull();
+      const a = g.players[0]!;
+      expect(a.zones.deleted.map((c) => c.id)).toEqual(["d1", "d2"]);
+      expect(a.zones.discard.map((c) => c.id)).toEqual(["d3"]);
+      expect(a.zones.hand.map((c) => c.id)).toEqual(["h1"]); // 原手牌不动
+      expect(a.zones.draw.map((c) => c.id)).toEqual(["d4"]);
+    });
+
+    it("032 精准删除：不选 → 3 张全部弃置", () => {
+      let g = makeGame();
+      g.players[0]!.zones.hand = [];
+      g.players[0]!.zones.discard = [];
+      g.players[0]!.zones.draw = [card(2, "S", "d1"), card(3, "H", "d2"), card(4, "D", "d3")];
+      g = buy(g, "032");
+      g = resolve(g, []);
+      const a = g.players[0]!;
+      expect(a.zones.deleted).toHaveLength(0);
+      expect(a.zones.discard.map((c) => c.id)).toEqual(["d1", "d2", "d3"]);
+      expect(a.zones.hand).toHaveLength(0);
+    });
+
+  });
+
+  describe("特权证条件效果：车票类（票据 20）", () => {
     it("018 加密线路：结算时持有特权证的芯片持有者 +2 车票", () => {
       const g = makeGame();
       const a = g.players[0]!;
@@ -424,6 +576,19 @@ describe("黑市牌效果（票据 12）", () => {
       runTimingQueue(g, resolveTiming(g, "settle", "after", CFG), CFG);
       expect(a.tickets).toBe(before + 2);
       expect(a.ticketsGainedThisTurn).toBe(2);
+    });
+
+    it("018 加密线路：未持有特权证不给车票，未插该芯片者也不给", () => {
+      const g = makeGame();
+      const a = g.players[0]!;
+      const b = g.players[1]!;
+      a.zones.chips["t1"] = "018";
+      g.passHolderSeat = b.seat;
+      const aBefore = a.tickets;
+      const bBefore = b.tickets;
+      runTimingQueue(g, resolveTiming(g, "settle", "after", CFG), CFG);
+      expect(a.tickets).toBe(aBefore);
+      expect(b.tickets).toBe(bBefore);
     });
   });
 });

@@ -35,6 +35,18 @@ export type Action =
   | { type: "reshape"; playerId: string; reshuffle: boolean }
   | { type: "resolvePrompt"; playerId: string; choice: string | string[] };
 
+/** 阶段中文名（跳过阶段的日志用） */
+const PHASE_LABEL: Record<PhaseId, string> = {
+  draw: "抽牌",
+  swap: "换牌",
+  play: "出牌",
+  duel: "对决",
+  settle: "结算",
+  purchase: "购买",
+  delete: "删牌",
+  reshape: "重整",
+};
+
 /** 一副 54 张标准扑克（2-14 × 4 花色 + 双王） */
 function buildDeck(playerIdx: number): Card[] {
   const deck: Card[] = [];
@@ -198,6 +210,13 @@ function enterPhase(state: GameState, phase: PhaseId, config: GameConfig): void 
     if (phase === "purchase") p.purchaseFlipped = false;
   }
 
+  // 被冻结的阶段（冻结车厢 038 / 闭店礼跳过购买 / 广播喇叭失败）：直接置为就绪，玩家无需操作
+  const frozen = state.players.filter((p) => p.skipPhases?.includes(phase));
+  for (const p of frozen) {
+    p.phaseReady = true;
+    log(state, `${p.name} 跳过 ${PHASE_LABEL[phase]} 阶段`);
+  }
+
   if (phase === "draw") {
     resetTurnState(state, config);
     runHooks(state, "before", config);
@@ -222,6 +241,7 @@ function enterPhase(state: GameState, phase: PhaseId, config: GameConfig): void 
   }
   if (phase === "reshape") {
     runHooks(state, "before", config); // 角色阶段效果（银行职员【重整阶段】+2 血筹）
+    if (frozen.length > 0 && allReady(state)) endTurn(state, config); // 全员被冻结则直接结束回合
     return; // 等玩家 reshape 决策
   }
   // swap / play / purchase / delete：等待玩家 Action
@@ -469,7 +489,8 @@ function resolvePrompt(state: GameState, action: Extract<Action, { type: "resolv
   validateChoice(prompt, action.choice);
   // 先解除挂起：resolve 内可链式续挂新交互（如"是否发动"→"选哪张牌"）
   state.pendingPrompt = null;
-  def.resolve(state, { config, playerId: prompt.playerId, effectId: prompt.effectId }, action.choice);
+  const carry = prompt.kind === "chooseCard" ? prompt.carry : undefined;
+  def.resolve(state, { config, playerId: prompt.playerId, effectId: prompt.effectId, carry }, action.choice);
   log(state, `${state.players.find((p) => p.id === prompt.playerId)?.name ?? prompt.playerId} 完成交互选择`);
   if (!state.pendingPrompt) resumePhase(state, config); // 未续挂才继续被暂停的阶段推进
 }
@@ -626,6 +647,7 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
     }
     case "reshape": {
       if (next.phase !== "reshape") throw new Error("当前不在重整阶段");
+      if (p.phaseReady) throw new Error("本回合已重整（含被冻结跳过）");
       if (action.reshuffle) {
         p.zones.draw = shuffle(next, [...p.zones.draw, ...p.zones.discard.splice(0)]);
         log(next, `${p.name} 重洗牌库`);

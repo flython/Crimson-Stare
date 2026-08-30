@@ -18,7 +18,8 @@
  * 实现约束：只组合 primitives/interactive 原语，同模式卡用工厂复用；缺原语在本地组合；
  * 未实现的效果注册 TODO 占位 run（保留购买结算链路，不挂起不报错）。
  */
-import type { GameState, PlayerState } from "../core/state.js";
+import type { GameState, PlayerState, PhaseId } from "../core/state.js";
+import { shuffle } from "../core/rng.js";
 import type { EffectDef } from "../core/effects.js";
 import { registerEffect, getEffect } from "../core/effects.js";
 import {
@@ -192,6 +193,187 @@ function passHolderSelfBonus(defId: string, reward: { chips?: number; tickets?: 
   return passHolderBonus(`market:${defId}`, reward, "self");
 }
 
+/**
+ * 单目标"施加负面状态"类秘密交易的工厂（票据 20）。
+ * 挂起选人（默认不含自己）→ resolve 把状态写到目标玩家上。
+ * 状态字段（skipPhases / nextTurnSwapDelta / nextTurnSkillDisabled）由 whiteboard 在进入对应阶段时消费。
+ */
+function targetDebuff(
+  defId: string,
+  promptText: string,
+  apply: (state: GameState, target: PlayerState) => void,
+  opts: { includeSelf?: boolean } = {},
+): EffectDef {
+  return {
+    id: `market:${defId}`,
+    source: "blackMarket",
+    phase: "purchase",
+    timing: "during",
+    run: (state, ctx) => {
+      const me = getPlayer(state, ctx);
+      const candidates = state.players.filter((p) => opts.includeSelf || p.id !== me.id).map((p) => p.id);
+      if (candidates.length === 0) return;
+      promptChoosePlayer(state, `market:${defId}`, ctx.playerId!, candidates, promptText);
+    },
+    resolve: (state, _ctx, choice) => {
+      const targetId = Array.isArray(choice) ? choice[0]! : choice;
+      apply(state, findPlayer(state, targetId));
+    },
+  };
+}
+
+/**
+ * 026 共享信息：自己删至多 2 张 → 逐位对手各删至多 1 张（链式跨玩家挂起）。
+ * 对手只能看自己的弃牌堆（金科玉律 2），故必须由对手本人响应，carry 传递剩余对手队列。
+ */
+function sharedInfo(): EffectDef {
+  const nextOpponent = (state: GameState, queue: string[]): void => {
+    if (queue.length === 0) return;
+    const [head, ...rest] = queue;
+    const target = findPlayer(state, head!);
+    if (target.zones.discard.length === 0) {
+      logText(state, `${target.name} 弃牌堆为空，跳过`);
+      return nextOpponent(state, rest);
+    }
+    promptChooseCard(
+      state,
+      "market:026",
+      head!,
+      target.zones.discard.map((c) => c.id),
+      "discard",
+      `共享信息：可删除 1 张牌（不选即放弃）`,
+      queue.join(","),
+    );
+  };
+  return {
+    id: "market:026",
+    source: "blackMarket",
+    phase: "purchase",
+    timing: "during",
+    run: (state, ctx) => {
+      const me = getPlayer(state, ctx);
+      const opponents = state.players.filter((p) => p.id !== me.id).map((p) => p.id);
+      if (me.zones.discard.length === 0 && opponents.length === 0) return;
+      if (me.zones.discard.length === 0) return nextOpponent(state, opponents);
+      promptChooseCard(
+        state,
+        "market:026",
+        me.id,
+        me.zones.discard.map((c) => c.id),
+        "discard",
+        "共享信息：可删除至多 2 张牌（不选即放弃）",
+        `self|${opponents.join(",")}`,
+      );
+    },
+    resolve: (state, ctx, choice) => {
+      const isSelfStage = (ctx.carry ?? "").startsWith("self|");
+      const ids = (Array.isArray(choice) ? choice : []).slice(0, isSelfStage ? 2 : 1);
+      const responder = findPlayer(state, ctx.playerId!);
+      for (const id of ids) deleteFromDiscard(id, responder.id)(state, ctx);
+      // carry 形如 "self|b,c"（自己阶段）或 "b,c"（对手队列，队首即当前响应者）
+      const queue = (ctx.carry ?? "").replace(/^self\|/, "").split(",").filter(Boolean);
+      const rest = queue.filter((id) => id !== ctx.playerId);
+      nextOpponent(state, rest);
+    },
+  };
+}
+
+/**
+ * 032 精准删除：抽 3 张，删除其中 0-2 张，弃置剩余。
+ * 抽出的 3 张暂入手牌（私密区域，UI 可直接展示），resolve 后剩余弃置。
+ */
+function preciseDelete(): EffectDef {
+  return {
+    id: "market:032",
+    source: "blackMarket",
+    phase: "purchase",
+    timing: "during",
+    run: (state, ctx) => {
+      const p = getPlayer(state, ctx);
+      const drawn: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        if (p.zones.draw.length === 0) {
+          if (p.zones.discard.length === 0) break;
+          p.zones.draw = shuffle(state, p.zones.discard.splice(0));
+          logText(state, `${p.name} 重洗弃牌堆组成新抽牌堆`);
+        }
+        const c = p.zones.draw.shift()!;
+        p.zones.hand.push(c);
+        drawn.push(c.id);
+      }
+      if (drawn.length === 0) {
+        logText(state, `${p.name} 无牌可抽，精准删除无事发生`);
+        return;
+      }
+      logText(state, `${p.name} 精准删除：抽出 ${drawn.length} 张待选`);
+      promptChooseCard(state, "market:032", p.id, drawn, "hand", "删除其中 0-2 张（不选即全部弃置）", drawn.join(","));
+    },
+    resolve: (state, ctx, choice) => {
+      const p = getPlayer(state, ctx);
+      const drawn = new Set((ctx.carry ?? "").split(",").filter(Boolean));
+      const picked = new Set(Array.isArray(choice) ? choice.slice(0, 2) : []);
+      const mine = p.zones.hand.filter((c) => drawn.has(c.id));
+      p.zones.hand = p.zones.hand.filter((c) => !drawn.has(c.id)); // 抽出的 3 张全部离开手牌
+      const deleting = mine.filter((c) => picked.has(c.id));
+      const discarding = mine.filter((c) => !picked.has(c.id));
+      for (const c of deleting) {
+        p.zones.deleted.push(c);
+        delete p.zones.chips[c.id];
+      }
+      p.zones.discard.push(...discarding);
+      logText(state, `${p.name} 精准删除：删除 ${deleting.length} 张，弃置 ${discarding.length} 张`);
+    },
+  };
+}
+
+/**
+ * 033 定点爆破：选一位对手 → 该对手从自己弃牌堆删除 1 张。
+ *
+ * 规则书为"宣称一个点数，对手删除 1 张该点数的牌"；但金科玉律 2 规定弃牌堆对他人不可见，
+ * 购买者无从挑选，故等价落地为：购买者只选对手，由对手本人在自己的弃牌堆里挑 1 张删除
+ * （对手不选即放弃）。这既守住私密性，也保留了"被爆破方承担删牌代价"的规则意图。
+ */
+function pinpointBlast(): EffectDef {
+  return {
+    id: "market:033",
+    source: "blackMarket",
+    phase: "purchase",
+    timing: "during",
+    run: (state, ctx) => {
+      const me = getPlayer(state, ctx);
+      const opponents = state.players.filter((p) => p.id !== me.id);
+      if (opponents.length === 0) return;
+      promptChoosePlayer(state, "market:033", ctx.playerId!, opponents.map((p) => p.id), "选择一位对手");
+    },
+    resolve: (state, ctx, choice) => {
+      if (typeof choice === "string") {
+        // 阶段一：选定对手 → 交给对手本人选牌
+        const target = findPlayer(state, choice);
+        if (target.zones.discard.length === 0) {
+          logText(state, `${target.name} 弃牌堆为空，定点爆破无事发生`);
+          return;
+        }
+        promptChooseCard(
+          state,
+          "market:033",
+          target.id,
+          target.zones.discard.map((c) => c.id),
+          "discard",
+          "定点爆破：从弃牌堆删除 1 张（不选即放弃）",
+        );
+        return;
+      }
+      // 阶段二：对手选完，删 1 张
+      const cardId = choice[0];
+      if (!cardId) {
+        logText(state, `${findPlayer(state, ctx.playerId!).name} 放弃删除`);
+        return;
+      }
+      deleteFromDiscard(cardId, ctx.playerId!)(state, ctx);
+    },
+  };
+}
+
 /** 秘密交易占位：依赖缺失状态/交互的牌，注册 run 仅记 TODO 日志（保持购买链路，不挂起不报错） */
 function placeholderTrade(defId: string, reason: string): EffectDef {
   return {
@@ -265,9 +447,34 @@ export function registerMarketEffects(): void {
   registerEffect(passGrab()); // 039 鬼手探囊
   registerEffect(shareChips()); // 041 血筹分享
   registerEffect(pluckChip()); // 042 拔除芯片
-  // TODO: 026 共享信息（自己删 2 张+每位对手各删 1 张）、032 精准删除（抽3删0-2弃余）、033 定点爆破（宣称点数）、
-  // 035 黑厢抢夺（轮流掷骰比大小，暗拍留 M3）、038 冻结车厢（跳过重整需新状态）、040 餐车投毒（下回合换牌-2 需新状态）、
-  // 044 暂时失忆（下回合技能失效需新状态）——多目标交互或需状态扩展，留 M2.4。
+  registerEffect(sharedInfo()); // 026 共享信息：自己删 2 + 逐位对手各删 1（链式跨玩家挂起）
+  registerEffect(preciseDelete()); // 032 精准删除：抽 3 删 0-2 弃余
+  registerEffect(pinpointBlast()); // 033 定点爆破：选对手，对手自弃牌堆删 1
+  // 038/040/044：单目标负面状态（状态由 whiteboard 在对应阶段消费）
+  registerEffect(
+    targetDebuff("038", "选择跳过本回合重整的对手", (state, t) => {
+      t.skipPhases = [...new Set([...(t.skipPhases ?? []), "reshape" as PhaseId])];
+      logText(state, `${t.name} 本回合跳过重整（冻结车厢）`);
+    }),
+  );
+  registerEffect(
+    targetDebuff("040", "选择下回合换牌次数 -2 的对手", (state, t) => {
+      t.nextTurnSwapDelta = (t.nextTurnSwapDelta ?? 0) - 2;
+      logText(state, `${t.name} 下回合换牌次数 -2（餐车投毒）`);
+    }),
+  );
+  registerEffect(
+    targetDebuff(
+      "044",
+      "选择下回合技能失效的玩家（可含自己）",
+      (state, t) => {
+        t.nextTurnSkillDisabled = true;
+        logText(state, `${t.name} 下回合技能失效（暂时失忆）`);
+      },
+      { includeSelf: true },
+    ),
+  );
+  // TODO: 035 黑厢抢夺（轮流掷骰比大小，需骰子交互，与 role:08 海盗一并留 M3）
 
   // ── 备用道具（JSON subtype="道具"；whiteboard 按 "备用道具" 识别，故统一注册 run 存 items）──
   for (const defId of ["045", "046", "047", "048", "049", "050", "051", "052"]) {

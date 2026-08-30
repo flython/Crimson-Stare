@@ -38,6 +38,8 @@ export function promptChooseCard(
   candidates: string[],
   from: ZoneId | "deck", // "deck" = 全牌库（抽牌堆+弃牌区），跨区域选牌（清洁工）
   promptText?: string,
+  /** 交互中间态：resolve 时由 ctx.carry 原样回传（跨玩家链式交互用） */
+  carry?: string,
 ): void {
   if (state.pendingPrompt) throw new Error(`已有待决交互 ${state.pendingPrompt.effectId}，不能并发挂起`);
   if (candidates.length === 0) throw new Error(`效果 ${effectId} 无可选牌`);
@@ -47,6 +49,7 @@ export function promptChooseCard(
     playerId,
     candidates,
     from,
+    carry,
     promptText,
   } satisfies PendingPrompt;
 }

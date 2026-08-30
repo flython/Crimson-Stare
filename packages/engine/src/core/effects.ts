@@ -32,6 +32,11 @@ export interface EffectContext {
   playerId: string | null;
   /** 当前执行的效果 id（日志定位 / 交互提示） */
   effectId: string;
+  /**
+   * 交互中间态回传（票据 20）：来自 pendingPrompt.carry，仅 chooseCard 挂起的 resolve 阶段有值。
+   * 跨玩家链式交互（026 逐位对手删牌、033 宣称点数）用它传递队列/宣称值。
+   */
+  carry?: string;
 }
 
 export interface EffectDef {

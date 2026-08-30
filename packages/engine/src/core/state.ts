@@ -109,6 +109,12 @@ export type PendingPrompt =
        * 供清洁工"从全牌库删除 1 张"这类跨区域选牌使用（票据 20）。
        */
       from: ZoneId | "deck";
+      /**
+       * 交互中间态（票据 20）：挂起方写入、resolve 时原样回传。
+       * 用于"选完对手再让对手选牌"这类跨玩家链式交互（026 共享信息的对手队列、033 定点爆破的宣称点数），
+       * 避免为此往 GameState 里塞一次性字段。
+       */
+      carry?: string;
       promptText?: string;
     }
   | {
