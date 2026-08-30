@@ -7,7 +7,7 @@
  *    服务端按连接逐个裁剪后下发，引擎本身不做隐藏（金科玉律 1/2 的执行点在 server 分发层）；
  * 3. RNG 状态内嵌于 state（rngState），重放 = 初始 seed + 有序 Action 流，无需快照。
  */
-import type { Card } from "../cards.js";
+import type { Card, Suit } from "../cards.js";
 
 /** 回合 8 阶段，按规则书顺序 */
 export type PhaseId =
@@ -60,6 +60,15 @@ export type ZoneId = "hand" | "discard" | "draw" | "play" | "deleted";
  */
 export type SwapPolicy = "normal" | "drawFirst" | "anyCount";
 
+/** 对决判定后的一张牌（含 JOKER/视为 JOKER 的赋值结果） */
+export interface DuelResultCard {
+  id: string;
+  rank: number;
+  suit: Suit;
+  /** 该牌是 JOKER 或被角色/芯片视为 JOKER（枪手的 4） */
+  wasJoker: boolean;
+}
+
 /**
  * 对决结果条目（票据 20）。
  * 由结算阶段写入，供结算型效果消费（广播喇叭/赌徒虹膜等需知道本回合各玩家牌型与名次）。
@@ -71,6 +80,8 @@ export interface DuelResultEntry {
   totalPoints: number;
   /** 名次，1 起 */
   rank: number;
+  /** 判定出的每张牌（用于枪手删除"视为小丑的 4"等按牌回溯的效果） */
+  cards: DuelResultCard[];
 }
 
 /**

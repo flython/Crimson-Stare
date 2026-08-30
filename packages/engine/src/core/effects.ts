@@ -62,8 +62,11 @@ export function getEffect(id: string): EffectDef | undefined {
   return registry.get(id);
 }
 
-/** 动作钩子（角色技能内嵌在 reducer 动作中触发的效果，如酒保"剩余换牌次数为0"） */
-export type ActionHookName = "swapZero";
+/**
+ * 动作钩子（角色技能内嵌在 reducer 动作中触发的效果，如酒保"剩余换牌次数为0"）。
+ * reshuffle / noReshuffle 为票据 20 新增：洗衣房店主"重洗牌库时得 1 血筹 / 不重洗额外得 2 血筹"。
+ */
+export type ActionHookName = "swapZero" | "reshuffle" | "noReshuffle";
 
 const actionHooks = new Map<string, { hook: ActionHookName; run: (state: GameState, ctx: EffectContext) => void }>();
 
@@ -88,6 +91,8 @@ export function runActionHook(
   if (!characterId) return;
   const entry = actionHooks.get(`${characterId}:${hook}`);
   if (!entry) return;
+  // 技能失效（暂时失忆/磁山隧道类）时角色钩子不发动（金科玉律：技能失效即不发动）
+  if (state.players.find((x) => x.id === playerId)?.skillDisabled) return;
   try {
     entry.run(state, { config, playerId, effectId: `hook:${characterId}:${hook}` });
   } catch (err) {

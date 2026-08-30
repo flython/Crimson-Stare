@@ -164,20 +164,16 @@ describe("动作钩子(swapZero)", () => {
 
 describe("占位效果降级", () => {
   // 交互/机制缺失的角色：仅验证「不抛错 + 日志提示」（占位降级约定，不阻塞）
+  // 已真身化的角色（05/07/17 判定视图、13 重洗钩子、20 武士）不在本列表，见下方真身用例
   const PLACEHOLDER_ROLES = [
-    "role:05",
-    "role:07",
     "role:08",
     "role:10",
     "role:11",
     "role:12",
-    "role:13",
     "role:14",
     "role:16",
-    "role:17",
     "role:18",
     "role:19",
-    "role:20",
     "role:21",
   ];
 
@@ -190,5 +186,83 @@ describe("占位效果降级", () => {
       }).not.toThrow();
       expect(g.log.some((l) => l.text.includes("效果未实现"))).toBe(true);
     }
+  });
+});
+
+// ===== 票据 20：判定视图型角色真身（05/07/17）与结算型（13/20）=====
+/** 替换 A 的手牌为指定牌并推进到结算阶段，返回结算后 state 与对决前血筹 */
+function duelWith(characterId: string | null, cards: ReturnType<typeof card>[]) {
+  let g = makeGame(characterId);
+  g = driveTo(g, "play");
+  const a = g.players[0]!;
+  a.zones.hand = [...cards];
+  const chipsBefore = a.chips;
+  g = reduce(g, { type: "playCards", playerId: "a", cardIds: cards.map((c) => c.id) }, CFG);
+  const b = g.players[1]!;
+  g = reduce(g, { type: "playCards", playerId: "b", cardIds: b.zones.hand.slice(0, 5).map((c) => c.id) }, CFG);
+  return { state: g, chipsBefore };
+}
+
+describe("判定视图型角色（票据 20）", () => {
+  it("role:05 特型演员：2 视为 5，一对 5 变三条 5", () => {
+    const hand = [card(2, "S", "a1"), card(5, "H", "a2"), card(5, "D", "a3"), card(7, "C", "a4"), card(9, "S", "a5")];
+    const base = duelWith(null, hand);
+    const hero = duelWith("role:05", hand);
+    expect(base.state.duelResult![0]!.category).toBe(2); // 一对
+    expect(hero.state.duelResult![0]!.category).toBe(4); // 三条
+    expect(hero.state.duelResult![0]!.cards.find((c) => c.id === "a1")!.rank).toBe(5);
+  });
+
+  it("role:07 杂技演员：6 视为 9，一对 9 变三条 9", () => {
+    const hand = [card(6, "S", "b1"), card(9, "H", "b2"), card(9, "D", "b3"), card(3, "C", "b4"), card(2, "S", "b5")];
+    const base = duelWith(null, hand);
+    const hero = duelWith("role:07", hand);
+    expect(base.state.duelResult![0]!.category).toBe(2);
+    expect(hero.state.duelResult![0]!.category).toBe(4);
+    expect(hero.state.duelResult![0]!.cards.find((c) => c.id === "b1")!.rank).toBe(9);
+  });
+
+  it("role:17 枪手：4 视为小丑造五条，结算后删除视为小丑的 4", () => {
+    const hand = [card(4, "S", "c1"), card(4, "H", "c2"), card(9, "S", "c3"), card(9, "H", "c4"), card(9, "D", "c5")];
+    const base = duelWith(null, hand);
+    const hero = duelWith("role:17", hand);
+    expect(base.state.duelResult![0]!.category).toBe(7); // 葫芦
+    expect(hero.state.duelResult![0]!.category).toBe(10); // 五条（两张 4 均赋 9）
+    const a = hero.state.players[0]!;
+    expect(a.zones.deleted.map((c) => c.id).sort()).toEqual(["c1", "c2"]);
+    expect(a.zones.discard.some((c) => c.rank === 4)).toBe(false);
+  });
+});
+
+describe("结算型角色（票据 20）", () => {
+  it("role:13 洗衣房店主：不重洗额外 2 血筹 / 重洗得 1 血筹", () => {
+    const noReshuffle = (characterId: string | null) => {
+      let g = makeGame(characterId);
+      g = driveTo(g, "reshape");
+      const before = g.players[0]!.chips;
+      g = reduce(g, { type: "reshape", playerId: "a", reshuffle: false }, CFG);
+      return g.players[0]!.chips - before;
+    };
+    const doReshuffle = (characterId: string | null) => {
+      let g = makeGame(characterId);
+      g = driveTo(g, "reshape");
+      const before = g.players[0]!.chips;
+      g = reduce(g, { type: "reshape", playerId: "a", reshuffle: true }, CFG);
+      return g.players[0]!.chips - before;
+    };
+    expect(noReshuffle(null)).toBe(CFG.reshuffleOrChips);
+    expect(noReshuffle("role:13")).toBe(CFG.reshuffleOrChips + 2);
+    expect(doReshuffle(null)).toBe(0);
+    expect(doReshuffle("role:13")).toBe(1);
+  });
+
+  it("role:20 武士：按本回合获得的车票额外获得血筹", () => {
+    const strong = [card(14, "S", "d1"), card(14, "H", "d2"), card(14, "D", "d3"), card(14, "C", "d4"), card(2, "S", "d5")];
+    const base = duelWith(null, strong);
+    const hero = duelWith("role:20", strong);
+    const baseGain = base.state.players[0]!.chips - base.chipsBefore;
+    const heroGain = hero.state.players[0]!.chips - hero.chipsBefore;
+    expect(base.state.players[0]!.ticketsGainedThisTurn).toBe(4); // 2 人局第 1 名 4 票
+    expect(heroGain).toBe(baseGain + 4);
   });
 });

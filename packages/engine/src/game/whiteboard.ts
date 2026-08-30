@@ -11,9 +11,11 @@ import type { GameConfig } from "../core/config.js";
 import type { GameState, PlayerState, PhaseId } from "../core/state.js";
 import { shuffle } from "../core/rng.js";
 import { evaluateHand, compareHands } from "../hand-evaluator.js";
+import type { ChipView } from "../hand-evaluator.js";
 import { resolveTiming, runTimingQueue, runActionHook, getEffect } from "../core/effects.js";
 import { validateChoice } from "../effects/interactive.js";
-import { roleSetup } from "../effects/roles.js";
+import { roleSetup, roleChipView } from "../effects/roles.js";
+import type { DuelResultEntry } from "../core/state.js";
 import type { CardPool } from "../cardPool.js";
 
 export type Action =
@@ -59,6 +61,28 @@ function log(state: GameState, text: string): void {
   state.log.push({ turn: state.turn, phase: state.phase, text });
 }
 
+/**
+ * 回合级状态复位（票据 20）。
+ * 每回合进入 draw 时执行：清理上回合的一次性标记，并把"下回合"类延迟效果落到本回合。
+ */
+function resetTurnState(state: GameState, config: GameConfig): void {
+  for (const p of state.players) {
+    // 延迟生效：下回合技能失效（暂时失忆）；其余"下回合"标记本回合末即失效
+    p.skillDisabled = p.nextTurnSkillDisabled ? true : undefined;
+    p.nextTurnSkillDisabled = false;
+    p.chipsDisabled = undefined; // 磁山隧道等：芯片失效仅持续一回合
+    p.nextTurnSwapDelta = 0; // 换牌次数修正已在进入 swap 阶段时消费
+    p.ticketsGainedThisTurn = 0;
+    p.purchasedThisTurn = false;
+    p.skipPhases = [];
+    p.declarations = {};
+    p.freeDeleteExtra = 0;
+    p.disabledChipCards = [];
+  }
+  state.duelResult = [];
+  void config;
+}
+
 /** 抽牌至手牌上限（手牌上限 = 基础 + 角色加成，魔术师 +1）；抽牌堆不足时先重洗弃牌堆 */
 function drawToHandLimit(state: GameState, p: PlayerState, config: GameConfig): void {
   const limit = config.handLimit + (p.handLimitBonus ?? 0);
@@ -67,6 +91,7 @@ function drawToHandLimit(state: GameState, p: PlayerState, config: GameConfig): 
       if (p.zones.discard.length === 0) return; // 无牌可抽（牌打空的现实边界）
       p.zones.draw = shuffle(state, p.zones.discard.splice(0));
       log(state, `${p.name} 重洗弃牌堆组成新抽牌堆`);
+      runActionHook(state, p.characterId, "reshuffle", config, p.id); // 洗衣房店主：重洗得 1 血筹
     }
     p.zones.hand.push(p.zones.draw.shift()!);
   }
@@ -91,15 +116,20 @@ function enterPhase(state: GameState, phase: PhaseId, config: GameConfig): void 
   for (const p of state.players) {
     p.phaseReady = false;
     if (phase === "swap") {
-      // 换牌次数 = 基础（持证者+1）+ 角色加成（酒保+1）
-      p.swapLeft =
+      // 换牌次数 = 基础（持证者+1）+ 角色加成（酒保+1）+ 上回合施加的修正（餐车投毒 -2）
+      p.swapLeft = Math.max(
+        0,
         (p.seat === state.passHolderSeat ? config.swapCountWithPass : config.swapCount) +
-        (p.swapBonus ?? 0);
+          (p.swapBonus ?? 0) +
+          (p.nextTurnSwapDelta ?? 0),
+      );
+      p.nextTurnSwapDelta = 0;
     }
     if (phase === "purchase") p.purchaseFlipped = false;
   }
 
   if (phase === "draw") {
+    resetTurnState(state, config);
     runHooks(state, "before", config);
     for (const p of state.players) drawToHandLimit(state, p, config);
     runHooks(state, "after", config);
@@ -127,10 +157,15 @@ function enterPhase(state: GameState, phase: PhaseId, config: GameConfig): void 
   // swap / play / purchase / delete：等待玩家 Action
 }
 
-/** 对决自动结算（骨架：无宣告交互，直接取最优牌型；角色对决点数加成生效） */
+/**
+ * 对决自动结算（票据 20：注入角色判定视图 → 求解 → 记账 duelResult 与本回合所得车票）。
+ * 角色映射（2 视为 5 / 6↔9 / 4 视为小丑）由求解器直接取最优，无需玩家交互：
+ * 视为 JOKER 的候选集包含其原值，故"全部纳入"只会让结果更好或相等。
+ */
 function resolveDuel(state: GameState, config: GameConfig): void {
   const evaluated = state.players.map((p) => {
-    const ev = p.zones.play.length > 0 ? evaluateHand(p.zones.play) : null;
+    const view: ChipView | undefined = roleChipView(p);
+    const ev = p.zones.play.length > 0 ? evaluateHand(p.zones.play, view) : null;
     if (ev && (p.duelPointsBonus ?? 0) !== 0) {
       ev.totalPoints += p.duelPointsBonus!; // 赌场荷官【结算阶段】牌型总点数+20
     }
@@ -148,11 +183,13 @@ function resolveDuel(state: GameState, config: GameConfig): void {
     return (a.p.seat - holder + n) % n - ((b.p.seat - holder + n) % n);
   });
 
-  evaluated.forEach(({ p }, idx) => {
+  const results: DuelResultEntry[] = [];
+  evaluated.forEach(({ p, ev }, idx) => {
     const rank = idx + 1;
     const reward = config.rankRewards[String(n)]?.find((r) => r.rank === rank);
     if (reward) {
       p.tickets += reward.tickets;
+      p.ticketsGainedThisTurn = (p.ticketsGainedThisTurn ?? 0) + reward.tickets;
       p.chips += reward.chips;
       log(state, `${p.name} 第${rank}名：+${reward.tickets}票 +${reward.chips}筹`);
     }
@@ -160,8 +197,18 @@ function resolveDuel(state: GameState, config: GameConfig): void {
       state.passHolderSeat = p.seat;
       log(state, `${p.name} 夺魁，获得临时特权证`);
     }
+    if (ev) {
+      results.push({
+        playerId: p.id,
+        category: ev.category,
+        totalPoints: ev.totalPoints,
+        rank,
+        cards: ev.cards.map((c) => ({ id: c.id, rank: c.rank, suit: c.suit, wasJoker: c.wasJoker })),
+      });
+    }
     p.zones.discard.push(...p.zones.play.splice(0)); // 出牌区置入弃牌区
   });
+  state.duelResult = results;
 }
 
 function checkVictory(state: GameState, config: GameConfig): void {
@@ -445,9 +492,11 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       if (action.reshuffle) {
         p.zones.draw = shuffle(next, [...p.zones.draw, ...p.zones.discard.splice(0)]);
         log(next, `${p.name} 重洗牌库`);
+        runActionHook(next, p.characterId, "reshuffle", config, p.id); // 洗衣房店主：重洗得 1 血筹
       } else {
         p.chips += config.reshuffleOrChips;
         log(next, `${p.name} 不重洗，+${config.reshuffleOrChips} 血筹`);
+        runActionHook(next, p.characterId, "noReshuffle", config, p.id); // 洗衣房店主：额外 2 血筹
       }
       p.phaseReady = true;
       if (allReady(next)) endTurn(next, config);

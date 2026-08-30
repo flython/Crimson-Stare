@@ -21,10 +21,11 @@
  *   故该效果改挂 draw 阶段 before（turn===1 时触发），该时机在初始血筹赋值之后。
  */
 import type { EffectBody } from "./primitives.js";
-import { getPlayer, gainChips, placeholderEffect } from "./primitives.js";
+import { deleteFromDiscard, findCardInZones, getPlayer, gainChips, placeholderEffect } from "./primitives.js";
 import type { EffectContext } from "../core/effects.js";
 import { registerActionHook, registerEffect } from "../core/effects.js";
-import type { GameState } from "../core/state.js";
+import type { GameState, PlayerState } from "../core/state.js";
+import type { ChipView } from "../hand-evaluator.js";
 
 /** 按角色持有者展开：对每个 characterId === roleId 的玩家应用 body（各结算一次） */
 function applyToHolders(state: GameState, ctx: EffectContext, roleId: string, body: EffectBody): void {
@@ -43,6 +44,30 @@ function applyToHolders(state: GameState, ctx: EffectContext, roleId: string, bo
 /** 占位效果：仅在有持有者时写降级日志（白板局不产生噪音） */
 function placeholderFor(roleId: string): EffectBody {
   return (state, ctx) => applyToHolders(state, ctx, roleId, placeholderEffect);
+}
+
+/**
+ * 角色判定视图（票据 20）：把角色牌型映射交给 hand-evaluator 求解器取最优，无需玩家交互。
+ * - role:05 特型演员：2 可视为 5
+ * - role:07 杂技演员：6 可视为 9、9 可视为 6
+ * - role:17 枪手：4 可视为小丑（候选集含原值，故"全部纳入"不会让结果变差）
+ * 技能失效时返回 undefined（不注入任何映射）。
+ */
+export function roleChipView(p: PlayerState): ChipView | undefined {
+  if (p.skillDisabled) return undefined;
+  const rankOptions: Record<string, number[]> = {};
+  const asJoker: string[] = [];
+  for (const c of p.zones.play) {
+    if (c.isJoker) continue; // JOKER 本就由求解器赋值
+    if (p.characterId === "role:05" && c.rank === 2) rankOptions[c.id] = [2, 5];
+    else if (p.characterId === "role:07" && c.rank === 6) rankOptions[c.id] = [6, 9];
+    else if (p.characterId === "role:07" && c.rank === 9) rankOptions[c.id] = [9, 6];
+    else if (p.characterId === "role:17" && c.rank === 4) asJoker.push(c.id);
+  }
+  const view: ChipView = {};
+  if (Object.keys(rankOptions).length > 0) view.rankOptions = rankOptions;
+  if (asJoker.length > 0) view.asJoker = asJoker;
+  return Object.keys(view).length > 0 ? view : undefined;
 }
 
 /** 设置玩家 bonus 字段（roleSetup 用；字段由 whiteboard 对应接入点消费） */
@@ -117,29 +142,46 @@ export function registerRoleEffects(): void {
     timing: "before",
     run: chefDuel,
   });
+  // role:17 枪手【结算阶段】结束删除本回合"视为小丑的 4"（判定视图见 roleChipView）
+  registerEffect({
+    id: "role:17:settle",
+    source: "character",
+    roleId: "role:17",
+    phase: "settle",
+    timing: "after",
+    run: gunnerSettleDelete,
+  });
+  // role:20 武士【结算阶段】额外获得本回合获得的【车票】数量的血筹
+  registerEffect({
+    id: "role:20:settle",
+    source: "character",
+    roleId: "role:20",
+    phase: "settle",
+    timing: "after",
+    run: samuraiSettle,
+  });
 
   // —— 已实现：动作钩子 ——
   // role:04 酒保：剩余换牌次数归 0 时获得 1 血筹（whiteboard swap 动作归 0 时触发）
   registerActionHook("role:04", "swapZero", gainChips(1));
+  // role:13 洗衣房店主：重洗牌库得 1 血筹；不重洗额外得 2 血筹（whiteboard reshape/抽牌重洗点触发）
+  registerActionHook("role:13", "reshuffle", gainChips(1));
+  registerActionHook("role:13", "noReshuffle", gainChips(2));
 
   // —— 交互/机制缺失：占位注册（不阻塞；真身待交互机制或 reducer 钩子落地） ——
-  registerEffect({ id: "role:05:duel", source: "character", roleId: "role:05", phase: "duel", timing: "before", run: placeholderFor("role:05") }); // TODO: 【对决阶段】2 可视为 5（需牌型评估映射）
-  registerEffect({ id: "role:07:duel", source: "character", roleId: "role:07", phase: "duel", timing: "before", run: placeholderFor("role:07") }); // TODO: 【对决阶段】6 可视为 9 / 9 可视为 6（需牌型评估映射）
+  // role:05/07/17 的牌型映射已由 roleChipView 在判定层真身化（无需阶段效果注册）；
+  // role:13 重洗/不重洗已由动作钩子真身化；role:20 武士已真身化。
   registerEffect({ id: "role:08:purchase", source: "character", roleId: "role:08", phase: "purchase", timing: "after", run: placeholderFor("role:08") }); // TODO: 【购买阶段】前抢劫：放弃/抵抗 + 轮流掷骰（复杂交互留 M3）
   registerEffect({ id: "role:10:swap", source: "character", roleId: "role:10", phase: "swap", timing: "after", run: placeholderFor("role:10") }); // TODO: 【换牌阶段】先抽再弃、每次最多 2 抽 2 弃（需改 swap 行为）
   registerEffect({ id: "role:11:purchase", source: "character", roleId: "role:11", phase: "purchase", timing: "after", run: placeholderFor("role:11") }); // TODO: 【购买阶段】首次购买半价（需拦截 purchase 价格计算）
   registerEffect({ id: "role:12:swap", source: "character", roleId: "role:12", phase: "swap", timing: "after", run: placeholderFor("role:12") }); // TODO: 【换牌阶段】花 1 筹抽 1 张（无次数限制）
   registerEffect({ id: "role:12:settle", source: "character", roleId: "role:12", phase: "settle", timing: "after", run: placeholderFor("role:12") }); // TODO: 【结算阶段】结束花 1 筹删 1 张本回合打出的牌（最多 3，需选牌交互）
-  registerEffect({ id: "role:13:reshape", source: "character", roleId: "role:13", phase: "reshape", timing: "before", run: placeholderFor("role:13") }); // TODO: 重洗牌库得 1 筹（需 reshuffle 钩子）+ 不重洗额外 2 筹（需 reshape 选择感知）
   registerEffect({ id: "role:14:swap", source: "character", roleId: "role:14", phase: "swap", timing: "after", run: placeholderFor("role:14") }); // TODO: 【换牌阶段】可选任意数量换牌；一次弃 4+ 得 1 筹（需改 swap 行为）
   registerEffect({ id: "role:15:swap", source: "character", roleId: "role:15", phase: "swap", timing: "after", run: placeholderFor("role:15") }); // TODO: 【换牌阶段】弃置 1 张 3 得 1 筹（需 swap 弃牌感知钩子）
   registerEffect({ id: "role:16:duel", source: "character", roleId: "role:16", phase: "duel", timing: "before", run: placeholderFor("role:16") }); // TODO: 【对决阶段】前弃出牌区全部牌 + 删牌一次（需主动发动选择 + 选牌交互）
-  registerEffect({ id: "role:17:duel", source: "character", roleId: "role:17", phase: "duel", timing: "before", run: placeholderFor("role:17") }); // TODO: 【对决阶段】4 可视为小丑（需牌型评估映射）
-  registerEffect({ id: "role:17:settle", source: "character", roleId: "role:17", phase: "settle", timing: "after", run: placeholderFor("role:17") }); // TODO: 【结算阶段】结束删除视为小丑的 4（需标记追踪）
   registerEffect({ id: "role:18:reshape", source: "character", roleId: "role:18", phase: "reshape", timing: "after", run: placeholderFor("role:18") }); // TODO: 【重整阶段】结束从全牌库删 1 张（需选牌交互）
   registerEffect({ id: "role:19:duel", source: "character", roleId: "role:19", phase: "duel", timing: "before", run: placeholderFor("role:19") }); // TODO: 【对决阶段】前猜本回合特权证玩家（需两段式中间状态，PlayerState 无临时字段）
   registerEffect({ id: "role:19:settle", source: "character", roleId: "role:19", phase: "settle", timing: "after", run: placeholderFor("role:19") }); // TODO: 【结算阶段】猜对得（人数+2）筹（依赖 role:19:duel 的猜测记录）
-  registerEffect({ id: "role:20:settle", source: "character", roleId: "role:20", phase: "settle", timing: "after", run: placeholderFor("role:20") }); // TODO: 【结算阶段】额外获得本回合获得的【车票】数量的血筹（依赖 ticketsGainedThisTurn 记账）
   registerEffect({ id: "role:21:delete", source: "character", roleId: "role:21", phase: "delete", timing: "after", run: placeholderFor("role:21") }); // TODO: 【删牌阶段】额外免费删除 1 张（需 delete 免费额度钩子）
 }
 
@@ -158,6 +200,32 @@ const shareholderPurchase: EffectBody = (state, ctx) => {
   applyToHolders(state, ctx, "role:09", (s, c) => {
     const p = getPlayer(s, c);
     if (p.chips === 0) gainChips(3)(s, c);
+  });
+};
+
+/**
+ * role:17 枪手【结算阶段】结束：删除本回合"视为小丑的 4"。
+ * 判据：duelResult 中该牌 wasJoker（被纳入 JOKER 求解）且求解后点数不再是 4，
+ * 同时牌实例本身的点数仍为 4（排除真 JOKER）。
+ */
+const gunnerSettleDelete: EffectBody = (state, ctx) => {
+  applyToHolders(state, ctx, "role:17", (s, c) => {
+    const p = getPlayer(s, c);
+    const entry = s.duelResult?.find((r) => r.playerId === p.id);
+    if (!entry) return;
+    const ids = entry.cards
+      .filter((rc) => rc.wasJoker && rc.rank !== 4 && findCardInZones(p, rc.id)?.rank === 4)
+      .map((rc) => rc.id);
+    for (const id of ids) deleteFromDiscard(id)(s, c);
+  });
+};
+
+/** role:20 武士【结算阶段】：额外获得本回合获得的【车票】数量的血筹 */
+const samuraiSettle: EffectBody = (state, ctx) => {
+  applyToHolders(state, ctx, "role:20", (s, c) => {
+    const p = getPlayer(s, c);
+    const n = p.ticketsGainedThisTurn ?? 0;
+    if (n > 0) gainChips(n)(s, c);
   });
 };
 
