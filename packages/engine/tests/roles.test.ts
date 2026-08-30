@@ -171,8 +171,8 @@ describe("动作钩子(swapZero)", () => {
 describe("占位效果降级", () => {
   // 交互/机制缺失的角色：仅验证「不抛错 + 日志提示」（占位降级约定，不阻塞）
   // 已真身化故不在本列表：05/07/17（判定视图）、13（重洗钩子）、20（武士结算）、
-  // 10（先抽后弃）/11（半价）/12（付费抽牌部分）/14（任意数量换牌）/15（弃 3 得筹）/21（免费额度）
-  const PLACEHOLDER_ROLES = ["role:08", "role:12", "role:16", "role:18", "role:19"];
+  // 10（先抽后弃）/11（半价）/12（付费抽牌+结算删牌）/14（任意数量换牌）/15（弃 3 得筹）/21（免费额度）/19（猜特权证）
+  const PLACEHOLDER_ROLES = ["role:08", "role:16", "role:18"];
 
   it("占位角色:推进一整回合不抛错且日志降级提示", () => {
     for (const roleId of PLACEHOLDER_ROLES) {
@@ -365,6 +365,79 @@ describe("购买与删牌额度角色（票据 20）", () => {
     const before2 = p2.chips;
     deleteCards(["y4"], { free: 1 })(g2, { config: CFG, playerId: "a", effectId: "test:delete" });
     expect(g2.players[0]!.chips).toBe(before2 + 4);
+  });
+});
+
+// ===== 票据 20 批次 2d：阶段内交互型角色（19 猜特权证 / 12 结算删牌）=====
+/** 让 A 打出四条 A（必胜），B 随机出 5 张，返回"双方已出牌"时的 state */
+function bothPlayed(characterId: string, ids: string[]) {
+  let g = makeGame(characterId);
+  g = driveTo(g, "play");
+  const a = g.players[0]!;
+  a.zones.hand = [
+    card(14, "S", ids[0]!),
+    card(14, "H", ids[1]!),
+    card(14, "D", ids[2]!),
+    card(14, "C", ids[3]!),
+    card(2, "S", ids[4]!),
+  ];
+  g = reduce(g, { type: "playCards", playerId: "a", cardIds: ids }, CFG);
+  const b = g.players[1]!;
+  g = reduce(g, { type: "playCards", playerId: "b", cardIds: b.zones.hand.slice(0, 5).map((c) => c.id) }, CFG);
+  return g;
+}
+
+describe("阶段内交互型角色（票据 20）", () => {
+  it("role:19 职业赌徒：对决前挂起猜测，判定暂停到猜完才发生", () => {
+    const g = bothPlayed("role:19", ["g1", "g2", "g3", "g4", "g5"]);
+    expect(g.pendingPrompt?.kind).toBe("choosePlayer");
+    expect(g.pendingPrompt?.effectId).toBe("role:19:duel");
+    expect(g.duelResult).toEqual([]); // 判定尚未发生（本回合结果为空）
+    expect(g.suspended).toEqual({ phase: "duel", step: "beforeDone" });
+  });
+
+  it("role:19 职业赌徒：猜对获得（人数+2）血筹", () => {
+    const chipOf = (choice: string, characterId: string | null) => {
+      let g = characterId ? bothPlayed(characterId, ["g1", "g2", "g3", "g4", "g5"]) : bothPlayed("role:19", ["g1", "g2", "g3", "g4", "g5"]);
+      if (!g.pendingPrompt) return null; // 非赌徒：无猜测交互，直接取结算后血筹
+      g = reduce(g, { type: "resolvePrompt", playerId: "a", choice }, CFG);
+      return g.players[0]!.chips;
+    };
+    // A 四条 A 必胜 → 特权证归 A；猜 a 得 2+2=4 筹，猜 b 不得
+    const right = chipOf("a", "role:19")!;
+    const wrong = chipOf("b", "role:19")!;
+    expect(right - wrong).toBe(4); // 2 人局：人数 2 + 2 = 4 筹
+  });
+
+  it("role:19 职业赌徒：猜测记录写入 declarations 并随回合清空", () => {
+    let g = bothPlayed("role:19", ["g1", "g2", "g3", "g4", "g5"]);
+    g = reduce(g, { type: "resolvePrompt", playerId: "a", choice: "b" }, CFG);
+    expect(g.players[0]!.declarations?.["role:19"]).toBe("b");
+    g = driveTo(g, "swap"); // 进入下一回合换牌阶段（resetTurnState 已清 declarations）
+    expect(g.players[0]!.declarations?.["role:19"]).toBeUndefined();
+  });
+
+  it("role:12 炸鸡店老板：结算末花 1 血筹删 1 张本回合打出的牌", () => {
+    let g = bothPlayed("role:12", ["f1", "f2", "f3", "f4", "f5"]);
+    // 结算末挂起选牌；候选即本回合打出的牌
+    expect(g.pendingPrompt?.kind).toBe("chooseCard");
+    expect(g.pendingPrompt?.candidates.sort()).toEqual(["f1", "f2", "f3", "f4", "f5"]);
+    const p = g.players[0]!;
+    p.chips = 5;
+    const before = p.chips;
+    g = reduce(g, { type: "resolvePrompt", playerId: "a", choice: ["f1", "f2"] }, CFG);
+    expect(g.players[0]!.chips).toBe(before - 2);
+    expect(g.players[0]!.zones.deleted.map((c) => c.id)).toEqual(["f1", "f2"]);
+    expect(g.pendingPrompt).toBeNull();
+  });
+
+  it("role:12 炸鸡店老板：不选牌则不扣费，最多 3 张", () => {
+    let g = bothPlayed("role:12", ["f1", "f2", "f3", "f4", "f5"]);
+    const p = g.players[0]!;
+    p.chips = 5;
+    g = reduce(g, { type: "resolvePrompt", playerId: "a", choice: ["f1", "f2", "f3", "f4"] }, CFG);
+    expect(g.players[0]!.zones.deleted.map((c) => c.id)).toEqual(["f1", "f2", "f3"]); // 截断到 3 张
+    expect(g.players[0]!.chips).toBe(2);
   });
 });
 

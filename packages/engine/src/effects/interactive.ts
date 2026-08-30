@@ -51,11 +51,39 @@ export function promptChooseCard(
   } satisfies PendingPrompt;
 }
 
+/**
+ * 效果触发时挂起：请目标玩家在若干选项中选一个（票据 20："是否发动"类主动技能）。
+ * 约定 options[0] 为默认项（通常是"不发动"），超时托管与"最小操作原则"都取它。
+ */
+export function promptChooseOption(
+  state: GameState,
+  effectId: string,
+  playerId: string,
+  options: { id: string; label: string }[],
+  promptText?: string,
+): void {
+  if (state.pendingPrompt) throw new Error(`已有待决交互 ${state.pendingPrompt.effectId}，不能并发挂起`);
+  if (options.length === 0) throw new Error(`效果 ${effectId} 无可选项`);
+  state.pendingPrompt = {
+    kind: "chooseOption",
+    effectId,
+    playerId,
+    options,
+    promptText,
+  } satisfies PendingPrompt;
+}
+
 /** 校验玩家对 resolvePrompt 的选择是否合法（reducer 调用，非法即拒绝） */
 export function validateChoice(prompt: PendingPrompt, choice: string | string[]): void {
   if (prompt.kind === "choosePlayer") {
     if (typeof choice !== "string" || !prompt.candidates.includes(choice)) {
       throw new Error(`非法选择：choosePlayer 需要候选玩家之一`);
+    }
+    return;
+  }
+  if (prompt.kind === "chooseOption") {
+    if (typeof choice !== "string" || !prompt.options.some((o) => o.id === choice)) {
+      throw new Error(`非法选择：chooseOption 需要可选项之一`);
     }
     return;
   }
@@ -74,6 +102,9 @@ export function autoResolve(state: GameState): string | string[] {
   if (!prompt) return [];
   if (prompt.kind === "choosePlayer") {
     return prompt.candidates[nextInt(state, prompt.candidates.length)]!;
+  }
+  if (prompt.kind === "chooseOption") {
+    return prompt.options[0]!.id; // 默认项（注册方把"不发动"放第一）
   }
   return []; // chooseCard 超时默认不选
 }

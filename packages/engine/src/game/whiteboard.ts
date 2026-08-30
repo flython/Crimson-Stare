@@ -8,7 +8,7 @@
 import type { Card } from "../cards.js";
 import { card, joker, SUITS } from "../cards.js";
 import type { GameConfig } from "../core/config.js";
-import type { GameState, PlayerState, PhaseId } from "../core/state.js";
+import type { GameState, PlayerState, PhaseId, Suspended } from "../core/state.js";
 import { shuffle } from "../core/rng.js";
 import { evaluateHand, compareHands } from "../hand-evaluator.js";
 import type { ChipView } from "../hand-evaluator.js";
@@ -129,6 +129,57 @@ function runHooks(state: GameState, timing: "before" | "after", config: GameConf
   runTimingQueue(state, resolveTiming(state, state.phase, timing, config), config);
 }
 
+/**
+ * 阶段推进点（票据 20）：钩子可能挂起交互（如"对决前猜测"），此时主体必须等 resolvePrompt 后再跑。
+ * 挂起则记录位置并返回；否则立即执行主体。
+ */
+function advance(state: GameState, mark: Suspended, fn: () => void): void {
+  if (state.pendingPrompt) {
+    state.suspended = mark;
+    return;
+  }
+  fn();
+}
+
+/** 离开当前阶段：先跑 after 钩子，再进入下一阶段（可被交互挂起） */
+function leavePhase(state: GameState, config: GameConfig, nextPhase: PhaseId): void {
+  const from = state.phase;
+  runHooks(state, "after", config);
+  advance(state, { phase: from, step: "afterDone" }, () => enterPhase(state, nextPhase, config));
+}
+
+/** 交互解除后继续被挂起的阶段推进（票据 20） */
+function resumePhase(state: GameState, config: GameConfig): void {
+  const s = state.suspended;
+  if (!s) return;
+  state.suspended = undefined;
+  const key = `${s.phase}:${s.step}`;
+  switch (key) {
+    case "swap:afterDone":
+      return enterPhase(state, "play", config);
+    case "play:afterDone":
+      return enterPhase(state, "duel", config);
+    case "duel:beforeDone":
+      return duelMain(state, config);
+    case "duel:afterDone":
+      return enterPhase(state, "settle", config);
+    case "settle:afterDone":
+      if (!state.finished) enterPhase(state, "purchase", config);
+      return;
+    case "purchase:afterDone":
+      applyPurchaseEndBonus(state, config);
+      return enterPhase(state, "delete", config);
+    case "delete:afterDone":
+      return enterPhase(state, "reshape", config);
+    case "reshape:afterDone":
+      state.turn += 1;
+      log(state, `—— 第 ${state.turn} 回合 ——`);
+      return enterPhase(state, "draw", config);
+    default:
+      return; // 未知挂起点：不推进（保守，宁可卡住也不乱推进）
+  }
+}
+
 function enterPhase(state: GameState, phase: PhaseId, config: GameConfig): void {
   state.phase = phase;
   for (const p of state.players) {
@@ -155,17 +206,17 @@ function enterPhase(state: GameState, phase: PhaseId, config: GameConfig): void 
     return;
   }
   if (phase === "duel") {
-    runHooks(state, "before", config);
-    resolveDuel(state, config);
-    runHooks(state, "after", config);
-    enterPhase(state, "settle", config);
+    runHooks(state, "before", config); // 交互可在此挂起（职业赌徒猜特权证 / 高中生弃出牌区）
+    advance(state, { phase: "duel", step: "beforeDone" }, () => duelMain(state, config));
     return;
   }
   if (phase === "settle") {
     runHooks(state, "before", config);
     checkVictory(state, config);
-    runHooks(state, "after", config);
-    if (!state.finished) enterPhase(state, "purchase", config);
+    runHooks(state, "after", config); // 交互可在此挂起（炸鸡店老板结算删牌）
+    advance(state, { phase: "settle", step: "afterDone" }, () => {
+      if (!state.finished) enterPhase(state, "purchase", config);
+    });
     return;
   }
   if (phase === "reshape") {
@@ -229,6 +280,13 @@ function resolveDuel(state: GameState, config: GameConfig): void {
   state.duelResult = results;
 }
 
+/** 对决主体：判定 → 名次结算 → after 钩子 → 进入结算阶段（与 duel/before 钩子分开，便于挂起后恢复） */
+function duelMain(state: GameState, config: GameConfig): void {
+  resolveDuel(state, config);
+  runHooks(state, "after", config);
+  advance(state, { phase: "duel", step: "afterDone" }, () => enterPhase(state, "settle", config));
+}
+
 function checkVictory(state: GameState, config: GameConfig): void {
   const goal = config.ticketGoals[String(state.players.length)];
   if (goal === undefined) return;
@@ -240,23 +298,31 @@ function checkVictory(state: GameState, config: GameConfig): void {
   log(state, `游戏结束，目标 ${goal} 票，胜者: ${state.winners.join(", ")}`);
 }
 
-function endPurchasePhase(state: GameState, config: GameConfig): void {
-  runHooks(state, "after", config);
-  // 购买阶段结束：最右两格叠加血筹
+/** 购买阶段结束：最右两格叠加血筹（规则 6） */
+function applyPurchaseEndBonus(state: GameState, config: GameConfig): void {
   for (const slotNo of config.blackMarketBonusSlots) {
     const slot = state.blackMarket.slots[slotNo - 1];
     if (slot && slot.defId) {
       slot.bonusChips += config.blackMarketBonusChips;
     }
   }
-  enterPhase(state, "delete", config);
+}
+
+function endPurchasePhase(state: GameState, config: GameConfig): void {
+  runHooks(state, "after", config); // 交互可在此挂起（海盗抢劫等购买末交互）
+  advance(state, { phase: "purchase", step: "afterDone" }, () => {
+    applyPurchaseEndBonus(state, config);
+    enterPhase(state, "delete", config);
+  });
 }
 
 function endTurn(state: GameState, config: GameConfig): void {
-  runHooks(state, "after", config);
-  state.turn += 1;
-  log(state, `—— 第 ${state.turn} 回合 ——`);
-  enterPhase(state, "draw", config);
+  runHooks(state, "after", config); // 交互可在此挂起（清洁工重整末删牌）
+  advance(state, { phase: "reshape", step: "afterDone" }, () => {
+    state.turn += 1;
+    log(state, `—— 第 ${state.turn} 回合 ——`);
+    enterPhase(state, "draw", config);
+  });
 }
 
 function refillSlot(state: GameState, slotIndex: number): void {
@@ -391,7 +457,10 @@ function resolvePrompt(state: GameState, action: Extract<Action, { type: "resolv
   validateChoice(prompt, action.choice);
   def.resolve(state, { config, playerId: prompt.playerId, effectId: prompt.effectId }, action.choice);
   log(state, `${state.players.find((p) => p.id === prompt.playerId)?.name ?? prompt.playerId} 完成交互选择`);
-  state.pendingPrompt = null;
+  // 链式挂起：resolve 内可以再挂一个新交互（如"是否发动"→"选哪张牌"），此时不清空、也不恢复阶段推进
+  const chained = state.pendingPrompt !== prompt;
+  if (!chained) state.pendingPrompt = null;
+  if (!chained) resumePhase(state, config);
 }
 
 /** 纯函数 reducer：输入当前 state 与 Action，返回全新 state */
@@ -476,10 +545,7 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       log(next, `${p.name} 停止换牌，剩余 ${p.swapLeft} 次兑换为血筹`);
       p.swapLeft = 0;
       p.phaseReady = true;
-      if (allReady(next)) {
-        runHooks(next, "after", config);
-        enterPhase(next, "play", config);
-      }
+      if (allReady(next)) leavePhase(next, config, "play");
       break;
     }
     case "playCards": {
@@ -497,10 +563,7 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       p.zones.discard.push(...p.zones.hand.splice(0)); // 其余手牌弃置
       p.zones.play = moving;
       p.phaseReady = true;
-      if (allReady(next)) {
-        runHooks(next, "after", config);
-        enterPhase(next, "duel", config);
-      }
+      if (allReady(next)) leavePhase(next, config, "duel");
       break;
     }
     case "purchase": {
@@ -547,10 +610,7 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
     case "ready": {
       if (next.phase !== "delete") throw new Error("该阶段无需就绪确认");
       p.phaseReady = true;
-      if (allReady(next)) {
-        runHooks(next, "after", config);
-        enterPhase(next, "reshape", config);
-      }
+      if (allReady(next)) leavePhase(next, config, "reshape");
       break;
     }
     case "reshape": {

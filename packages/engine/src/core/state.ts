@@ -106,6 +106,14 @@ export type PendingPrompt =
       candidates: string[];
       from: ZoneId;
       promptText?: string;
+    }
+  | {
+      /** 二选一/多选一（票据 20）："是否发动"类主动技能；options[0] 为默认项（超时托管取它） */
+      kind: "chooseOption";
+      effectId: string;
+      playerId: string;
+      options: { id: string; label: string }[];
+      promptText?: string;
     };
 
 export interface PlayerState {
@@ -182,6 +190,17 @@ export interface LogEntry {
   text: string;
 }
 
+/**
+ * 阶段推进挂起点（票据 20）。
+ * 交互可能挂在阶段钩子里（如"对决前猜测特权证"挂起于 duel/before），此时阶段主体不能先跑完。
+ * 记录"钩子已跑完、主体待执行"的位置，resolvePrompt 后据此继续推进。
+ */
+export interface Suspended {
+  phase: PhaseId;
+  /** afterDone=离开该阶段的 after 钩子已跑完；beforeDone=进入该阶段的 before 钩子已跑完 */
+  step: "afterDone" | "beforeDone";
+}
+
 export interface GameState {
   players: PlayerState[]; // 按座位顺时针
   phase: PhaseId;
@@ -195,6 +214,8 @@ export interface GameState {
   pendingPrompt: PendingPrompt | null;
   /** 本回合对决结果（结算阶段写入；结算型效果消费，票据 20） */
   duelResult?: DuelResultEntry[];
+  /** 阶段推进被交互挂起的位置（票据 20）；非空表示 pendingPrompt 解除后需继续推进 */
+  suspended?: Suspended;
   /** mulberry32 内部状态（32 位无符号），重放根 */
   rngState: number;
   log: LogEntry[];

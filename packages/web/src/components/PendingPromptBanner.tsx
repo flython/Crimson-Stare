@@ -64,6 +64,21 @@ export default function PendingPromptBanner({
           onConfirm={onResolve}
           onCancel={onCancel}
         />
+      ) : prompt.kind === "chooseOption" ? (
+        <div className="option-picker">
+          <div className="option-picker-row">
+            {prompt.options.map((o) => (
+              <button key={o.id} className="btn" onClick={() => onResolve(o.id)}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+          {onCancel ? (
+            <button className="btn ghost" onClick={onCancel}>
+              取消
+            </button>
+          ) : null}
+        </div>
       ) : (
         <CardPicker
           candidates={prompt.candidates}

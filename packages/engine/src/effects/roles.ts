@@ -26,12 +26,16 @@ import {
   findCardInZones,
   getPlayer,
   gainChips,
+  logText,
   placeholderEffect,
   registerDeleteHook,
+  afterCardsDeleted,
 } from "./primitives.js";
+import { promptChooseCard, promptChoosePlayer } from "./interactive.js";
 import type { EffectContext } from "../core/effects.js";
 import { registerActionHook, registerEffect } from "../core/effects.js";
 import type { GameState, PlayerState } from "../core/state.js";
+import type { Card } from "../cards.js";
 import type { ChipView } from "../hand-evaluator.js";
 
 /** 按角色持有者展开：对每个 characterId === roleId 的玩家应用 body（各结算一次） */
@@ -215,12 +219,40 @@ export function registerRoleEffects(): void {
   // 已真身化但不在阶段效果层的：role:05/07/17 牌型映射（roleChipView 判定层）、
   // role:13 重洗/不重洗（动作钩子）、role:10 先抽后弃 / role:12 付费抽牌（reducer 新 Action）、
   // role:11 半价 / role:21 免费额度 / role:14 任意数量换牌 / role:15 弃 3 得筹（reducer 分支内角色分支）。
+  // role:19 职业赌徒【对决阶段】前猜测本回合特权证玩家（可猜自己）；猜测记录在 declarations，结算比对。
+  // 交互挂在 duel/before：whiteboard 的阶段挂起机制保证猜测完成后才进行判定。
+  registerEffect({
+    id: "role:19:duel",
+    source: "character",
+    roleId: "role:19",
+    phase: "duel",
+    timing: "before",
+    run: gamblerDuel,
+    resolve: gamblerDuelResolve,
+  });
+  // role:19 职业赌徒【结算阶段】猜对则获得（人数+2）血筹
+  registerEffect({
+    id: "role:19:settle",
+    source: "character",
+    roleId: "role:19",
+    phase: "settle",
+    timing: "after",
+    run: gamblerSettle,
+  });
+  // role:12 炸鸡店老板【结算阶段】结束：花 1 血筹删 1 张本回合打出的牌（最多 3 张）
+  registerEffect({
+    id: "role:12:settle",
+    source: "character",
+    roleId: "role:12",
+    phase: "settle",
+    timing: "after",
+    run: friedChickenSettle,
+    resolve: friedChickenSettleResolve,
+  });
+
   registerEffect({ id: "role:08:purchase", source: "character", roleId: "role:08", phase: "purchase", timing: "after", run: placeholderFor("role:08") }); // TODO: 【购买阶段】前抢劫：放弃/抵抗 + 轮流掷骰（复杂交互留 M3）
-  registerEffect({ id: "role:12:settle", source: "character", roleId: "role:12", phase: "settle", timing: "after", run: placeholderFor("role:12") }); // TODO: 【结算阶段】结束花 1 筹删 1 张本回合打出的牌（最多 3，需选牌交互）
-  registerEffect({ id: "role:16:duel", source: "character", roleId: "role:16", phase: "duel", timing: "before", run: placeholderFor("role:16") }); // TODO: 【对决阶段】前弃出牌区全部牌 + 删牌一次（需主动发动选择 + 选牌交互）
-  registerEffect({ id: "role:18:reshape", source: "character", roleId: "role:18", phase: "reshape", timing: "after", run: placeholderFor("role:18") }); // TODO: 【重整阶段】结束从全牌库删 1 张（需选牌交互）
-  registerEffect({ id: "role:19:duel", source: "character", roleId: "role:19", phase: "duel", timing: "before", run: placeholderFor("role:19") }); // TODO: 【对决阶段】前猜本回合特权证玩家（需两段式中间状态，PlayerState 无临时字段）
-  registerEffect({ id: "role:19:settle", source: "character", roleId: "role:19", phase: "settle", timing: "after", run: placeholderFor("role:19") }); // TODO: 【结算阶段】猜对得（人数+2）筹（依赖 role:19:duel 的猜测记录）
+  registerEffect({ id: "role:16:duel", source: "character", roleId: "role:16", phase: "duel", timing: "before", run: placeholderFor("role:16") }); // TODO: 【对决阶段】前弃出牌区全部牌 + 删牌一次（需"是否发动"选项交互）
+  registerEffect({ id: "role:18:reshape", source: "character", roleId: "role:18", phase: "reshape", timing: "after", run: placeholderFor("role:18") }); // TODO: 【重整阶段】结束从全牌库删 1 张（需跨区域选牌交互）
 }
 
 /** role:06 矿工：对决阶段若打出的牌均为黑色则获得 3 血筹（JOKER 无花色，不算黑色） */
@@ -274,6 +306,76 @@ const chefDuel: EffectBody = (state, ctx) => {
     const n = p.zones.play.filter((card) => card.rank === 3).length;
     if (n > 0) gainChips(n)(s, c);
   });
+};
+
+/** role:19 职业赌徒【对决阶段】前：挂起猜特权证玩家的交互（技能失效时不发动） */
+const gamblerDuel: EffectBody = (state, ctx) => {
+  applyToHolders(state, ctx, "role:19", (s, c) => {
+    const p = getPlayer(s, c);
+    if (p.skillDisabled) return;
+    promptChoosePlayer(
+      s,
+      c.effectId,
+      p.id,
+      s.players.map((x) => x.id),
+      "猜测本回合【临时特权证】的玩家（可以猜自己）",
+    );
+  });
+};
+
+/** role:19 猜测记录：写入 declarations（每回合由 resetTurnState 清空） */
+const gamblerDuelResolve = (state: GameState, ctx: EffectContext, choice: string | string[]): void => {
+  const p = getPlayer(state, ctx);
+  const targetId = String(choice);
+  const target = state.players.find((x) => x.id === targetId);
+  p.declarations = { ...(p.declarations ?? {}), "role:19": targetId };
+  logText(state, `${p.name} 猜测本回合【临时特权证】玩家为 ${target?.name ?? targetId}`);
+};
+
+/** role:19【结算阶段】：猜中本回合特权证持有者则获得（人数+2）血筹 */
+const gamblerSettle: EffectBody = (state, ctx) => {
+  applyToHolders(state, ctx, "role:19", (s, c) => {
+    const p = getPlayer(s, c);
+    if (p.skillDisabled) return;
+    const guess = p.declarations?.["role:19"];
+    if (!guess) return;
+    const holder = s.players.find((x) => x.seat === s.passHolderSeat);
+    if (!holder || holder.id !== guess) return;
+    gainChips(s.players.length + 2)(s, c);
+  });
+};
+
+/** role:12 炸鸡店老板【结算阶段】结束：候选为本回合打出且仍在弃牌区的牌，血筹不足则不挂起 */
+const friedChickenSettle: EffectBody = (state, ctx) => {
+  applyToHolders(state, ctx, "role:12", (s, c) => {
+    const p = getPlayer(s, c);
+    if (p.skillDisabled) return;
+    const entry = s.duelResult?.find((r) => r.playerId === p.id);
+    if (!entry || p.chips < 1) return;
+    const ids = entry.cards.map((x) => x.id).filter((id) => p.zones.discard.some((cd) => cd.id === id));
+    if (ids.length === 0) return;
+    promptChooseCard(s, c.effectId, p.id, ids, "discard", "花 1 血筹删除 1 张本回合打出的牌（最多 3 张）");
+  });
+};
+
+/** role:12 结算删牌：每张 1 血筹，最多 3 张；血筹不足时按实际张数删 */
+const friedChickenSettleResolve = (state: GameState, ctx: EffectContext, choice: string | string[]): void => {
+  const p = getPlayer(state, ctx);
+  const ids = (Array.isArray(choice) ? choice : []).slice(0, 3);
+  const moved: Card[] = [];
+  for (const id of ids) {
+    if (p.chips < 1) break;
+    const idx = p.zones.discard.findIndex((cd) => cd.id === id);
+    if (idx === -1) continue;
+    p.chips -= 1;
+    const [cd] = p.zones.discard.splice(idx, 1);
+    p.zones.deleted.push(cd!);
+    delete p.zones.chips[cd!.id];
+    moved.push(cd!);
+  }
+  if (moved.length === 0) return;
+  logText(state, `${p.name} 花 ${moved.length} 血筹删除 ${moved.length} 张本回合打出的牌`);
+  afterCardsDeleted(state, ctx, moved);
 };
 
 registerRoleEffects();
