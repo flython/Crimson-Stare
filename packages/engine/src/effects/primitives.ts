@@ -170,6 +170,26 @@ export const discardRandomHand =
     logText(state, `${p.name} 随机弃置 ${picks.length} 张牌`);
   };
 
+/**
+ * 拔除一张牌上的强化芯片（042 拔除芯片，票据 24 核对修复）。
+ * 仅移除挂载记录与点数修正，牌留在原区域——区别于删除（deleteFromDiscard）。
+ * 金科玉律 3 每牌限 1 芯片，故一次还原（baseRank → rank）即回到原始点数。
+ */
+export const removeChip =
+  (cardId: string, targetId?: string): EffectBody =>
+  (state, ctx) => {
+    const p = targetId ? findPlayer(state, targetId) : getPlayer(state, ctx);
+    if (!(cardId in p.zones.chips)) throw new Error(`${p.name} 的 ${cardId} 没有强化芯片`);
+    delete p.zones.chips[cardId];
+    // 数值类芯片（001-007）经 addPermanentRank 记录了 baseRank；声明类无点数修正
+    const c = findCardInZones(p, cardId);
+    if (c && c.baseRank !== undefined) {
+      c.rank = c.baseRank;
+      c.baseRank = undefined;
+    }
+    logText(state, `${p.name} 拔除 ${cardId} 上的强化芯片`);
+  };
+
 /** 删除弃牌区中的牌(移入删牌区;带强化芯片的一同删除,金科玉律 10) */
 export const deleteFromDiscard =
   (cardId: string, targetId?: string): EffectBody =>

@@ -67,8 +67,12 @@ describe("效果原语库", () => {
 
   it("addPermanentRank: 弃牌区牌点数修正,越界拒绝", () => {
     const { state, ctxA } = makeGame();
+    const a = state.players[0]!;
+    // 票据 24：特权证改掷骰后开局弃牌区为空，手动从抽牌堆垫 1 张非 JOKER 牌
+    const idx = a.zones.draw.findIndex((c) => c.rank !== null);
+    a.zones.discard.push(...a.zones.draw.splice(idx, 1));
     // 取弃牌区一张非 JOKER 的牌,delta = 14-rank 保证恰好修到 14(不越界)
-    const card = state.players[0]!.zones.discard.find((c) => c.rank !== null)!;
+    const card = a.zones.discard.find((c) => c.rank !== null)!;
     const delta = 14 - card.rank!;
     addPermanentRank(card.id, delta)(state, ctxA);
     expect(state.players[0]!.zones.discard.find((c) => c.id === card.id)!.rank).toBe(14);
@@ -91,6 +95,7 @@ describe("效果原语库", () => {
   it("deleteFromDiscard: 移到删牌区且清掉芯片挂载", () => {
     const { state, ctxA } = makeGame();
     const a = state.players[0]!;
+    a.zones.discard.push(a.zones.draw.pop()!); // 票据 24：特权证改掷骰后开局弃牌区为空，手动垫 1 张
     const card = a.zones.discard[0]!;
     a.zones.chips[card.id] = "market:001";
     deleteFromDiscard(card.id)(state, ctxA);
@@ -115,6 +120,7 @@ describe("效果原语库", () => {
   it("moveToDrawTop: 弃牌区牌放到抽牌堆顶", () => {
     const { state, ctxA } = makeGame();
     const a = state.players[0]!;
+    a.zones.discard.push(a.zones.draw.pop()!); // 票据 24：特权证改掷骰后开局弃牌区为空，手动垫 1 张
     const card = a.zones.discard[0]!;
     moveToDrawTop(card.id)(state, ctxA);
     expect(a.zones.draw[0]!.id).toBe(card.id);

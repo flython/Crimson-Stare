@@ -5,7 +5,7 @@
  * M2.4：pendingPrompt 的 chooseCard 候选牌 id 是私密的，只对目标玩家展开，其余人只见提示。
  */
 import type { Card } from "../cards.js";
-import type { GameState, PendingPrompt, PlayerZones } from "./state.js";
+import type { GameState, PendingPrompt, PhaseId, PlayerZones } from "./state.js";
 
 export type ZoneDigest = { count: number } | { cards: Card[] };
 
@@ -14,12 +14,13 @@ function digestZone(zone: Card[], isSelf: boolean): ZoneDigest {
   return isSelf ? { cards: zone } : { count: zone.length };
 }
 
-function digestZones(z: PlayerZones, isSelf: boolean) {
+function digestZones(z: PlayerZones, isSelf: boolean, phase: PhaseId) {
   return {
     draw: { count: z.draw.length },
     hand: digestZone(z.hand, isSelf),
     discard: digestZone(z.discard, isSelf),
-    play: { cards: z.play }, // 出牌区公开
+    // 暗扣（规则 5.3/5.4，票据 24 核对修复）：出牌阶段他人只见张数，进入对决（亮牌）起可见；本人始终可见
+    play: isSelf || phase !== "play" ? { cards: z.play } : { count: z.play.length },
     deleted: digestZone(z.deleted, isSelf),
     chips: z.chips,
     items: z.items,
@@ -52,7 +53,7 @@ export function redactState(state: GameState, viewerId: string): object {
         swapLeft: p.swapLeft,
         purchaseFlipped: p.purchaseFlipped,
         phaseReady: p.phaseReady,
-        zones: digestZones(p.zones, isSelf),
+        zones: digestZones(p.zones, isSelf, state.phase),
       };
     }),
     phase: state.phase,

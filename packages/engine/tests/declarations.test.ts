@@ -17,11 +17,11 @@ describe("countSixSeven（票据 22 六/七条放宽）", () => {
     expect(countSixSeven(cards)).toEqual({ six: 1, seven: 0 });
   });
 
-  it("7张同点牌返回 seven=1", () => {
+  it("7张同点牌返回 seven=2（出 7 张需 5+2 上限，票据 24 修正）", () => {
     const cards: Card[] = Array.from({ length: 7 }, (_, i) =>
       makeCard(`card${i}`, "S", 10),
     );
-    expect(countSixSeven(cards)).toEqual({ six: 0, seven: 1 });
+    expect(countSixSeven(cards)).toEqual({ six: 0, seven: 2 });
   });
 
   it("普通5张返回 six=0 seven=0", () => {

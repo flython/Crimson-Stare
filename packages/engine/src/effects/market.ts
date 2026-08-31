@@ -30,6 +30,7 @@ import {
   gainChips,
   getPlayer,
   logText,
+  removeChip,
   rollDice,
   spendChips,
 } from "./primitives.js";
@@ -695,7 +696,8 @@ function cheapDelete(): EffectDef {
       promptChooseCard(state, "market:027", ctx.playerId!, candidates, "discard", "选择要删除的牌（至多 2 张）");
     },
     resolve: (state, ctx, choice) => {
-      const ids = Array.isArray(choice) ? choice : [choice];
+      // 卡面「可删除至多 2 张牌」（票据 24 核对修复）：超出部分截断，防止一次删任意数量
+      const ids = (Array.isArray(choice) ? choice : [choice]).slice(0, 2);
       if (ids.length === 0) {
         logText(state, "market:027 未选择删除任何牌");
         return;
@@ -804,7 +806,7 @@ function shareChips(): EffectDef {
   };
 }
 
-/** 042 拔除芯片：拔除自己弃牌堆中的 1 张强化芯片（连同所在牌删除），获得 4 血筹 */
+/** 042 拔除芯片：拔除自己弃牌堆中的 1 张强化芯片，获得 4 血筹（牌留在弃牌区，票据 24 核对修复） */
 function pluckChip(): EffectDef {
   return {
     id: "market:042",
@@ -822,7 +824,7 @@ function pluckChip(): EffectDef {
     },
     resolve: (state, ctx, choice) => {
       const cardId = Array.isArray(choice) ? choice[0]! : choice;
-      deleteFromDiscard(cardId)(state, ctx);
+      removeChip(cardId)(state, ctx); // 只拔芯片（含还原数值类点数修正），牌继续留在弃牌区
       gainChips(4)(state, ctx);
     },
   };

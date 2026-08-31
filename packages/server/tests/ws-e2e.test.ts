@@ -9,7 +9,7 @@
  *
  * 状态链约定：所有 helper 以「最新快照」参数进入、返回「最新快照」，避免队列错位。
  */
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
@@ -32,6 +32,7 @@ interface SnapState {
   turn: number;
   finished: boolean;
   winners: string[];
+  passHolderSeat: number;
   players: Array<{
     id: string;
     name: string;
@@ -39,11 +40,12 @@ interface SnapState {
     characterId: string | null;
     chips: number;
     tickets: number;
+    purchaseFlipped: boolean;
     phaseReady: boolean;
     zones: {
       hand: { count: number } | { cards: { id: string }[] };
       discard: { count: number } | { cards: { id: string }[] };
-      play: { cards: unknown[] };
+      play: { cards: { id: string }[] } | { count: number };
       chips: Record<string, string>;
     };
   }>;
@@ -162,10 +164,44 @@ afterAll(() => {
 const clients: TestClient[] = [];
 afterEach(() => {
   for (const c of clients.splice(0)) c.close();
+  vi.restoreAllMocks(); // 恢复 Math.random 等 spy，避免影响其他测试
 });
 
 function me(snap: Snap): SnapState["players"][number] {
   return (snap.state as SnapState).players.find((p) => p.id === snap.you)!;
+}
+
+/** 购买顺位（票据 24 规则 5.6）：当前应行动玩家的 seat（从持证者起顺时针，跳过已翻面者） */
+function activePurchaseSeat(state: SnapState): number {
+  const n = state.players.length;
+  const holder = state.passHolderSeat ?? 0;
+  for (let d = 0; d < n; d++) {
+    const p = state.players[(holder + d) % n]!;
+    if (!p.purchaseFlipped) return p.seat;
+  }
+  return holder;
+}
+
+/** 推进购买阶段直到玩家 actor 可行动：若持证者是对方，先让对方跳过（票据 24 顺位门禁） */
+async function ensurePurchaseTurn(actor: TestClient, other: TestClient, snap: Snap): Promise<Snap> {
+  const state = snap.state as SnapState;
+  const actorSeat = state.players.find((p) => p.id === actor.playerId)!.seat;
+  if (activePurchaseSeat(state) === actorSeat) return snap;
+  await other.act({ type: "action", action: { type: "skipPurchase" } });
+  return actor.recv("snapshot"); // actor 视角的最新快照（对方已翻面）
+}
+
+/** 购买阶段收尾：按顺位让所有未翻面者依次 skip，直到自动推进出 purchase（返回最新快照） */
+async function finishPurchase(a: TestClient, b: TestClient, snap: Snap): Promise<Snap> {
+  let last = snap;
+  while ((last.state as SnapState).phase === "purchase") {
+    const state = last.state as SnapState;
+    const seat = activePurchaseSeat(state);
+    const actor = state.players.find((p) => p.seat === seat)!;
+    const client = actor.id === a.playerId ? a : b;
+    last = await client.act({ type: "action", action: { type: "skipPurchase" } });
+  }
+  return last;
 }
 
 /** 建房：2 人加入简易房间并开始，返回客户端与开局快照 */
@@ -212,43 +248,43 @@ async function toPurchase(a: TestClient, b: TestClient, snapA: Snap, snapB: Snap
   return playCardsPhase(a, b, afterSwap.snapA, afterSwap.snapB);
 }
 
-/** 购买强化芯片并完成一次 resolvePrompt；返回被挂载的芯片 defId、牌 id 与最新快照 */
+/**
+ * 购买强化芯片并完成一次 resolvePrompt（规则 5.6：每人每购买阶段至多行动一次，买完即翻面）。
+ * 测试固定 Math.random=0 → seed=0 → 黑市首槽为 009 强化芯片（price=1，A 开局血筹买得起），
+ * 购买必触发 chooseCard 选牌插入 → resolve → 芯片挂载，覆盖交互挂起链路且确定不飘。
+ */
 async function buyChipAndResolve(
   a: TestClient,
+  b: TestClient,
   snapA: Snap,
 ): Promise<{ chipDef: string; cardId: string; snap: Snap; bought: boolean }> {
-  let last = snapA;
-  for (let guard = 0; guard < 40; guard++) {
-    const state = last.state as SnapState;
-    const my = state.players.find((p) => p.id === a.playerId)!;
-    const slots = state.blackMarket.slots;
-    // 优先买强化芯片（黄边需要选牌的牌）；否则买任意可买得起的牌触发 refill
-    const chipIdx = slots.findIndex((s) => s.defId && s.subtype === "强化芯片" && s.price <= my.chips);
-    const buyIdx = chipIdx >= 0 ? chipIdx : slots.findIndex((s) => s.defId && s.price <= my.chips);
-    if (buyIdx < 0) {
-      await a.act({ type: "action", action: { type: "skipPurchase" } });
-      break;
-    }
-    const defId = slots[buyIdx]!.defId!;
-    const isChip = slots[buyIdx]!.subtype === "强化芯片";
-    last = await a.act({ type: "action", action: { type: "purchase", slotIndex: buyIdx } });
-    const prompt = (last.state as SnapState).pendingPrompt;
-    if (prompt && prompt.playerId === a.playerId && prompt.candidates && prompt.candidates.length > 0) {
-      const choice = prompt.kind === "choosePlayer" ? prompt.candidates[0]! : [prompt.candidates[0]!];
-      last = await a.act({ type: "resolvePrompt", choice });
-    }
-    if (isChip) {
-      const mine = me(last);
-      const cardId = Object.keys(mine.zones.chips).find((id) => mine.zones.chips[id] === defId);
-      return { chipDef: defId, cardId: cardId ?? "", snap: last, bought: cardId !== undefined };
-    }
-    // 非芯片：refill 后的新槽已随本次 purchase 快照下发，直接进入下一轮找芯片
+  let last = await ensurePurchaseTurn(a, b, snapA);
+  const state = last.state as SnapState;
+  const my = state.players.find((p) => p.id === a.playerId)!;
+  const slots = state.blackMarket.slots;
+  const chipIdx = slots.findIndex((s) => s.defId && s.subtype === "强化芯片" && s.price <= my.chips);
+  if (chipIdx < 0) {
+    // 固定 seed 下不发生；兜底：跳过购买，返回未买到
+    last = await a.act({ type: "action", action: { type: "skipPurchase" } });
+    return { chipDef: "", cardId: "", snap: last, bought: false };
   }
-  throw new Error("40 次购买内未买到强化芯片（黑市随机未出，测试失败）");
+  const defId = slots[chipIdx]!.defId!;
+  last = await a.act({ type: "action", action: { type: "purchase", slotIndex: chipIdx } });
+  const prompt = (last.state as SnapState).pendingPrompt;
+  if (prompt && prompt.playerId === a.playerId && prompt.candidates && prompt.candidates.length > 0) {
+    const choice = prompt.kind === "choosePlayer" ? prompt.candidates[0]! : [prompt.candidates[0]!];
+    last = await a.act({ type: "resolvePrompt", choice });
+  }
+  const mine = me(last);
+  const cardId = Object.keys(mine.zones.chips).find((id) => mine.zones.chips[id] === defId);
+  return { chipDef: defId, cardId: cardId ?? "", snap: last, bought: cardId !== undefined };
 }
 
 describe("WS 房间与协议（票据 15）", () => {
   it("2 人简易局完整一回合：抽→换→出→决→结→购→删→整，且交互挂起 resolve 芯片挂载", async () => {
+    // 固定随机 → seed=0：黑市首槽 009 强化芯片（price=1）确定可买（规则 5.6 后每人每轮至多买 1 次，
+    // 不再依赖连续购买刷槽位），保证芯片挂载路径确定不飘
+    vi.spyOn(Math, "random").mockReturnValue(0);
     const { a, b, snapA, snapB } = await setupGame();
 
     // 抽(draw 自动) + 换(swap)：A 换 1 张再停，B 停
@@ -264,7 +300,7 @@ describe("WS 房间与协议（票据 15）", () => {
     expect(Math.min(...chipsAfterSwap)).toBeGreaterThanOrEqual(4);
 
     // 购：买强化芯片 → pendingPrompt → resolve → 芯片挂载（交互覆盖）
-    const bought = await buyChipAndResolve(a, afterPlay.snapA);
+    const bought = await buyChipAndResolve(a, b, afterPlay.snapA);
     expect(bought.chipDef.length).toBeGreaterThan(0);
     expect(bought.bought).toBe(true);
     const afterBuy = me(bought.snap);
@@ -276,9 +312,8 @@ describe("WS 房间与协议（票据 15）", () => {
       expect(bSide.pendingPrompt.waitingFor).toBe(a.playerId);
     }
 
-    // 购：双方收尾（A 已买过，直接跳过；B 跳过）
-    await a.act({ type: "action", action: { type: "skipPurchase" } });
-    await b.act({ type: "action", action: { type: "skipPurchase" } });
+    // 购：按顺位补齐剩余玩家 skip（含持证者优先与 A 已翻面两种情况）→ 自动进 delete
+    await finishPurchase(a, b, bought.snap);
 
     // 删(delete)：A 免费删 1 张 + ready，B ready
     const sDel = await a.waitPhase("delete");
@@ -307,11 +342,14 @@ describe("WS 房间与协议（票据 15）", () => {
   });
 
   it("超时托管：promptTimeoutSec=1 挂起不 resolve，server 自动 autoResolve 挂载芯片", async () => {
+    // 固定 seed=0（同完整回合测试）：黑市首槽 009 强化芯片购买必挂起 chooseCard，超时自动 resolve
+    vi.spyOn(Math, "random").mockReturnValue(0);
     const { a, b, snapA, snapB } = await setupGame({ promptTimeoutSec: 1 });
     const after = await toPurchase(a, b, snapA, snapB);
 
-    // 买强化芯片 → 挂起，但不 resolve
-    const state = after.snapA.state as SnapState;
+    // 买强化芯片 → 挂起，但不 resolve（先确保轮到 A，持证者优先）
+    const snapTurn = await ensurePurchaseTurn(a, b, after.snapA);
+    const state = snapTurn.state as SnapState;
     const slots = state.blackMarket.slots;
     const my = state.players.find((p) => p.id === a.playerId)!;
     const chipIdx = slots.findIndex((s) => s.defId && s.subtype === "强化芯片" && s.price <= my.chips);

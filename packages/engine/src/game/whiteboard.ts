@@ -14,7 +14,7 @@ import { evaluateHand, compareHands, HandCategory, countSixSeven } from "../hand
 import type { ChipView } from "../hand-evaluator.js";
 import { resolveTiming, runTimingQueue, runActionHook, getEffect } from "../core/effects.js";
 import { validateChoice } from "../effects/interactive.js";
-import { afterCardsDeleted } from "../effects/primitives.js";
+import { afterCardsDeleted, rollDice } from "../effects/primitives.js";
 import { chipViewFromChips, DECLARE_TYPE_CHIPS } from "../effects/market.js";
 import { roleSetup, roleChipView, roleTurnSetup, characterPurchasePrice } from "../effects/roles.js";
 import type { DuelResultEntry } from "../core/state.js";
@@ -47,11 +47,12 @@ const PHASE_LABEL: Record<PhaseId, string> = {
   reshape: "重整",
 };
 
-/** 一副 54 张标准扑克（2-14 × 4 花色 + 双王） */
-function buildDeck(playerIdx: number): Card[] {
+/** 一副标准扑克（2-14 × 4 花色 + 双王）；简易模式去 J/Q/K/A（规则 10.1：数字牌 2-10 + JOKER），票据 24 核对修复 */
+function buildDeck(playerIdx: number, simple: boolean): Card[] {
   const deck: Card[] = [];
+  const maxRank = simple ? 10 : 14;
   for (const suit of SUITS) {
-    for (let rank = 2; rank <= 14; rank++) {
+    for (let rank = 2; rank <= maxRank; rank++) {
       deck.push(card(rank, suit, `p${playerIdx}-${suit}${rank}`));
     }
   }
@@ -136,6 +137,17 @@ function findPlayer(state: GameState, playerId: string): PlayerState {
 
 function allReady(state: GameState): boolean {
   return state.players.every((p) => p.phaseReady);
+}
+
+/** 购买阶段当前应行动玩家（规则 5.6，票据 24 核对修复）：从持临时特权证者起顺时针，跳过已翻面（放弃）者 */
+function activePurchaseTurn(state: GameState): PlayerState {
+  const n = state.players.length;
+  const start = state.passHolderSeat ?? 0;
+  for (let d = 0; d < n; d++) {
+    const p = state.players[(start + d) % n]!;
+    if (!p.purchaseFlipped) return p;
+  }
+  return state.players[start]!; // 全部已翻面：购买阶段应已结束（防御性返回）
 }
 
 function runHooks(state: GameState, timing: "before" | "after", config: GameConfig): void {
@@ -324,8 +336,19 @@ function checkVictory(state: GameState, config: GameConfig): void {
   if (goal === undefined) return;
   const reached = state.players.filter((p) => p.tickets >= goal);
   if (reached.length === 0) return;
-  const max = Math.max(...state.players.map((p) => p.tickets));
-  state.winners = state.players.filter((p) => p.tickets === max).map((p) => p.id);
+  // 平局判定（规则 §8，票据 24 核对修复）：先比血筹（多者胜），仍同 → 顺时针距临时特权证最近者胜
+  let candidates = reached;
+  const bestChips = Math.max(...candidates.map((p) => p.chips));
+  candidates = candidates.filter((p) => p.chips === bestChips);
+  if (candidates.length > 1) {
+    const n = state.players.length;
+    const holder = state.passHolderSeat ?? 0;
+    candidates = [...candidates].sort(
+      (a, b) => ((a.seat - holder + n) % n) - ((b.seat - holder + n) % n),
+    );
+    candidates = [candidates[0]!];
+  }
+  state.winners = candidates.map((p) => p.id);
   state.finished = true;
   log(state, `游戏结束，目标 ${goal} 票，胜者: ${state.winners.join(", ")}`);
 }
@@ -408,6 +431,7 @@ export function createGame(
     phase: "draw",
     turn: 1,
     passHolderSeat: null,
+    simple: !!opts.simple, // 简易模式（规则 10.1：去 J/Q/K/A、无免费删牌），票据 24 核对修复
     blackMarket: {
       slots: Array.from({ length: config.blackMarketSlots }, () => ({
         defId: null,
@@ -453,20 +477,18 @@ export function createGame(
     }
   }
 
-  // 每人一副 54 张洗混
+  // 每人一副洗混（标准 54 张；简易模式 38 张 = 数字牌 2-10 × 4 花色 + 双王，规则 10.1）
   for (const p of state.players) {
-    p.zones.draw = shuffle(state, buildDeck(p.seat));
+    p.zones.draw = shuffle(state, buildDeck(p.seat, state.simple));
   }
-  // 临时特权证：各抽 1 张比点数（骨架用抽牌堆顶代替"挪威比较"），平手取先座
-  // 未随公例的 M2 细节：持证者 2 血筹、其余 3 血筹（规则 4.4）
+  // 临时特权证（规则 4.4，票据 24 核对修复）：所有玩家掷骰比点数，最高者持证；平手取先座
   let bestSeat = 0;
-  let bestRank = -1;
-  for (const p of state.players) {
-    const c = p.zones.draw.shift()!;
-    p.zones.discard.push(c);
-    if ((c.rank ?? 0) > bestRank) {
-      bestRank = c.rank ?? 0;
-      bestSeat = p.seat;
+  let bestRoll = 0;
+  for (let i = 0; i < state.players.length; i++) {
+    const roll = rollDice(state); // 1-6，走 state.rngState 可重放；不摸牌、不改变牌库
+    if (roll > bestRoll) {
+      bestRoll = roll;
+      bestSeat = i;
     }
   }
   state.passHolderSeat = bestSeat;
@@ -514,8 +536,8 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
     case "swap": {
       if (next.phase !== "swap") throw new Error("当前不在换牌阶段");
       if (p.phaseReady) throw new Error("已停止换牌");
-      // 偶像（role:14）可弃任意数量；其余至多 3 张
-      const maxDiscard = p.swapPolicy === "anyCount" ? p.zones.hand.length : Math.min(3, p.swapLeft);
+      // 偶像（role:14）可弃任意数量；其余至多 3 张（规则 5.2：每次换牌弃至多 3 张，与剩余次数无关，票据 24 核对修复）
+      const maxDiscard = p.swapPolicy === "anyCount" ? p.zones.hand.length : Math.min(3, p.zones.hand.length);
       if (action.discardIds.length > maxDiscard) throw new Error("换牌张数超限");
       const ids = new Set(action.discardIds);
       const moving = p.zones.hand.filter((c) => ids.has(c.id));
@@ -588,9 +610,9 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       if (moving.length !== action.cardIds.length) throw new Error("手牌中找不到待出的牌");
       if (moving.length === 0) throw new Error("出牌区不能为空");
 
-      // 六/七条放宽：按可造的额外条数放宽上限（不超过手牌张数）
+      // 六/七条放宽：上限 = 5 + 可造额外条数（六条 +six / 七条 +seven），受手牌张数约束（票据 24 核对修复）
       const { six, seven } = countSixSeven(moving);
-      const maxPlay = Math.min(5 + six, config.handLimit, moving.length + (p.zones.hand.length - moving.length));
+      const maxPlay = Math.min(5 + six + seven, p.zones.hand.length);
       const minPlay = Math.min(5, config.handLimit);
       if (moving.length < minPlay && p.zones.hand.length >= minPlay) {
         throw new Error(`必须出至少 ${minPlay} 张`);
@@ -641,6 +663,7 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
     }
     case "purchase": {
       if (next.phase !== "purchase") throw new Error("当前不在购买阶段");
+      if (activePurchaseTurn(next).id !== p.id) throw new Error("未轮到你购买（从特权证持有者起顺时针）");
       if (p.purchaseFlipped) throw new Error("已翻面，不可购买");
       const slot = next.blackMarket.slots[action.slotIndex];
       if (!slot?.defId) throw new Error("该栏位无黑市牌");
@@ -662,6 +685,7 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
     }
     case "skipPurchase": {
       if (next.phase !== "purchase") throw new Error("当前不在购买阶段");
+      if (activePurchaseTurn(next).id !== p.id) throw new Error("未轮到你购买（从特权证持有者起顺时针）");
       p.purchaseFlipped = true;
       p.phaseReady = true;
       if (allReady(next)) endPurchasePhase(next, config);
@@ -671,7 +695,7 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       if (next.phase !== "delete") throw new Error("当前不在删牌阶段");
       const ids = new Set(action.cardIds);
       const moving = p.zones.discard.filter((c) => ids.has(c.id));
-      const freeQuota = config.deleteFreePerRound + (p.freeDeleteExtra ?? 0); // 黑客额外免费额度
+      const freeQuota = (next.simple ? 0 : config.deleteFreePerRound) + (p.freeDeleteExtra ?? 0); // 简易模式无免费删牌（规则 10.1）；黑客额外免费额度
       const extra = Math.max(0, moving.length - freeQuota);
       const cost = extra * config.deleteChipCost;
       if (p.chips < cost) throw new Error(`血筹不足，需 ${cost} 筹`);

@@ -11,6 +11,7 @@ import { card } from "../src/cards.js";
 import { evaluateHand, HandCategory } from "../src/hand-evaluator.js";
 import type { ChipView } from "../src/hand-evaluator.js";
 import type { GameState, PlayerState } from "../src/core/state.js";
+import { addPermanentRank } from "../src/effects/primitives.js";
 // 副作用导入：加载 market.ts 使注册表生效（whiteboard 只 import roles.js）
 import { chipViewFromChips } from "../src/effects/market.js";
 
@@ -27,11 +28,16 @@ function makeGame(): GameState {
   );
 }
 
-/** 在指定槽位放置黑市牌并购买（购买者血筹置 20、价格 0，专注效果本身） */
+/** 在指定槽位放置黑市牌并购买（购买者血筹置 20、价格 0，专注效果本身）。
+ *  票据 24 购买顺位门禁：把其他玩家置为已翻面（不置 phaseReady，避免误触发阶段结束），
+ *  使 a 无论特权证归属都成为当前应行动玩家。 */
 function buy(state: GameState, defId: string): GameState {
   const a = state.players[0]!;
   a.chips = 20;
   state.phase = "purchase";
+  for (const p of state.players) {
+    if (p.id !== a.id) p.purchaseFlipped = true;
+  }
   const slot = state.blackMarket.slots[0]!;
   slot.defId = defId;
   slot.price = 0;
@@ -99,6 +105,15 @@ describe("黑市牌效果（票据 12）", () => {
       g.players[0]!.zones.discard = [];
       g = buy(g, "027");
       expect(g.pendingPrompt).toBeNull();
+    });
+
+    it("027 廉价删除：选 3 张也只删 2 张（卡面「至多 2 张」，票据 24）", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(5, "S", "d1"), card(9, "H", "d2"), card(2, "C", "d3")];
+      g = buy(g, "027");
+      g = resolve(g, ["d1", "d2", "d3"]); // 多选超过 2 张，应截断
+      expect(g.players[0]!.zones.deleted.map((c) => c.id).sort()).toEqual(["d1", "d2"]);
+      expect(g.players[0]!.zones.discard.map((c) => c.id)).toEqual(["d3"]);
     });
 
     it("031 暴力删除：选择目标删除其抽牌堆顶 3 张", () => {
@@ -287,17 +302,24 @@ describe("黑市牌效果（票据 12）", () => {
       expect(g.players[1]!.chips).toBe(bBefore + 1);
     });
 
-    it("042 拔除芯片：删除弃牌堆带芯片的牌并获得 4 血筹", () => {
+    it("042 拔除芯片：只拔芯片（含还原点数），牌留在弃牌区，+4 血筹", () => {
       let g = makeGame();
       const a = g.players[0]!;
       a.zones.discard = [card(5, "S", "t1")];
+      // 先真实插一张数值芯片（校准器+1）：点数 5→6，记录 baseRank=5
+      addPermanentRank("t1", 1)(g, { config: CFG, playerId: "a", effectId: "market:001" });
       a.zones.chips["t1"] = "001";
       g = buy(g, "042");
       expect(g.pendingPrompt).toMatchObject({ effectId: "market:042" });
       g = resolve(g, ["t1"]);
       const a2 = g.players[0]!;
-      expect(a2.zones.deleted.some((c) => c.id === "t1")).toBe(true);
+      // 牌不被删除，继续留在弃牌区
+      expect(a2.zones.discard.some((c) => c.id === "t1")).toBe(true);
+      expect(a2.zones.deleted.some((c) => c.id === "t1")).toBe(false);
+      // 芯片被拔除且点数还原到原始值
       expect(a2.zones.chips["t1"]).toBeUndefined();
+      expect(a2.zones.discard.find((c) => c.id === "t1")!.rank).toBe(5);
+      expect(a2.zones.discard.find((c) => c.id === "t1")!.baseRank).toBeUndefined();
       expect(a2.chips).toBe(24); // 20 + 4
     });
 

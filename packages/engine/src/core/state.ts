@@ -218,6 +218,8 @@ export interface GameState {
   turn: number; // 从 1 开始
   /** 临时特权证持有者座位；null 仅存在于开局分配前 */
   passHolderSeat: number | null;
+  /** 简易模式（规则 10.1：去 J/Q/K/A 牌库、无免费删牌），票据 24 核对修复 */
+  simple?: boolean;
   blackMarket: BlackMarketState;
   /** 事件牌（MVP 默认关闭，保留字段） */
   eventCardId: string | null;

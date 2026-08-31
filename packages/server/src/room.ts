@@ -28,6 +28,7 @@ import {
   autoResolve,
   evaluateHand,
   compareHands,
+  DECLARE_TYPE_CHIPS,
   type Action,
   type GameConfig,
   type GameState,
@@ -109,9 +110,12 @@ function autoActionFor(state: GameState, p: PlayerState): Action | null {
     case "swap":
       return { type: "stopSwap", playerId: p.id }; // 不换牌，剩余次数换血筹
     case "play": {
-      const ids = bestPlayCards(p);
-      if (ids.length === 0) return null; // 手牌已空（打空的现实边界），标注遗留
-      return { type: "playCards", playerId: p.id, cardIds: ids };
+      const { cardIds, declarations } = bestPlayCards(p);
+      if (cardIds.length === 0) return null; // 手牌已空（打空的现实边界），标注遗留
+      const action: Action = declarations
+        ? { type: "playCards", playerId: p.id, cardIds, declarations }
+        : { type: "playCards", playerId: p.id, cardIds };
+      return action;
     }
     case "purchase":
       return { type: "skipPurchase", playerId: p.id };
@@ -124,21 +128,35 @@ function autoActionFor(state: GameState, p: PlayerState): Action | null {
   }
 }
 
-/** 托管出牌：手牌 ≤5 全出；否则枚举 5 张子集取最优牌型（同型比总点数） */
-function bestPlayCards(p: PlayerState): string[] {
+/**
+ * 托管出牌：手牌 ≤5 全出；否则枚举 5 张子集取最优牌型（同型比总点数）。
+ * 出牌含声明类芯片（008-012）时给默认声明 "any"（求解器取最优；票据 24 核对修复，
+ * 否则引擎 playCards 校验「必须提交声明值」会把离线玩家卡在出牌阶段）。
+ */
+function bestPlayCards(p: PlayerState): { cardIds: string[]; declarations?: Record<string, string> } {
   const hand = p.zones.hand;
-  if (hand.length <= 5) return hand.map((c) => c.id);
-  let best: string[] = [];
-  let bestEv: HandEvaluation | null = null;
-  for (let skip = 0; skip < hand.length; skip++) {
-    const cards = hand.filter((_, i) => i !== skip);
-    const ev = evaluateHand(cards);
-    if (!bestEv || compareHands(ev, bestEv) > 0) {
-      bestEv = ev;
-      best = cards.map((c) => c.id);
+  let picked: string[];
+  if (hand.length <= 5) {
+    picked = hand.map((c) => c.id);
+  } else {
+    let best: string[] = [];
+    let bestEv: HandEvaluation | null = null;
+    for (let skip = 0; skip < hand.length; skip++) {
+      const cards = hand.filter((_, i) => i !== skip);
+      const ev = evaluateHand(cards);
+      if (!bestEv || compareHands(ev, bestEv) > 0) {
+        bestEv = ev;
+        best = cards.map((c) => c.id);
+      }
     }
+    picked = best;
   }
-  return best;
+  const declarations: Record<string, string> = {};
+  for (const c of hand) {
+    const chipDefId = p.zones.chips[c.id];
+    if (chipDefId && DECLARE_TYPE_CHIPS.has(chipDefId)) declarations[c.id] = "any";
+  }
+  return Object.keys(declarations).length > 0 ? { cardIds: picked, declarations } : { cardIds: picked };
 }
 
 export class Room {

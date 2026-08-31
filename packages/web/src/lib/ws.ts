@@ -43,7 +43,7 @@ export interface SnapState {
       draw: { count: number };
       hand: { count: number } | { cards: Card[] };
       discard: { count: number } | { cards: Card[] };
-      play: { cards: Card[] };
+      play: { count: number } | { cards: Card[] }; // 暗扣：出牌阶段他人只见 count，对决亮牌后为 cards（票据 24）
       deleted: { count: number } | { cards: Card[] };
       chips: Record<string, string>;
       items: string[];

@@ -38,6 +38,7 @@ spec.md（`.scratch/game-web-mvp/spec.md`）全部 user stories 达成：内部�
 - [19 - 卡池元数据下发与 SQLite 局摘要](issues/19-卡池元数据下发与SQLite局摘要.md)（已 resolved）：hello 后下发 `cardPool` 消息（完整 CardPool，静态一次）；web Table 用 roleById/marketById 查找表渲染卡名/效果文本/角色技能 tooltip，分类边框改 colorTag 三分类（cat-green/blue/red），元数据未到回退 defId；`server/src/db.ts` SummaryStore 用 node:sqlite（process.getBuiltinModule 运行时获取绕过打包器解析）终局写 game_records，DB_PATH 未设为 no-op；e2e 增 2 用例共 8 绿。21 号芯片可视化已解锁。
 - [20 - 效果真身化](issues/20-效果真身化.md)（已 resolved）：芯片判定视图改候选集语义（suitOptions/rankOptions/duplicate/asJoker，chipViewFromChips 构建 + mergeChipView 与角色映射叠加，008-012/017 声明判定阶段消费）；特权证条件类用 passHolderBonus 工厂（self 购买即结算/chip 结算对持有者、negate 若不持有）落地 018/019/020/037，特权证芯片补 chipInstall 接通购买链路（noJoker=true 与卡面「不可插入 Joker」一致）；黑市区交互 from 扩展 "market"，043 再来一批（先全回堆底再补位）真身化 + purchase「购买先摘牌」保证效果视角正确；新状态字段 skipPhases/nextTurnSwapDelta/nextTurnSkillDisabled 由 whiteboard enterPhase 消费（038/040/044）；026/032 用 chooseCard.carry 中间态做跨玩家链式交互、033 金科玉律 2 下落地为对手本人自选删 1；025 自毁芯片 settle 按 duelResult 删本回合打出牌（去 #dup 后缀、同步清芯片）。引擎 155 用例全绿。遗留：道具 045-052 使用时结算、芯片 014/015/016/023/024、035 黑厢抢夺、role:05/21/08（均标注 TODO，详见票据 Answer）。
 - [21 - 芯片可视化](issues/21-芯片可视化.md)（已 resolved）：Card.baseRank 保存原始点数；CardFace 改造支持角标（.chipIcon + title tooltip）+ 数值括号「9 (5+4)」+ 花色括号「♠(原♥)」；CHIP_DELTA/CHIP_SUIT_MAP 硬编码与 engine 注册表一致；手牌区/PlayZone（4向）全部透传 chipDefId+marketById；build 通过，178 测试全绿。
+- [24 - 规则书核对修复批次](issues/24-规则书核对修复.md)（已 resolved）：飞飞 21 项核对，本期修 10 项——A 组 7 项全修：042 拔除芯片改 removeChip 原语（只摘芯片+baseRank 还原点数，牌留弃牌区）、037/042 卡图互换、出牌区暗扣 redact（他人 play 阶段只见 count）、简易模式牌库去 11-14 + 免费删牌配额 0（GameState.simple）、购买顺位门禁 activePurchaseTurn（持证者起顺时针，purchaseFlipped 翻面）、换牌 maxDiscard 不再绑 swapLeft、终局平局比血筹再比顺时针距离；B 组 027 限 2 张 + maxPlay 补 seven；C 组特权证改 rollDice 掷骰（走 rngState 可重放）+ 托管出牌默认 declarations="any"。**e2e 固定 Math.random=0 → seed=0 黑市首槽 009 确定性覆盖购买挂起链路**（规则 5.6 后每人每轮至多买 1 次，旧连续购买假设失效）。测试 199 全绿。遗留：M4 批次（道具使用/芯片交互 TODO/结算 UI/角色 05·08·21 等）+ 待飞飞裁决 #11 017 牌位下限、#20 吉祥物取整。
 
 ## Not yet specified
 
@@ -57,8 +58,9 @@ spec.md「M3' 批次增补」为设计依据。推进顺序：**19（元数据�
 - [21 - 芯片可视化](issues/21-芯片可视化.md)：resolved（2026-08-31，commit 2486330）
 - [22 - 暗扣交互式声明与六七条放宽](issues/22-暗扣交互式声明与六七条放宽.md)：resolved（2026-08-31，commit c16035f）
 - [23 - 自动化集成测试与 CI](issues/23-自动化集成测试与CI.md)：resolved（2026-08-31，commit 39bfcb9）
+- [24 - 规则书核对修复批次](issues/24-规则书核对修复.md)：resolved（2026-08-31）
 
-**当前 frontier = 无（M3' 批次全部完成）**
+**当前 frontier = 无（M3' 批次 + 规则书核对修复全部完成）**
 
 ## Out of scope
 

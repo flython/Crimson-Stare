@@ -270,6 +270,12 @@ button:disabled {
   padding: 0;
 }
 
+/* 暗扣牌背（票据 24）：出牌阶段他人出牌区只见牌背 */
+.card.back {
+  background: linear-gradient(160deg, #5a2b30, #3c2226);
+  border-color: #7a2530;
+}
+
 .card .suit {
   font-size: 14px;
   line-height: 1;

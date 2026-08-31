@@ -255,13 +255,24 @@ function PlayZone({
   marketById: Map<string, CardDef>;
 }) {
   const rot = dir === "left" ? "rot90" : dir === "right" ? "rot-90" : dir === "top" ? "rot180" : "";
-  const cards = p ? cardsOf(p.zones.play) : [];
+  const zone = p?.zones.play;
+  const cards = zone ? cardsOf(zone) : [];
+  // 暗扣（票据 24）：出牌阶段他人出牌只见牌背（count 摘要），对决亮牌后为 cards
+  const concealed = zone && "count" in zone ? zone.count : 0;
   const who = p ? p.name : "";
   return (
     <div className="playZone">
       <span className="pwho">{who || (dir === "me" ? "你" : "")}</span>
       {cards.length === 0 ? (
-        <span className="emptyHint">{dir === "me" ? "出牌区" : "等待出牌…"}</span>
+        concealed > 0 ? (
+          <span className="playBacks">
+            {Array.from({ length: Math.min(concealed, 5) }, (_, i) => (
+              <span key={i} className={`card small back${rot}`} />
+            ))}
+          </span>
+        ) : (
+          <span className="emptyHint">{dir === "me" ? "出牌区" : "等待出牌…"}</span>
+        )
       ) : (
         cards.map((c) => (
           <span key={c.id} className={rot}>
