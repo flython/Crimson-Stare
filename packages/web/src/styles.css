@@ -1488,6 +1488,22 @@ body:has(.table-root) {
   color: var(--muted);
 }
 
+/* 弃牌区/删牌区/道具区查看按钮（票据 30） */
+.viewBtn {
+  background: transparent;
+  color: var(--gold);
+  font-size: 11px;
+  padding: 2px 6px;
+  margin-left: 4px;
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.viewBtn:hover {
+  background: var(--gold);
+  color: var(--dark);
+}
+
 .handRow {
   display: flex;
   gap: 8px;

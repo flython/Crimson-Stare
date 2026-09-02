@@ -374,6 +374,8 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
   const [declOpen, setDeclOpen] = useState(false);
   /** declOpen=true 时，暂存即将提交出牌的 cardIds */
   const [pendingPlayIds, setPendingPlayIds] = useState<string[]>([]);
+  /** 弃牌区/删牌区/道具区查看弹层（30）：null = 未打开 */
+  const [viewZone, setViewZone] = useState<"discard" | "deleted" | "items" | null>(null);
 
   /** 卡池元数据查找表（19）：角色/黑市 id → CardDef */
   const roleById = new Map((pool?.roles ?? []).map((r) => [r.id, r]));
@@ -663,23 +665,38 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
               <div className="pileStack discard" />
               <span>
                 弃牌堆 <b>{myDiscard.length}</b>
+                {myDiscard.length > 0 && (
+                  <button type="button" className="viewBtn" onClick={() => setViewZone("discard")}>
+                    查看
+                  </button>
+                )}
               </span>
             </div>
             <div className="pile">
               <div className="pileStack deleted" />
               <span>
                 删牌区 <b>{myPlayer ? countOf(myPlayer.zones.deleted) : 0}</b>
+                {(myPlayer ? countOf(myPlayer.zones.deleted) : 0) > 0 && (
+                  <button type="button" className="viewBtn" onClick={() => setViewZone("deleted")}>
+                    查看
+                  </button>
+                )}
               </span>
             </div>
             <div className="pile pileItems">
               <span className="pileLabel">道具区</span>
               <div className="items">
                 {myPlayer && myPlayer.zones.items.length > 0 ? (
-                  myPlayer.zones.items.map((it, i) => (
-                    <span key={i} className="itemCard" title={marketById.get(it)?.effectText ?? ""}>
-                      {marketById.get(it)?.name ?? it}
-                    </span>
-                  ))
+                  <>
+                    {myPlayer.zones.items.map((it, i) => (
+                      <span key={i} className="itemCard" title={marketById.get(it)?.effectText ?? ""}>
+                        {marketById.get(it)?.name ?? it}
+                      </span>
+                    ))}
+                    <button type="button" className="viewBtn" onClick={() => setViewZone("items")}>
+                      查看
+                    </button>
+                  </>
                 ) : (
                   <span className="emptyItems">（空）</span>
                 )}
@@ -748,6 +765,36 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
           onConfirm={confirmPlayWithDecl}
           onCancel={() => { setDeclOpen(false); setPendingPlayIds([]); }}
         />
+      ) : null}
+
+      {/* 弃牌区/删牌区/道具区查看弹层（票据 30）：自己可随时查看 */}
+      {viewZone ? (
+        <div className="overlay" onClick={() => setViewZone(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{viewZone === "discard" ? "弃牌区" : viewZone === "deleted" ? "删牌区" : "道具区"}</h3>
+            <div className="picker-grid">
+              {viewZone === "items"
+                ? (myPlayer?.zones.items ?? []).map((it, i) => {
+                    const meta = marketById.get(it);
+                    return (
+                      <span key={i} className="card joker" title={meta?.effectText ?? ""}>
+                        {meta?.name ?? it}
+                      </span>
+                    );
+                  })
+                : (viewZone === "discard" ? myDiscard : myPlayer ? cardsOf(myPlayer.zones.deleted) : []).map((c) => (
+                    <span key={c.id} className="card joker">
+                      <CardFace card={c} />
+                    </span>
+                  ))}
+            </div>
+            <div className="picker-actions">
+              <button type="button" className="btn gold" onClick={() => setViewZone(null)}>
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );
