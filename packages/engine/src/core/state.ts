@@ -219,6 +219,11 @@ export interface BlackMarketState {
   slots: BlackMarketSlot[];
   /** 供应堆（背面朝上，洗混后的 defId+price 序列） */
   supply: { defId: string; price: number; subtype?: string }[];
+  /**
+   * 道具回收站：使用后的道具背面朝上弃入此处（规则 5.6）。
+   * 道具不可重复使用。
+   */
+  recycle: string[];
 }
 
 export interface LogEntry {

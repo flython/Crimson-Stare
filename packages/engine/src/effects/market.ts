@@ -20,7 +20,7 @@
  */
 import type { GameState, PlayerState, PhaseId } from "../core/state.js";
 import { shuffle } from "../core/rng.js";
-import type { EffectDef } from "../core/effects.js";
+import type { EffectDef, EffectContext } from "../core/effects.js";
 import { registerEffect, getEffect } from "../core/effects.js";
 import {
   addPermanentRank,
@@ -36,7 +36,7 @@ import {
 } from "./primitives.js";
 import { promptChooseCard, promptChoosePlayer } from "./interactive.js";
 import { SUITS, type Suit } from "../cards.js";
-import type { ChipView } from "../hand-evaluator.js";
+import { type ChipView, HandCategory } from "../hand-evaluator.js";
 
 /** 数字滑轨：点数可视为 2-14 任意值（含原值，求解器取最优） */
 const ALL_RANKS = Array.from({ length: 13 }, (_, i) => i + 2);
@@ -212,18 +212,38 @@ function chipHolders(state: GameState, chipDefId: string): PlayerState[] {
   return state.players.filter((p) => Object.values(p.zones.chips).includes(chipDefId));
 }
 
-/** 备用道具：购买存入道具区（使用结算 M2.4 遗留，本轮先注册 run 保证购买链路） */
-function itemEffect(defId: string): EffectDef {
-  return {
+/**
+ * 备用道具效果工厂（规则 5.6：使用时触发，使用后背面朝上弃入黑市回收站）。
+ * 同时注册两个效果 ID：
+ * - market:defId → handlePurchase 调用（test helper 直接设 slot.defId，走 getEffect("market:defId")）
+ * - item:defId  → useItem reducer 调用（走 getEffect("item:defId")）
+ */
+function itemEffect(
+  defId: string,
+  run: (state: GameState, ctx: EffectContext) => void,
+  resolve?: (state: GameState, ctx: EffectContext, choice: string | string[]) => void,
+): EffectDef {
+  const purchaseRun: EffectBody = (s, ctx) => {
+    const p = getPlayer(s, ctx);
+    p.zones.items.push(defId);
+    logText(s, `${p.name} 获得备用道具 ${defId}（存入道具区）`);
+  };
+  // 注册 market:defId（购买结算）
+  registerEffect({
     id: `market:${defId}`,
     source: "blackMarket",
     phase: "purchase",
     timing: "during",
-    run: (state, ctx) => {
-      const p = getPlayer(state, ctx);
-      p.zones.items.push(defId);
-      logText(state, `${p.name} 获得备用道具 ${defId}（存入道具区，使用结算 M2.4 遗留）`);
-    },
+    run: purchaseRun,
+  });
+  // 注册 item:defId（使用效果）
+  return {
+    id: `item:${defId}`,
+    source: "blackMarket",
+    phase: "reshape",
+    timing: "after",
+    run,
+    resolve,
   };
 }
 
@@ -602,13 +622,243 @@ export function registerMarketEffects(): void {
   );
   // TODO: 035 黑厢抢夺（轮流掷骰比大小，需骰子交互，与 role:08 海盗一并留 M3）
 
-  // ── 备用道具（JSON subtype="道具"；whiteboard 按 "备用道具" 识别，故统一注册 run 存 items）──
-  for (const defId of ["045", "046", "047", "048", "049", "050", "051", "052"]) {
-    registerEffect(itemEffect(defId));
-  }
-  // TODO: 道具"使用时"结算（M2.4 后）：045 信号干扰器（swap 后随机弃1抽1）/046 广播喇叭（宣称临时特权证，成败奖惩）/
-  // 047 赌徒虹膜（猜对手牌型）/048 皮下密信（花2血筹抽3）/049 防护屏障（取消针对自己的秘密交易）/
-  // 050 魔术橡皮（宣称牌型视为高牌）/051 消磁枪（令一张芯片失效）/052 荷官证（改比总点数）——使用时机与 target 交互留 M2.4。
+  // ── 备用道具（规则 5.6：使用时触发，使用后背面朝上弃入黑市回收站）─────────
+  // 045 信号干扰器：随机弃1抽1
+  registerEffect(itemEffect("045", (s, ctx) => {
+    const p = getPlayer(s, ctx);
+    // 随机弃1张（若有手牌）
+    if (p.zones.hand.length > 0) {
+      const picks = shuffle(s, [...p.zones.hand]).slice(0, 1);
+      const ids = new Set(picks.map((c) => c.id));
+      p.zones.hand = p.zones.hand.filter((c) => !ids.has(c.id));
+      p.zones.discard.push(...picks);
+      logText(s, `${p.name} 随机弃置 1 张`);
+    }
+    // 抽1张
+    if (p.zones.draw.length === 0) {
+      if (p.zones.discard.length > 0) {
+        p.zones.draw = shuffle(s, p.zones.discard.splice(0));
+      }
+    }
+    if (p.zones.draw.length > 0) {
+      p.zones.hand.push(p.zones.draw.shift()!);
+      logText(s, `${p.name} 抽 1 张`);
+    }
+  }));
+
+  // 046 广播喇叭：宣称临时特权证，结算时判断
+  registerEffect(itemEffect("046", (s, ctx) => {
+    const p = getPlayer(s, ctx);
+    p.declarations = { ...(p.declarations ?? {}), "item:046": "declared" };
+    logText(s, `${p.name} 宣称将获得【临时特权证】`);
+  }));
+
+  // 047 赌徒虹膜：猜测对手的牌型，结算时判定（猜中得3血筹，对手车票-4）
+  registerEffect(itemEffect(
+    "047",
+    (s, ctx) => {
+      const p = getPlayer(s, ctx);
+      const opponents = s.players.filter((x) => x.id !== p.id);
+      if (opponents.length === 0) return;
+      // 单对手直接选牌型；多对手合并对手+牌型一步选
+      if (opponents.length === 1) {
+        promptChooseOption(s, "item:047", p.id, [
+          { id: "高牌", label: "高牌" }, { id: "一对", label: "一对" }, { id: "两对", label: "两对" },
+          { id: "三条", label: "三条" }, { id: "顺子", label: "顺子" }, { id: "同花", label: "同花" },
+          { id: "葫芦", label: "葫芦" }, { id: "四条", label: "四条" },
+          { id: "同花顺", label: "同花顺" }, { id: "五条", label: "五条" },
+        ], `猜测 ${opponents[0]!.name} 的牌型是？`);
+        s.pendingPrompt!.carry = opponents[0]!.id;
+      } else {
+        const options = opponents.flatMap((op) =>
+          ["高牌", "一对", "两对", "三条", "顺子", "同花", "葫芦", "四条", "同花顺", "五条"].map((cat) => ({
+            id: `${op.id}:${cat}`,
+            label: `猜 ${op.name} 为【${cat}】`,
+          })),
+        );
+        promptChooseOption(s, "item:047", p.id, options, "选择对手并猜测其牌型");
+      }
+    },
+    (s, ctx, choice) => {
+      const p = getPlayer(s, ctx);
+      const choiceStr = String(choice);
+      let opponentId: string;
+      let category: string;
+      if (choiceStr.includes(":")) {
+        [opponentId, category] = choiceStr.split(":");
+      } else {
+        // 单对手情况：carry 存 opponentId，choice 是 category
+        opponentId = s.pendingPrompt ? (s.pendingPrompt as any).carry ?? choiceStr : choiceStr;
+        category = choiceStr;
+      }
+      p.declarations = { ...(p.declarations ?? {}), "item:047": `${opponentId}:${category}` };
+      logText(s, `${p.name} 猜测 ${s.players.find((x) => x.id === opponentId)?.name ?? opponentId} 为【${category}】`);
+    },
+  ));
+
+  // 048 皮下密信：花2血筹抽3张
+  registerEffect(itemEffect("048", (s, ctx) => {
+    const p = getPlayer(s, ctx);
+    if (p.chips < 2) {
+      logText(s, `${p.name} 血筹不足2，无法使用皮下密信`);
+      return;
+    }
+    p.chips -= 2;
+    let drawn = 0;
+    for (let i = 0; i < 3; i++) {
+      if (p.zones.draw.length === 0) {
+        if (p.zones.discard.length === 0) break;
+        p.zones.draw = shuffle(s, p.zones.discard.splice(0));
+      }
+      p.zones.hand.push(p.zones.draw.shift()!);
+      drawn++;
+    }
+    logText(s, `${p.name} 花2血筹抽${drawn}张`);
+  }));
+
+  // 049 防护屏障：取消针对自己的秘密交易（效果延迟到下回合；本版本占位）
+  registerEffect(itemEffect("049", (s, ctx) => {
+    const p = getPlayer(s, ctx);
+    // TODO: 取消下一个针对自己的秘密交易或道具效果（需要 effect hook 系统支持）
+    p.declarations = { ...(p.declarations ?? {}), "item:049": "active" };
+    logText(s, `${p.name} 激活防护屏障`);
+  }));
+
+  // 050 魔术橡皮：宣称一种牌型，本回合视为高牌
+  registerEffect(itemEffect(
+    "050",
+    (s, ctx) => {
+      const p = getPlayer(s, ctx);
+      promptChooseOption(s, "item:050", p.id, [
+        { id: "高牌", label: "高牌" }, { id: "一对", label: "一对" }, { id: "两对", label: "两对" },
+        { id: "三条", label: "三条" }, { id: "顺子", label: "顺子" }, { id: "同花", label: "同花" },
+        { id: "葫芦", label: "葫芦" }, { id: "四条", label: "四条" },
+        { id: "同花顺", label: "同花顺" }, { id: "五条", label: "五条" },
+      ], "宣称本回合视为哪种牌型？");
+    },
+    (s, ctx, choice) => {
+      const p = getPlayer(s, ctx);
+      const cat = String(choice);
+      p.declarations = { ...(p.declarations ?? {}), "item:050": cat };
+      logText(s, `${p.name} 宣称本回合牌型视为【${cat}】`);
+    },
+  ));
+
+  // 051 消磁枪：令对手1张芯片失效
+  registerEffect(itemEffect(
+    "051",
+    (s, ctx) => {
+      const p = getPlayer(s, ctx);
+      const opponents = s.players.filter((x) => x.id !== p.id);
+      if (opponents.length === 0) return;
+      const chipsWithPlayers = opponents
+        .flatMap((op) =>
+          Object.entries(op.zones.chips).map(([cardId, chipDefId]) => ({ player: op, cardId, chipDefId })),
+        )
+        .filter((x) => x.chipDefId);
+      if (chipsWithPlayers.length === 0) {
+        logText(s, `${p.name} 周围无强化芯片，消磁枪未生效`);
+        return;
+      }
+      if (chipsWithPlayers.length === 1) {
+        chipsWithPlayers[0]!.player.disabledChipCards = [
+          ...(chipsWithPlayers[0]!.player.disabledChipCards ?? []),
+          chipsWithPlayers[0]!.cardId,
+        ];
+        logText(s, `${p.name} 使用消磁枪令 ${chipsWithPlayers[0]!.player.name} 的芯片失效`);
+        return;
+      }
+      // 编码为 "playerId|cardId" 以便 resolve 时找到目标玩家
+      promptChooseOption(s, "item:051", p.id, chipsWithPlayers.map((x) => ({
+        id: `${x.player.id}|${x.cardId}`,
+        label: `令 ${x.player.name} 的 ${x.cardId} 上的芯片失效`,
+      })), "选择要失效的芯片");
+    },
+    (s, ctx, choice) => {
+      const choiceStr = String(choice);
+      const sepIdx = choiceStr.indexOf("|");
+      if (sepIdx === -1) return;
+      const playerId = choiceStr.slice(0, sepIdx);
+      const cardId = choiceStr.slice(sepIdx + 1);
+      const target = s.players.find((x) => x.id === playerId);
+      if (!target) return;
+      target.disabledChipCards = [...(target.disabledChipCards ?? []), cardId];
+      const p = getPlayer(s, ctx);
+      logText(s, `${p.name} 使用消磁枪令 ${target.name} 的芯片失效`);
+    },
+  ));
+
+  // 052 荷官证：本回合改为比较总点数
+  registerEffect(itemEffect("052", (s, ctx) => {
+    const p = getPlayer(s, ctx);
+    p.declarations = { ...(p.declarations ?? {}), "item:052": "totalPoints" };
+    logText(s, `${p.name} 使用荷官证，本回合改为比较总点数`);
+  }));
+
+  // ── 道具结算效果（规则 5.6）──────────────────────────────────────────────
+  /** 046 广播喇叭【结算阶段】：宣称者夺魁则得 (人数×3) 血筹，否则跳过本回合购买/删牌/重整 */
+  registerEffect({
+    id: "item:046:settle",
+    source: "blackMarket",
+    phase: "settle",
+    timing: "after",
+    run: (s) => {
+      for (const p of s.players) {
+        if (p.declarations?.["item:046"] !== "declared") continue;
+        delete p.declarations!["item:046"];
+        const passHolder = s.players.find((x) => x.seat === s.passHolderSeat);
+        if (passHolder && p.id === passHolder.id) {
+          const reward = s.players.length * 3;
+          p.chips += reward;
+          logText(s, `${p.name} 夺魁且宣称广播喇叭，获得 ${reward} 血筹`);
+        } else {
+          p.skipPhases = [...(p.skipPhases ?? []), "purchase", "delete", "reshape"];
+          logText(s, `${p.name} 未夺魁，广播喇叭失效，跳过购买/删牌/重整`);
+        }
+      }
+    },
+  });
+
+  /** 047 赌徒虹膜【结算阶段】：猜中对手牌型则得 3 血筹，对手车票 -4（最低 0） */
+  registerEffect({
+    id: "item:047:settle",
+    source: "blackMarket",
+    phase: "settle",
+    timing: "after",
+    run: (s) => {
+      for (const p of s.players) {
+        const decl = p.declarations?.["item:047"];
+        if (!decl) continue;
+        delete p.declarations!["item:047"];
+        const colonIdx = decl.indexOf(":");
+        if (colonIdx === -1) continue;
+        const opponentId = decl.slice(0, colonIdx);
+        const guessedCat = decl.slice(colonIdx + 1);
+        const opponent = s.players.find((x) => x.id === opponentId);
+        if (!opponent) continue;
+        const oppEntry = s.duelResult?.find((e) => e.playerId === opponentId);
+        if (!oppEntry) continue;
+        // 把猜测的牌型字符串映射到 HandCategory 数值
+        const catMap: Record<string, number> = {
+          "高牌": 1, "一对": 2, "两对": 3, "三条": 4, "顺子": 5,
+          "同花": 6, "葫芦": 7, "四条": 8, "同花顺": 9, "五条": 10,
+          "同花葫芦": 11, "同花五条": 12, "六条": 13, "同花六条": 14,
+        };
+        const guessedRank = catMap[guessedCat];
+        if (guessedRank === undefined) continue;
+        if (oppEntry.category === guessedRank) {
+          p.chips += 3;
+          logText(s, `${p.name} 猜中 ${opponent.name} 牌型【${guessedCat}】，获得 3 血筹`);
+        } else {
+          const orig = oppEntry.category;
+          const oppCatName = Object.entries(catMap).find(([, v]) => v === orig)?.[0] ?? String(orig);
+          logText(s, `${p.name} 猜错 ${opponent.name} 牌型（实际【${oppCatName}】），未获得奖励`);
+        }
+        // 对手本回合车票 -4（最低 0）
+        opponent.tickets = Math.max(0, opponent.tickets - 4);
+      }
+    },
+  });
 
   // ── 强化芯片：非黄边（简单类注册，复杂类 TODO）────────────────────────────
   registerEffect(chipInstall({ defId: "013" })); // 空白模板：无效果

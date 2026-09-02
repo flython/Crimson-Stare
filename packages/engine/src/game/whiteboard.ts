@@ -33,7 +33,9 @@ export type Action =
   | { type: "deleteCards"; playerId: string; cardIds: string[] }
   | { type: "ready"; playerId: string }
   | { type: "reshape"; playerId: string; reshuffle: boolean }
-  | { type: "resolvePrompt"; playerId: string; choice: string | string[] };
+  | { type: "resolvePrompt"; playerId: string; choice: string | string[] }
+  /** 使用备用道具（规则 5.6）：从 items 选一个触发效果，然后背面朝上弃入黑市回收站 */
+  | { type: "useItem"; playerId: string; itemDefId: string };
 
 /** 阶段中文名（跳过阶段的日志用） */
 const PHASE_LABEL: Record<PhaseId, string> = {
@@ -401,14 +403,20 @@ function refillSlot(state: GameState, slotIndex: number): void {
  * - 未注册 → 占位 log（issue 06 降级约定）
  */
 function handlePurchase(state: GameState, p: PlayerState, defId: string, subtype: string | undefined, config: GameConfig): void {
+  // 备用道具：走 market:defId 效果（push to items），useItem 走 item:defId
+  if (subtype === "道具" || subtype === "备用道具") {
+    const def = getEffect(`market:${defId}`);
+    if (def) {
+      def.run(state, { config, playerId: p.id, effectId: def.id });
+      return;
+    }
+    p.zones.items.push(defId);
+    log(state, `${p.name} 获得备用道具 ${defId}（存入道具区）`);
+    return;
+  }
   const def = getEffect(`market:${defId}`);
   if (def) {
     def.run(state, { config, playerId: p.id, effectId: def.id });
-    return;
-  }
-  if (subtype === "备用道具") {
-    p.zones.items.push(defId);
-    log(state, `${p.name} 获得备用道具 ${defId}（存入道具区）`);
     return;
   }
   log(state, `效果未实现: market:${defId}`);
@@ -462,6 +470,7 @@ export function createGame(
         bonusChips: 0,
       })),
       supply: [],
+      recycle: [],
     },
     eventCardId: null,
     pendingPrompt: null,
@@ -542,6 +551,18 @@ function resolvePrompt(state: GameState, action: Extract<Action, { type: "resolv
   state.pendingPrompt = null;
   const carry = prompt.kind === "chooseCard" ? prompt.carry : undefined;
   def.resolve(state, { config, playerId: prompt.playerId, effectId: prompt.effectId, carry }, action.choice);
+  // 道具使用交互结束后，将道具从 items 移入黑市回收站
+  if (prompt.effectId.startsWith("item:")) {
+    const itemDefId = prompt.effectId.slice(5); // "item:045" → "045"
+    const player = state.players.find((x) => x.id === prompt.playerId);
+    if (player) {
+      const idx = player.zones.items.indexOf(itemDefId);
+      if (idx !== -1) {
+        player.zones.items.splice(idx, 1);
+        state.blackMarket.recycle.push(itemDefId);
+      }
+    }
+  }
   log(state, `${state.players.find((p) => p.id === prompt.playerId)?.name ?? prompt.playerId} 完成交互选择`);
   if (!state.pendingPrompt) resumePhase(state, config); // 未续挂才继续被暂停的阶段推进
 }
@@ -765,6 +786,25 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
     case "resolvePrompt": {
       // 理论不可达：挂起门禁已在 reduce 入口处理；防御性拒绝
       throw new Error("当前没有待决交互");
+    }
+    case "useItem": {
+      const defId = action.itemDefId;
+      const idx = p.zones.items.indexOf(defId);
+      if (idx === -1) throw new Error(`道具 ${defId} 不在道具区`);
+      // 触发道具效果（phase 无关，随用随结）
+      const def = getEffect(`item:${defId}`);
+      if (def) {
+        def.run(next, { config, playerId: p.id, effectId: `item:${defId}` });
+      }
+      // 非交互道具立即移除；交互道具（run 设置 pendingPrompt）等 resolvePrompt 回调处理
+      if (!next.pendingPrompt) {
+        p.zones.items.splice(idx, 1);
+        next.blackMarket.recycle.push(defId);
+        log(next, `${p.name} 使用道具 ${defId}`);
+      } else {
+        log(next, `${p.name} 使用道具 ${defId}（等待选择）`);
+      }
+      break;
     }
     default: {
       const exhaustive: never = action;
