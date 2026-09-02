@@ -98,6 +98,8 @@ export type PendingPrompt =
       playerId: string;
       candidates: string[];
       promptText?: string;
+      /** 交互中间态（票据 20）：挂起方写入、resolve 时原样回传 */
+      carry?: string;
     }
   | {
       kind: "chooseCard";
@@ -125,6 +127,8 @@ export type PendingPrompt =
       playerId: string;
       options: { id: string; label: string }[];
       promptText?: string;
+      /** 交互中间态（票据 20）：挂起方写入、resolve 时原样回传 */
+      carry?: string;
     };
 
 export interface PlayerState {
@@ -134,6 +138,8 @@ export interface PlayerState {
   seat: number;
   /** 角色牌 defId，M2 前为 null（白板局） */
   characterId: string | null;
+  /** 是否为 NPC 荷官（单人模式，用于托管逻辑区分） */
+  isDealer?: boolean;
   /** 性别（用于魅魔58效果）；'M'=♂，'F'=♀，'?'=同时视为♂与♀ */
   gender?: "M" | "F" | "?";
   /** 血筹（公开信息，金科玉律 12） */
@@ -202,6 +208,30 @@ export interface PlayerState {
   exchangeThisPhase?: boolean;
   /** 猪神病人(48)：上回合交血筹的玩家 id */
   lastPigPattedBy?: string;
+  /** 双面人(54)：角色牌上的牌列表 */
+  role54OnCharacter?: Card[];
+  /** 双面人(54)：本回合是否使用了特殊换牌 */
+  role54UsedSpecial?: boolean;
+  /** 咖啡厅：本回合是否已使用咖啡 */
+  coffeeUsedThisTurn?: boolean;
+  /** 购物癖：上次购买价格（用于咖啡厅效果） */
+  lastPurchasePrice?: number;
+  /** 甜牙(??)：红桃视为黑桃 */
+  heartAsSpade?: boolean;
+  /** 先手礼：本回合是否已获得换牌奖励 */
+  swapBonusTaken?: boolean;
+  /** 上次换牌是否有同 rank 牌 */
+  lastSwapHadSameRank?: boolean;
+  /** 上次换牌同 rank 牌数量 */
+  lastSwapSameRankCount?: number;
+  /** 本回合是否从黑市购买过 */
+  boughtMarketThisTurn?: boolean;
+  /** 猪神病人：本回合是否拍过猪 */
+  pigPatUsedThisTurn?: boolean;
+  /** 魅魔(58)：从对手抽的牌 id */
+  opponentCardFrom51?: string;
+  /** 角色牌上的牌列表（白蔷薇等） */
+  roleTableCards?: Card[];
 }
 
 /** 黑市区一个栏位 */
@@ -251,6 +281,10 @@ export interface GameState {
   passHolderSeat: number | null;
   /** 简易模式（规则 10.1：去 J/Q/K/A 牌库、无免费删牌），票据 24 核对修复 */
   simple?: boolean;
+  /** 单人模式（规则书 §12：玩家 vs 机械荷官 NPC） */
+  solo?: boolean;
+  /** 先手礼(??)：本回合首个换牌者的 playerId（每人每回合限一次奖励） */
+  firstSwapFinisher?: string;
   blackMarket: BlackMarketState;
   /** 事件牌（MVP 默认关闭，保留字段） */
   eventCardId: string | null;
@@ -280,6 +314,18 @@ export interface GameState {
    * 每项处理后清空；本字段仅在 createGame 返回前有意义。
    */
   setupDeleteQueue?: SetupDeleteEntry[];
+  /** 单人模式命运牌库（规则书 §12）：基础命运牌堆（10张）+ 高级命运牌堆（5张）+ 命运牌弃牌堆 */
+  fateDeck?: FateDeckState;
+}
+
+/** 单人模式命运牌库状态 */
+export interface FateDeckState {
+  /** 基础命运牌堆（10张，每回合对决阶段翻1张） */
+  basic: Card[];
+  /** 高级命运牌堆（5张，结算未夺魁时移1张入基础堆） */
+  advanced: Card[];
+  /** 命运牌弃牌堆 */
+  discard: Card[];
 }
 
 /** 开局删除队列条目 */

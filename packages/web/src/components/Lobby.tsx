@@ -63,7 +63,9 @@ export default function Lobby({ room, myPlayerId, onCreate, onJoin, onStart, onL
     <div className="lobby">
       <h2 className="lobby-title">
         房间 {room.roomId}
-        <span className="lobby-mode">{room.mode === "easy" ? "简易模式" : room.mode}</span>
+        <span className="lobby-mode">
+          {room.mode === "easy" ? "简易模式" : room.mode === "solo" ? "单人模式" : room.mode}
+        </span>
       </h2>
       <ul className="lobby-players">
         {room.players.map((p) => (
@@ -73,6 +75,7 @@ export default function Lobby({ room, myPlayerId, onCreate, onJoin, onStart, onL
               {p.name}
               {p.playerId === myPlayerId ? "（我）" : ""}
               {p.playerId === room.ownerId ? "（房主）" : ""}
+              {(p.name === "Doloris" || p.name === "Timoris" || p.name === "Mortis") && "（荷官）"}
             </span>
             {!p.connected ? <span className="lobby-offline">离线</span> : null}
           </li>
@@ -89,6 +92,8 @@ export default function Lobby({ room, myPlayerId, onCreate, onJoin, onStart, onL
         </div>
       ) : room.started ? (
         <p className="lobby-note">对局进行中…</p>
+      ) : room.mode === "solo" ? (
+        <p className="lobby-note">正在连接荷官…</p>
       ) : (
         <div className="lobby-actions">
           <p className="lobby-note">等待房主开始…</p>

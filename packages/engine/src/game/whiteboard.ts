@@ -18,6 +18,7 @@ import { afterCardsDeleted, rollDice } from "../effects/primitives.js";
 import { chipViewFromChips, DECLARE_TYPE_CHIPS } from "../effects/market.js";
 import { roleSetup, roleChipView, roleTurnSetup, characterPurchasePrice } from "../effects/roles.js";
 import type { DuelResultEntry } from "../core/state.js";
+import { buildFateDecks } from "../fate.js";
 import type { CardPool } from "../cardPool.js";
 
 export type Action =
@@ -255,7 +256,14 @@ function enterPhase(state: GameState, phase: PhaseId, config: GameConfig): void 
   }
   if (phase === "reshape") {
     runHooks(state, "before", config); // 角色阶段效果（银行职员【重整阶段】+2 血筹）
-    if (frozen.length > 0 && allReady(state)) endTurn(state, config); // 全员被冻结则直接结束回合
+    const mustSkip = state.players.filter((p) => p.mustSkipReshape);
+    for (const p of mustSkip) {
+      p.phaseReady = true;
+      log(state, `${p.name} 必须跳过重整阶段`);
+    }
+    // ponytail: 如果所有玩家都被冻结或跳过，allReady 为 true 但 endTurn 会进入下一回合；
+    // 如果混合（有玩家需决策），则等待普通玩家操作后由 allReady 触发 endTurn
+    if ((frozen.length > 0 || mustSkip.length > 0) && allReady(state)) endTurn(state, config);
     return; // 等玩家 reshape 决策
   }
   // swap / play / purchase / delete：等待玩家 Action
@@ -441,28 +449,33 @@ export function processSetupDeleteQueue(state: GameState): void {
     const ids = new Set(actual.map((c) => c.id));
     p.zones.hand = p.zones.hand.filter((c) => !ids.has(c.id));
     p.zones.deleted.push(...actual);
-    log(state, `${p.name} 开局删除 ${actual.length} 张${entry.rank !== undefined ? entry.rank : ""}（${actual.map((c) => c.rank + c.suit).join(" ")})`);
+    log(state, `${p.name} 开局删除 ${actual.length} 张${entry.rank !== undefined ? entry.rank : ""}（${actual.map((c) => (c.rank ?? "?") + (c.suit ?? "?")).join(" ")})`);
   }
 }
 
 /** 创建一局（M2）：发牌、随机决定临时特权证、可选注入卡池（黑市供应堆/简易过滤）与角色（roleSetup），进入第一回合 */
 export function createGame(
-  playerInfos: { id: string; name: string; characterId?: string }[],
+  playerInfos: { id: string; name: string; characterId?: string; isDealer?: boolean }[],
   config: GameConfig,
   seed: number,
   pool?: CardPool,
-  opts: { simple?: boolean } = {},
+  opts: { simple?: boolean; solo?: boolean } = {},
 ): GameState {
   if (playerInfos.length < 2 || playerInfos.length > 4) {
     throw new Error("MVP 白板局支持 2-4 人");
   }
-  const players = playerInfos.map((info, seat) => newPlayer(info.id, info.name, seat));
+  const players = playerInfos.map((info, seat) => {
+    const p = newPlayer(info.id, info.name, seat);
+    if (info.isDealer) p.isDealer = true;
+    return p;
+  });
   const state: GameState = {
     players,
     phase: "draw",
     turn: 1,
     passHolderSeat: null,
     simple: !!opts.simple, // 简易模式（规则 10.1：去 J/Q/K/A、无免费删牌），票据 24 核对修复
+    solo: !!opts.solo, // 单人模式：玩家 vs 机械荷官 NPC
     blackMarket: {
       slots: Array.from({ length: config.blackMarketSlots }, () => ({
         defId: null,
@@ -479,6 +492,7 @@ export function createGame(
     finished: false,
     winners: [],
     setupDeleteQueue: [],
+    fateDeck: undefined,
   };
 
   // 卡池注入：黑市供应堆（按 count 展开；简易模式仅黄边）→ 填满栏位
@@ -498,6 +512,10 @@ export function createGame(
         slot.subtype = next.subtype;
       }
     }
+    // 命运牌库注入（单人模式规则 §12）
+    if (pool.fate.length > 0) {
+      state.fateDeck = buildFateDecks(pool, state);
+    }
   }
 
   // 角色注入：设置 characterId 并应用游戏开始 setup（roleSetup）
@@ -512,7 +530,7 @@ export function createGame(
 
   // 每人一副洗混（标准 54 张；简易模式 38 张 = 数字牌 2-10 × 4 花色 + 双王，规则 10.1）
   for (const p of state.players) {
-    p.zones.draw = shuffle(state, buildDeck(p.seat, state.simple));
+    p.zones.draw = shuffle(state, buildDeck(p.seat, !!state.simple));
   }
   // 发初始手牌（每人 6 张），再处理开局删除队列（role:05 等需手牌已到位才能执行）
   for (const p of state.players) {

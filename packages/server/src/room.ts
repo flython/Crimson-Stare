@@ -38,12 +38,12 @@ import {
 } from "@crimson/engine";
 import type { SummaryStore } from "./db.js";
 
-export type Mode = "easy" | "standard";
+export type Mode = "easy" | "standard" | "solo";
 
 /** 客户端 → 服务端消息（docs/protocol.md v1 对齐；action 内 playerId 由 server 注入） */
 export type ClientMessage =
   | { type: "hello"; name: string; token?: string }
-  | { type: "createRoom"; mode?: Mode; config?: Partial<GameConfig> }
+  | { type: "createRoom"; mode?: Mode; config?: Partial<GameConfig>; dealer?: string }
   | { type: "joinRoom"; roomId: string }
   | { type: "startGame" }
   | { type: "action"; action: Omit<Action, "playerId"> }
@@ -117,8 +117,18 @@ function autoActionFor(state: GameState, p: PlayerState): Action | null {
         : { type: "playCards", playerId: p.id, cardIds };
       return action;
     }
-    case "purchase":
+    case "purchase": {
+      // solo 荷官贪心购买：选最贵的可购买栏位（price + bonusChips 总和最高）
+      if (p.isDealer && state.solo) {
+        const candidates = state.blackMarket.slots
+          .map((slot, idx) => ({ slot, idx }))
+          .filter(({ slot }) => slot.defId && p.chips >= slot.price);
+        if (candidates.length === 0) return { type: "skipPurchase", playerId: p.id };
+        candidates.sort((a, b) => (b.slot.price + b.slot.bonusChips) - (a.slot.price + a.slot.bonusChips));
+        return { type: "purchase", playerId: p.id, slotIndex: candidates[0]!.idx };
+      }
       return { type: "skipPurchase", playerId: p.id };
+    }
     case "delete":
       return { type: "ready", playerId: p.id }; // 不删牌
     case "reshape":
@@ -166,6 +176,7 @@ export class Room {
   readonly config: GameConfig;
   private readonly pool: CardPool;
   private readonly store: SummaryStore | null;
+  private readonly dealerName: string | undefined;
   readonly seats: Seat[] = [];
   state: GameState | null = null;
   started = false;
@@ -182,6 +193,7 @@ export class Room {
     config: GameConfig;
     pool: CardPool;
     store?: SummaryStore | null;
+    dealer?: string;
   }) {
     this.id = opts.id;
     this.mode = opts.mode;
@@ -189,6 +201,7 @@ export class Room {
     this.config = opts.config;
     this.pool = opts.pool;
     this.store = opts.store ?? null;
+    this.dealerName = opts.dealer;
   }
 
   view(): RoomView {
@@ -248,7 +261,7 @@ export class Room {
     seat.connected = true;
   }
 
-  /** 开始对局：简易模式随机分配 4 张 simpleOnly 角色 → createGame 注入 pool + simple 过滤 */
+  /** 开始对局：简易模式随机分配 4 张 simpleOnly 角色；单人模式注入机械荷官 NPC */
   start(): void {
     if (this.state || this.started) return;
     if (this.seats.length < MIN_PLAYERS) throw new Error(`至少需要 ${MIN_PLAYERS} 名玩家`);
@@ -259,13 +272,20 @@ export class Room {
       });
     }
     const seed = Math.floor(Math.random() * 0xffffffff);
-    this.state = createGame(
-      this.seats.map((s) => ({ id: s.playerId, name: s.name, characterId: s.characterId ?? undefined })),
-      this.config,
-      seed,
-      this.pool,
-      { simple: this.mode === "easy" },
-    );
+
+    // solo 模式：在玩家 seat 之后注入荷官 NPC（座位 1）
+    const gameSeats =
+      this.mode === "solo"
+        ? [
+            ...this.seats.map((s) => ({ id: s.playerId, name: s.name, characterId: s.characterId ?? undefined })),
+            { id: "dealer", name: this.dealerName ?? "荷官", characterId: undefined, isDealer: true },
+          ]
+        : this.seats.map((s) => ({ id: s.playerId, name: s.name, characterId: s.characterId ?? undefined }));
+
+    this.state = createGame(gameSeats, this.config, seed, this.pool, {
+      simple: this.mode === "easy",
+      solo: this.mode === "solo",
+    });
     this.startedAt = Date.now();
     this.started = true;
   }
@@ -517,11 +537,15 @@ export class RoomManager {
     this.handleHello(socket, { name: "", token });
   }
 
-  private handleCreateRoom(socket: WebSocket, msg: { mode?: Mode; config?: Partial<GameConfig> }): void {
+  private handleCreateRoom(socket: WebSocket, msg: { mode?: Mode; config?: Partial<GameConfig>; dealer?: string }): void {
     const identity = this.requireIdentity(socket);
     const mode = msg.mode ?? "easy";
-    if (mode !== "easy") {
-      send(socket, { type: "error", code: "MODE_UNAVAILABLE", message: "标准/单人模式尚未开放，请选择简易模式" });
+    if (mode === "standard") {
+      send(socket, { type: "error", code: "MODE_UNAVAILABLE", message: "标准模式尚未开放，请选择简易模式" });
+      return;
+    }
+    if (mode === "solo" && !msg.dealer) {
+      send(socket, { type: "error", code: "MISSING_DEALER", message: "单人模式需选择荷官" });
       return;
     }
     if (this.roomOf(identity)) {
@@ -535,11 +559,18 @@ export class RoomManager {
       config: { ...this.baseConfig, ...(msg.config ?? {}) },
       pool: this.pool,
       store: this.store,
+      dealer: mode === "solo" ? msg.dealer : undefined,
     });
     this.rooms.set(room.id, room);
     room.addSeat(identity, socket);
     this.playerRooms.set(identity.playerId, room.id);
     room.broadcastRoomState();
+    // solo 模式：自动开局（荷官 NPC 立即加入，无需等待）
+    if (mode === "solo") {
+      room.start();
+      room.broadcastRoomState();
+      room.afterStateChange();
+    }
   }
 
   private handleJoinRoom(socket: WebSocket, roomId: string): void {

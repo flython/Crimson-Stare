@@ -8,7 +8,7 @@ import type { Card, CardPool } from "@crimson/engine";
 
 export interface RoomView {
   roomId: string;
-  mode: "easy" | "standard";
+  mode: "easy" | "standard" | "solo";
   started: boolean;
   finished: boolean;
   ownerId: string;

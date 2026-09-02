@@ -1,7 +1,7 @@
 # 10 - M2 卡牌逻辑与数据管道 spec
 
 Type: task
-Status: ready-for-agent
+Status: resolved
 Blocked by: 02, 06
 
 ## Problem Statement

@@ -31,9 +31,10 @@ import {
   placeholderEffect,
   registerDeleteHook,
   afterCardsDeleted,
+  rollDice,
 } from "./primitives.js";
 import { promptChooseCard, promptChooseOption, promptChoosePlayer } from "./interactive.js";
-import { shuffle } from "../core/rng.js";
+import { shuffle, nextInt } from "../core/rng.js";
 import type { EffectContext } from "../core/effects.js";
 import { registerActionHook, registerEffect } from "../core/effects.js";
 import type { GameState, PlayerState, SetupDeleteEntry } from "../core/state.js";
@@ -754,7 +755,9 @@ const role24SwapResolve = (state: GameState, ctx: EffectContext, choice: string 
   const id = ids[0]!;
   const idx = p.zones.hand.findIndex((c) => c.id === id);
   if (idx === -1) return;
-  const [card] = p.zones.hand.splice(idx, 1);
+  const spliced = p.zones.hand.splice(idx, 1);
+  if (!spliced[0]) return;
+  const card = spliced[0]!;
   // 角色牌下的5：存到新字段 roleTableCards
   p.roleTableCards = p.roleTableCards ?? [];
   p.roleTableCards.push(card);
@@ -783,7 +786,9 @@ const role24SwapEndResolve = (state: GameState, ctx: EffectContext, choice: stri
   for (const id of ids) {
     const idx = (p.roleTableCards ?? []).findIndex((c) => c.id === id);
     if (idx === -1) continue;
-    const [card] = (p.roleTableCards ?? []).splice(idx, 1);
+    const spliced = (p.roleTableCards ?? []).splice(idx, 1);
+    const card = spliced[0];
+    if (!card) continue;
     p.zones.hand.push(card);
   }
   if (ids.length > 0) logText(state, `${p.name} 将 ${ids.length} 张5收回手牌`);
@@ -910,7 +915,9 @@ const role34ReshapeResolve = (state: GameState, ctx: EffectContext, choice: stri
   const id = ids[0]!;
   const idx = p.zones.discard.findIndex((c) => c.id === id);
   if (idx === -1) return;
-  const [card] = p.zones.discard.splice(idx, 1);
+  const spliced = p.zones.discard.splice(idx, 1);
+  const card = spliced[0];
+  if (!card) return;
   p.zones.draw.unshift(card);
   logText(state, `${p.name} 将 ${card.id} 置于抽牌堆顶`);
 };
@@ -938,7 +945,9 @@ const role35SwapEndResolve = (state: GameState, ctx: EffectContext, choice: stri
   // 目标随机弃1摸1
   if (target.zones.hand.length > 0) {
     const idx = nextInt(state, target.zones.hand.length);
-    const [card] = target.zones.hand.splice(idx, 1);
+    const spliced = target.zones.hand.splice(idx, 1);
+    const card = spliced[0];
+    if (!card) return;
     target.zones.discard.push(card);
     logText(state, `${target.name} 随机弃置了 ${card.id}`);
   }
@@ -1086,10 +1095,14 @@ const role39DuelResolve = (state: GameState, ctx: EffectContext, choice: string 
   // 检查出牌区是否与宣告一致
   const declared = (p.declarations?.["role:39:declared"] ?? "").split(";").filter(Boolean);
   const match = declared.every((d) => {
-    const [id, rankSuit] = d.split(":");
-    const [rank, suit] = rankSuit.split("-");
+    const parts = d.split(":");
+    if (parts.length < 2) return false;
+    const [id, rankSuit] = parts as [string, string];
+    const rsParts = rankSuit.split("-");
+    if (rsParts.length < 2) return false;
+    const [rank, suit] = rsParts as [string, string];
     const card = p.zones.play.find((c) => c.id === id);
-    return card && String(card.rank) === rank && card.suit === suit;
+    return !!card && String(card.rank) === rank && card.suit === suit;
   });
   if (match) {
     gainChips(1)(state, { ...ctx, playerId: challengerId });
@@ -1276,7 +1289,8 @@ const role48ActionResolve = (state: GameState, ctx: EffectContext, choice: strin
   // 找出最晚响应的玩家（实际需全员响应，此处简化为随机选一个）
   const others = state.players.filter((x) => x.id !== p.id);
   if (others.length === 0) return;
-  const loser = others[nextInt(state, others.length)!];
+  const loser = others[nextInt(state, others.length)];
+  if (!loser) return;
   const actual = Math.min(amount, loser.chips);
   loser.chips -= actual;
   p.chips += actual;
@@ -1395,7 +1409,9 @@ const role51Settle: EffectBody = (state, ctx) => {
     for (const card of myCards) {
       const idx = p.zones.play.findIndex((c) => c.id === card.id);
       if (idx !== -1) {
-        const [c] = p.zones.play.splice(idx, 1);
+        const spliced = p.zones.play.splice(idx, 1);
+        const c = spliced[0];
+        if (!c) continue;
         opponent.zones.discard.push(c);
       }
     }
@@ -1546,7 +1562,8 @@ const role55DeleteResolve = (state: GameState, ctx: EffectContext, choice: strin
   logText(state, `${target.name} 掷出${roll}点，删除${toDelete}张`);
   for (let i = 0; i < toDelete; i++) {
     if (target.zones.draw.length === 0) break;
-    const [card] = target.zones.draw.shift()!;
+    const card = target.zones.draw.shift();
+    if (!card) break;
     target.zones.deleted.push(card);
     afterCardsDeleted(state, { ...ctx, playerId: targetId }, [card]);
   }

@@ -33,8 +33,9 @@ import {
   removeChip,
   rollDice,
   spendChips,
+  type EffectBody,
 } from "./primitives.js";
-import { promptChooseCard, promptChoosePlayer } from "./interactive.js";
+import { promptChooseCard, promptChooseOption, promptChoosePlayer } from "./interactive.js";
 import { SUITS, type Suit } from "../cards.js";
 import { type ChipView, HandCategory } from "../hand-evaluator.js";
 
@@ -761,7 +762,7 @@ export function registerMarketEffects(): void {
       let opponentId: string;
       let category: string;
       if (choiceStr.includes(":")) {
-        [opponentId, category] = choiceStr.split(":");
+        [opponentId, category] = choiceStr.split(":") as [string, string];
       } else {
         // 单对手情况：carry 存 opponentId，choice 是 category
         opponentId = s.pendingPrompt ? (s.pendingPrompt as any).carry ?? choiceStr : choiceStr;
@@ -1018,7 +1019,7 @@ export function registerMarketEffects(): void {
       // 收集对手的带芯片牌
       const chipsWithOp = opponents
         .flatMap((op) => Object.keys(op.zones.chips).map((cardId) => ({ player: op, cardId })))
-        .filter((x) => x.cardId in op.zones.chips);
+        .filter((x) => x.cardId in x.player.zones.chips);
       if (chipsWithOp.length === 0) return;
       if (chipsWithOp.length === 1) {
         chipsWithOp[0]!.player.disabledChipCards = [

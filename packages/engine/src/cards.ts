@@ -24,6 +24,8 @@ export interface Card {
    * 用于 UI 显示"修改后点数 (原始点数±芯片加值)"。
    */
   baseRank?: number | null;
+  /** 魅魔(51)：从对手抽来的牌，记录来源玩家 id */
+  fromPlayerId?: string;
 }
 
 /** 构造一张普通牌的便捷函数（测试与引擎共用）。 */

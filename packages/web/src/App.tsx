@@ -12,13 +12,17 @@ interface ModeEntry {
   name: string;
   desc: string;
   tag: string;
-  /** false = 灰显「敬请期待 M3」（grilling Q6 决策） */
   available: boolean;
 }
 
+const DEALERS = [
+  { id: "Doloris", name: "Doloris", desc: "稳定型荷官，常规压力", tag: "推荐首次" },
+  { id: "Timoris", name: "Timoris", desc: "效果优先，节奏更快", tag: "挑战中等" },
+  { id: "Mortis", name: "Mortis", desc: "极限压力，高难度", tag: "极限挑战" },
+] as const;
+
 const TOKEN_KEY = "crimson.stare.token";
 
-/** 模式选择。简易模式已接入 15 号票据联调链路，其余灰显。 */
 const MODES: ModeEntry[] = [
   {
     id: "easy",
@@ -38,8 +42,8 @@ const MODES: ModeEntry[] = [
     id: "solo",
     name: "单人模式",
     desc: "挑战机械荷官 Doloris / Timoris / Mortis",
-    tag: "敬请期待 M3",
-    available: false,
+    tag: "2 血筹起，率先 24 票胜",
+    available: true,
   },
 ];
 
@@ -56,7 +60,11 @@ export default function App() {
   /** 卡池元数据（票据 19）：hello 后随 cardPool 消息下发一次，静态数据 */
   const [pool, setPool] = useState<CardPool | null>(null);
   const [error, setError] = useState("");
+  /** 单人模式：已选荷官 */
+  const [dealer, setDealer] = useState<string>("Doloris");
   const clientRef = useRef<GameClient | null>(null);
+  /** 连接建立后立即发送 createRoom 的模式（solo 或 undefined） */
+  const createRoomModeRef = useRef<Mode | undefined>(undefined);
 
   useEffect(() => {
     return () => clientRef.current?.close();
@@ -76,6 +84,10 @@ export default function App() {
         switch (msg.type) {
           case "welcome":
             localStorage.setItem(TOKEN_KEY, msg.token);
+            // 连接建立后立即建房（solo 模式建房含荷官，服务端 auto-start）
+            if (createRoomModeRef.current) {
+              client.send({ type: "createRoom", mode: createRoomModeRef.current, dealer });
+            }
             break;
           case "cardPool":
             setPool(msg.pool);
@@ -104,7 +116,7 @@ export default function App() {
     });
     clientRef.current = client;
     client.connect().then(
-      () => setStage("lobby"),
+      () => {},
       (e: Error) => setError(e.message),
     );
   }
@@ -130,6 +142,7 @@ export default function App() {
     setYou("");
     setError("");
     setStage("mode");
+    createRoomModeRef.current = undefined;
   }
 
   return (
@@ -165,9 +178,30 @@ export default function App() {
         </div>
       ) : null}
 
-      {stage === "conn" && mode === "easy" ? (
+      {stage === "conn" ? (
         <div className="conn-form">
-          <h2 className="lobby-title">连接对局服务器</h2>
+          <h2 className="lobby-title">
+            {mode === "solo" ? "选择荷官并连接" : "连接对局服务器"}
+          </h2>
+          {mode === "solo" ? (
+            <div className="dealer-select">
+              <p className="conn-sub">选择你的对手</p>
+              <div className="dealer-cards">
+                {DEALERS.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className={`dealer-card${dealer === d.id ? " selected" : ""}`}
+                    onClick={() => setDealer(d.id)}
+                  >
+                    <span className="dealer-name">{d.name}</span>
+                    <span className="dealer-desc">{d.desc}</span>
+                    <span className="dealer-tag">{d.tag}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <input
             className="text-input"
             placeholder="昵称"
@@ -181,8 +215,15 @@ export default function App() {
             onChange={(e) => setWsUrl(e.target.value)}
           />
           <div className="lobby-actions">
-            <button type="button" className="btn gold" onClick={connect}>
-              连接
+            <button
+              type="button"
+              className="btn gold"
+              onClick={() => {
+                createRoomModeRef.current = mode === "solo" ? "solo" : "easy";
+                connect();
+              }}
+            >
+              {mode === "solo" ? "开始挑战" : "连接"}
             </button>
             <button type="button" className="btn" onClick={disconnect}>
               返回
