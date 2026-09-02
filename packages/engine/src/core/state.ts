@@ -134,6 +134,8 @@ export interface PlayerState {
   seat: number;
   /** 角色牌 defId，M2 前为 null（白板局） */
   characterId: string | null;
+  /** 性别（用于魅魔58效果）；'M'=♂，'F'=♀，'?'=同时视为♂与♀ */
+  gender?: "M" | "F" | "?";
   /** 血筹（公开信息，金科玉律 12） */
   chips: number;
   tickets: number;
@@ -176,6 +178,30 @@ export interface PlayerState {
   /** 单张强化芯片失效的牌 id 列表（消磁枪 / 屏蔽器），区别于全局 chipsDisabled */
   disabledChipCards?: string[];
   zones: PlayerZones;
+  /** 本回合必须跳过删牌阶段（女仆25）；由 whiteboard delete 阶段入口检查 */
+  skipDeletePhase?: boolean;
+  /** 本回合只可支付血筹删牌（飞车党26、双生子兄28） */
+  paidDeleteOnly?: boolean;
+  /** 无面人(38)：当前临时获得的角色技能来源 defId */
+  temporaryRoleSource?: string;
+  /** 无面人(38)：临时技能在哪类阶段开始时过期 */
+  roleSkillExpiresAt?: PhaseId;
+  /** 捣蛋鬼(22)：必须跳过重整阶段 */
+  mustSkipReshape?: boolean;
+  /** 捣蛋鬼(22)：技能无法被无效 */
+  skillImmune?: boolean;
+  /** 白蔷薇(40)：本回合是否已获得首个换牌者奖励 */
+  firstSwapBonusTaken?: boolean;
+  /** 双重人格公主(53)：当前人格 'normal' | 'manic' */
+  currentPersona?: "normal" | "manic";
+  /** 双重人格公主(53)：弃牌堆是否正面朝上（躁狂人格=弃牌堆对他人可见） */
+  personaDiscardFaceUp?: boolean;
+  /** 编剧(52)：本回合是否已获得恰好50的奖励（防重复） */
+  编剧BonusTaken?: boolean;
+  /** 资本家(60)：本阶段是否已兑换过 */
+  exchangeThisPhase?: boolean;
+  /** 猪神病人(48)：上回合交血筹的玩家 id */
+  lastPigPattedBy?: string;
 }
 
 /** 黑市区一个栏位 */
@@ -235,4 +261,12 @@ export interface GameState {
   finished: boolean;
   /** 胜者 playerId 列表（平局可多人） */
   winners: string[];
+  /** 窥天师(44)：天意暗置区（第一回合购买阶段前放入黑市顶7张） */
+  天意Slots?: Card[];
+  /** 我的名字？(42)：自定义牌型名称 */
+  role42CustomHandName?: string;
+  /** 江东之主(47)：永久持有特权证（对手无法获得）；创建游戏时设置 */
+  permanentPassHolder?: boolean;
+  /** 无面人(38)：角色牌堆（开局构建，每回合抽2选1） */
+  role38CharacterDeck?: Card[];
 }
