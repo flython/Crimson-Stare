@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Card, ZoneId } from "@crimson/engine";
+import type { Card, CardDef, ZoneId } from "@crimson/engine";
 
 const SUIT_SYMBOL: Record<string, string> = {
   S: "♠",
@@ -27,7 +27,7 @@ export interface CardPickerProps {
   candidates: string[];
   /** 来源区域 */
   from: CardSource;
-  /** 区域内全部牌（我方可见的完整列表，含非候选；draw 对我亦不可见时由调用方传空/摘要） */
+  /** 区域内全部牌（我方可见的完整列表，含非候选；draw 对我也不可见时由调用方传空/摘要） */
   cards: Card[];
   /** 是否多选（默认 true，chooseCard 支持多选） */
   multiSelect?: boolean;
@@ -40,6 +40,8 @@ export interface CardPickerProps {
   onConfirm: (cardIds: string[]) => void;
   /** 取消交互 */
   onCancel?: () => void;
+  /** 黑市卡池元数据（043 再来一批渲染 market 栏位用；from="market" 时需传入） */
+  marketById?: Map<string, CardDef>;
 }
 
 /** 占位卡牌面：纯色块 + 点数/花色文本（图片缺失时回退，与 05 原型 .card 一致） */
@@ -61,6 +63,19 @@ function CardFace({ card }: { card: Card }) {
   );
 }
 
+/** 黑市区栏位卡面（043 再来一批专用）：用 defId 查 marketById 渲染卡名/效果/价格 */
+function MarketCardFace({ card, marketById }: { card: Card; marketById: Map<string, CardDef> }) {
+  // @ts-expect-error Card lacks defId; injected by Table.tsx for market slots
+  const defId = card.defId as string | undefined;
+  const meta = defId ? marketById.get(defId) : undefined;
+  return (
+    <span className="market-face">
+      <span className="bmName">{meta?.name ?? defId ?? "空槽"}</span>
+      <span className="bmSub">{meta?.effectText ?? ""}</span>
+    </span>
+  );
+}
+
 /**
  * CardPicker — 选牌（pendingPrompt.kind === "chooseCard"）。
  * 从指定区域（hand/discard 等）展示候选牌，支持多选（checkbox 风格）与确认；
@@ -75,6 +90,7 @@ export default function CardPicker({
   promptText,
   onConfirm,
   onCancel,
+  marketById,
 }: CardPickerProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -121,7 +137,11 @@ export default function CardPicker({
                 aria-label={`${isSel ? "已选" : "未选"} ${c.rank ?? "JOKER"}${c.suit ?? ""}`}
               >
                 {multiSelect ? <span className="check">{isSel ? "✓" : ""}</span> : null}
-                <CardFace card={c} />
+                {from === "market" && marketById ? (
+                  <MarketCardFace card={c} marketById={marketById} />
+                ) : (
+                  <CardFace card={c} />
+                )}
               </button>
             );
           })}

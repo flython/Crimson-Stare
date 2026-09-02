@@ -1,4 +1,4 @@
-import type { Card } from "@crimson/engine";
+import type { Card, CardDef } from "@crimson/engine";
 import type { TablePlayer, ViewPendingPrompt } from "../lib/types.js";
 import { pendingPromptForMe, pendingPromptWaiter } from "../lib/types.js";
 import TargetPicker from "./TargetPicker.js";
@@ -14,6 +14,8 @@ export interface PendingPromptBannerProps {
   players: TablePlayer[];
   /** 我方各区域牌（chooseCard 渲染数据源：from → cards；"deck" = 抽牌堆+弃牌区） */
   cardsByZone?: Partial<Record<CardSource, Card[]>>;
+  /** 黑市卡池元数据（043 再来一批渲染 market 栏位用） */
+  marketById?: Map<string, CardDef>;
   /** 确认选择 → 发送 resolvePrompt */
   onResolve: (choice: string | string[]) => void;
   /** 取消交互 */
@@ -31,6 +33,7 @@ export default function PendingPromptBanner({
   myPlayerId,
   players,
   cardsByZone = {},
+  marketById,
   onResolve,
   onCancel,
 }: PendingPromptBannerProps) {
@@ -89,6 +92,7 @@ export default function PendingPromptBanner({
           promptText={prompt.promptText}
           onConfirm={onResolve}
           onCancel={onCancel}
+          marketById={marketById}
         />
       )}
     </>
