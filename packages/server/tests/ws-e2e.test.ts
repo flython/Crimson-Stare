@@ -58,6 +58,13 @@ interface SnapState {
     from?: string;
   } | null;
   log: Array<{ turn: number; phase: string; text: string }>;
+  duelResult?: Array<{
+    playerId: string;
+    category: number;
+    totalPoints: number;
+    rank: number;
+    cards: Array<{ id: string; rank: number; suit: string; wasJoker: boolean }>;
+  }>;
 }
 
 /** 测试客户端：连接 + 消息队列 + 按 type/pred 消费（所有服务端消息统一入队，避免时序丢失） */
@@ -233,17 +240,19 @@ async function playSwap(a: TestClient, b: TestClient, snapA: Snap, snapB: Snap):
 }
 
 /** 出牌阶段：双方各出前 5 张 → 推进到购买阶段（B 的出牌即触发进入 purchase） */
-async function playCardsPhase(a: TestClient, b: TestClient, snapA: Snap, snapB: Snap): Promise<{ snapA: Snap; snapB: Snap }> {
+async function playCardsPhase(a: TestClient, b: TestClient, snapA: Snap, snapB: Snap): Promise<{ snapA: Snap; snapB: Snap; settleSnap: Snap }> {
   const handA = (me(snapA).zones.hand as { cards: { id: string }[] }).cards;
   snapA = await a.act({ type: "action", action: { type: "playCards", cardIds: handA.slice(0, 5).map((c) => c.id) } });
   const handB = (me(snapB).zones.hand as { cards: { id: string }[] }).cards;
   snapB = await b.act({ type: "action", action: { type: "playCards", cardIds: handB.slice(0, 5).map((c) => c.id) } });
+  // 等待结算阶段快照（含 duelResult，供票据 27 回归测试断言）
+  const settleSnap = await a.waitPhase("settle");
   snapA = await a.waitPhase("purchase"); // A 收到进入 purchase 的广播
-  return { snapA, snapB };
+  return { snapA, snapB, settleSnap };
 }
 
 /** 推进到购买阶段（换 + 出 完整动作链） */
-async function toPurchase(a: TestClient, b: TestClient, snapA: Snap, snapB: Snap): Promise<{ snapA: Snap; snapB: Snap }> {
+async function toPurchase(a: TestClient, b: TestClient, snapA: Snap, snapB: Snap): Promise<{ snapA: Snap; snapB: Snap; settleSnap: Snap }> {
   const afterSwap = await playSwap(a, b, snapA, snapB);
   return playCardsPhase(a, b, afterSwap.snapA, afterSwap.snapB);
 }
@@ -295,6 +304,18 @@ describe("WS 房间与协议（票据 15）", () => {
     // 结：对决奖励入账（2 人局第一名 +4 票）
     const sumTickets = (afterPlay.snapA.state as SnapState).players.reduce((acc, p) => acc + p.tickets, 0);
     expect(sumTickets).toBeGreaterThanOrEqual(4);
+    // 票据 27：结算阶段 snapshot 含 duelResult（含各玩家牌型/名次）
+    const settleState = afterPlay.settleSnap.state as SnapState;
+    expect(settleState.phase).toBe("settle");
+    expect(settleState.duelResult).toBeDefined();
+    expect(settleState.duelResult!.length).toBe(2);
+    for (const r of settleState.duelResult!) {
+      expect(r.playerId).toBeDefined();
+      expect(r.category).toBeGreaterThanOrEqual(0);
+      expect(r.totalPoints).toBeGreaterThan(0);
+      expect(r.rank).toBeGreaterThanOrEqual(1);
+      expect(r.cards.length).toBeGreaterThan(0);
+    }
     // 换牌停手后血筹充足（>= 4）
     const chipsAfterSwap = (afterPlay.snapA.state as SnapState).players.map((p) => p.chips);
     expect(Math.min(...chipsAfterSwap)).toBeGreaterThanOrEqual(4);

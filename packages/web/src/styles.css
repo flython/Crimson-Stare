@@ -1811,3 +1811,76 @@ body:has(.table-root) {
   border-radius: inherit;
   pointer-events: none;
 }
+
+/* 结算面板（票据 27）：结算阶段展示各玩家牌型/名次 */
+.settlePanel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 6px 12px;
+}
+.settlePanel .panelTitle {
+  font-size: 13px;
+  color: var(--gold);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.settleResults {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.settleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.settleRow.me {
+  border-color: var(--gold);
+}
+.settleMeta {
+  display: flex;
+  flex-direction: column;
+  min-width: 56px;
+}
+.settleRank {
+  font-size: 11px;
+  color: var(--muted);
+}
+.settleName {
+  font-size: 12px;
+  color: var(--text);
+}
+.settleCards {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.settleCards .card.small {
+  width: 32px;
+  height: 46px;
+  font-size: 11px;
+}
+.settleCards .card.small .suit {
+  font-size: 9px;
+}
+.settleInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 48px;
+}
+.settleCat {
+  font-size: 12px;
+  color: var(--gold);
+}
+.settlePts {
+  font-size: 11px;
+  color: var(--muted);
+}

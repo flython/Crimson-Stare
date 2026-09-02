@@ -5,7 +5,7 @@
  * M2.4：pendingPrompt 的 chooseCard 候选牌 id 是私密的，只对目标玩家展开，其余人只见提示。
  */
 import type { Card } from "../cards.js";
-import type { GameState, PendingPrompt, PhaseId, PlayerZones } from "./state.js";
+import type { DuelResultEntry, GameState, PendingPrompt, PhaseId, PlayerZones } from "./state.js";
 
 export type ZoneDigest = { count: number } | { cards: Card[] };
 
@@ -68,5 +68,7 @@ export function redactState(state: GameState, viewerId: string): object {
     log: state.log,
     finished: state.finished,
     winners: state.winners,
+    /** 本回合对决结果（结算阶段写入，供前端展示牌型/名次） */
+    duelResult: state.duelResult as DuelResultEntry[] | undefined,
   };
 }

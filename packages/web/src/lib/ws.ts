@@ -57,6 +57,14 @@ export interface SnapState {
   log: Array<{ turn: number; phase: string; text: string }>;
   finished: boolean;
   winners: string[];
+  /** 本回合对决结果（结算阶段写入，展示各玩家牌型/名次/奖励） */
+  duelResult?: Array<{
+    playerId: string;
+    category: number;
+    totalPoints: number;
+    rank: number;
+    cards: Array<{ id: string; rank: number; suit: string; wasJoker: boolean }>;
+  }>;
 }
 
 export interface GameClientOptions {

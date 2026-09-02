@@ -469,6 +469,13 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
     play: myPlayer ? cardsOf(myPlayer.zones.play) : [],
     deleted: myPlayer ? cardsOf(myPlayer.zones.deleted) : [],
     deck: [...(myPlayer ? cardsOf(myPlayer.zones.draw) : []), ...myDiscard], // 全牌库（清洁工）
+    // 043 再来一批：黑市区栏位（slot index → Card，defId 挂载在卡对象上供 CardPicker 渲染元数据）
+    market: snap.blackMarket.slots.map((slot, i) => {
+      const c = { id: String(i), isJoker: false, suit: null, rank: null } as Card;
+      // @ts-ignore ponytail: defId 注入用于 market 卡面渲染，升级路径：扩展 Card 接口
+      (c as { defId?: string }).defId = slot.defId ?? undefined;
+      return c;
+    }),
   };
 
   // ===== 对局结束：胜者 + 日志 =====
@@ -509,6 +516,7 @@ export default function Table({ snap, you, pool, onAction, onResolve }: TablePro
         myPlayerId={you}
         players={players}
         cardsByZone={cardsByZone}
+        marketById={marketById}
         onResolve={onResolve}
       />
 
