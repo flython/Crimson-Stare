@@ -193,6 +193,12 @@ function chipInstall({
     },
     resolve: (state, ctx, choice) => {
       const cardId = Array.isArray(choice) ? choice[0]! : choice;
+      if (!cardId) {
+        // 空选择 = 跳过不装芯片（票据 28：026/032/033 等"可跳过"效果的空数组语义；
+        // 玩家手动空选直接走这里，区别于 server 超时 autoResolve 的"兜底改选首候选"）
+        logText(state, `${ctx.effectId} 未选择插入目标，跳过装芯片（费用不退）`);
+        return;
+      }
       const p = getPlayer(state, ctx);
       p.zones.chips[cardId] = defId;
       logText(state, `${p.name} 将强化芯片 ${defId} 插入 ${cardId}`);

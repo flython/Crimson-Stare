@@ -85,6 +85,7 @@ export default function PendingPromptBanner({
           candidates={prompt.candidates}
           from={prompt.from}
           cards={cardsByZone[prompt.from] ?? []}
+          allowEmpty
           promptText={prompt.promptText}
           onConfirm={onResolve}
           onCancel={onCancel}

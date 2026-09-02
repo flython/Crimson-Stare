@@ -187,6 +187,17 @@ describe("黑市牌效果（票据 12）", () => {
       expect(g.players[0]!.zones.discard.find((c) => c.id === "t1")!.rank).toBe(9);
     });
 
+    it("空选择 = 跳过不装芯片（票据 28）：resolve 空数组不报错、不挂载、点数不变", () => {
+      let g = makeGame();
+      g.players[0]!.zones.discard = [card(5, "S", "t1")];
+      g = buy(g, "001");
+      expect(g.pendingPrompt).toMatchObject({ kind: "chooseCard", effectId: "market:001", from: "discard" });
+      g = resolve(g, []); // 玩家手动空选（跳过/放弃）
+      expect(g.pendingPrompt).toBeNull();
+      expect(g.players[0]!.zones.chips).toEqual({}); // 未挂载
+      expect(g.players[0]!.zones.discard.find((c) => c.id === "t1")!.rank).toBe(5); // 点数不变
+    });
+
     it("金科玉律 4：数值越界拒绝——13+2=15 无候选弃置，12+2=14 可插", () => {
       let g = makeGame();
       g.players[0]!.zones.discard = [card(13, "S", "t1")];

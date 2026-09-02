@@ -31,6 +31,9 @@ export interface CardPickerProps {
   cards: Card[];
   /** 是否多选（默认 true，chooseCard 支持多选） */
   multiSelect?: boolean;
+  /** 是否允许空选跳过（默认 false）。true 时显示「跳过（不选）」按钮，且确认按钮在空选时仍可用，
+   *  空选回调 onConfirm([])（引擎 chooseCard 对 026/032/033 等效果把空数组视为"跳过/放弃"，票据 28）。 */
+  allowEmpty?: boolean;
   /** 交互提示文案（promptText） */
   promptText?: string;
   /** 确认选择 → 回调选中牌 id 数组 */
@@ -68,6 +71,7 @@ export default function CardPicker({
   from,
   cards,
   multiSelect = true,
+  allowEmpty = false,
   promptText,
   onConfirm,
   onCancel,
@@ -92,7 +96,8 @@ export default function CardPicker({
     });
   }
 
-  const confirmable = selected.size > 0;
+  // 允许空选时确认按钮不因空选禁用（空选 = 跳过/放弃，onConfirm([])）
+  const confirmable = selected.size > 0 || allowEmpty;
 
   return (
     <div className="overlay" onClick={onCancel ? () => onCancel() : undefined}>
@@ -144,13 +149,18 @@ export default function CardPicker({
               取消
             </button>
           ) : null}
+          {allowEmpty ? (
+            <button type="button" className="btn ghost" onClick={() => onConfirm([])}>
+              跳过（不选）
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn gold"
             disabled={!confirmable}
             onClick={() => onConfirm([...selected])}
           >
-            确认选择{multiSelect && confirmable ? `（${selected.size}）` : ""}
+            确认选择{multiSelect && selected.size > 0 ? `（${selected.size}）` : ""}
           </button>
         </div>
       </div>
