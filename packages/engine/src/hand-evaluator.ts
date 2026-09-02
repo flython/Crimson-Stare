@@ -205,6 +205,11 @@ export interface ChipView {
   rankOptions?: Record<string, number[]>;
   /** 视为 JOKER 参与求解（4 视为小丑 / 百变影像；由玩家在出牌时声明，票据 22 交互确定） */
   asJoker?: string[];
+  /**
+   * 仿制印章（014）：cardId → 目标 cardId，判定时此牌视为具有目标牌的 rank 和 suit。
+   * 015 复制芯片同理，但只复制芯片效果不复制 rank/suit。
+   */
+  copyRankSuit?: Record<string, string>;
 }
 
 /** JOKER / 视为 JOKER 的牌可赋的全部 52 种（点数 2-14 × 4 花色） */
@@ -224,22 +229,30 @@ interface ViewedCard {
 }
 
 /**
- * 应用判定视图：候选花色 / 候选点数（笛卡尔积）/ 复制牌（复制品 id 加 #dup 后缀）/ 视为 JOKER。
+ * 应用判定视图：候选花色 / 候选点数（笛卡尔积）/ 复制牌（复制品 id 加 #dup 后缀）/ 视为 JOKER / 仿制印章（014）。
  * 点数与花色候选同时存在时取笛卡尔积；两者全开等价 JOKER，由注册方直接用 asJoker 表示。
  */
 function applyChipView(cards: Card[], view?: ChipView): ViewedCard[] {
   const dup = new Set(view?.duplicate ?? []);
   const asJoker = new Set(view?.asJoker ?? []);
+  const copyRankSuit = view?.copyRankSuit ?? {};
   const out: ViewedCard[] = [];
+  // 构建 cardId → Card 索引，供 copyRankSuit 查找目标牌
+  const byId = new Map(cards.map((c) => [c.id, c]));
   const push = (c: Card, isDup: boolean) => {
     const free = c.isJoker || asJoker.has(c.id);
     let cands: readonly { rank: number; suit: Suit }[];
     if (free) {
       cands = ALL_ASSIGNMENTS;
     } else {
-      const ranks = view?.rankOptions?.[c.id] ?? [c.rank!];
-      const suits = view?.suitOptions?.[c.id] ?? [c.suit!];
-      cands = ranks.flatMap((rank) => suits.map((suit) => ({ rank, suit })));
+      // 若此牌被 014 仿制印章映射，取目标牌的 rank/suit（忽略目标牌的芯片效果）
+      const targetId = copyRankSuit[c.id];
+      const target = targetId ? byId.get(targetId) : undefined;
+      const rank = target?.rank ?? c.rank!;
+      const suit = target?.suit ?? c.suit!;
+      const ranks = view?.rankOptions?.[c.id] ?? [rank];
+      const suits = view?.suitOptions?.[c.id] ?? [suit];
+      cands = ranks.flatMap((r) => suits.map((s) => ({ rank: r, suit: s })));
     }
     out.push({
       id: isDup ? `${c.id}#dup` : c.id,

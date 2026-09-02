@@ -142,6 +142,12 @@ export function chipViewFromChips(
       case "017":
         (view.duplicate ??= []).push(cardId);
         break;
+      case "014": {
+        // declarations["chip:014"] = 目标 cardId，本牌视为目标牌的 rank/suit
+        const targetId = declarations?.["chip:014"];
+        if (targetId) (view.copyRankSuit ??= {})[cardId] = targetId;
+        break;
+      }
       default:
         break;
     }
@@ -576,6 +582,76 @@ export function registerMarketEffects(): void {
   registerEffect(chipInstall({ defId: "022" }));
   // 025 自毁芯片：结算结束时删除本回合打出的所有牌（含芯片所在牌），见 market:025:settle
   registerEffect(chipInstall({ defId: "025" }));
+  // 014 仿制印章【购买阶段】：插入时选目标牌（不限非 JOKER），对决时该牌视为目标牌的 rank/suit
+  registerEffect({
+    id: "market:014",
+    source: "blackMarket",
+    phase: "purchase",
+    timing: "during",
+    run: (state, ctx) => {
+      const p = getPlayer(state, ctx);
+      const candidates = p.zones.discard
+        .filter((c) => {
+          if (c.id in p.zones.chips) return false; // 金科玉律 3：每牌限 1 芯片
+          return !c.isJoker; // 014 可插非 JOKER 牌（无视目标牌是否为 JOKER）
+        })
+        .map((c) => c.id);
+      if (candidates.length === 0) {
+        logText(state, `014 仿制印章无合法插入目标，该黑市牌弃置（费用不退）`);
+        return;
+      }
+      promptChooseCard(state, "market:014", ctx.playerId!, candidates, "discard", "选择安装仿制印章的牌");
+    },
+    resolve: (state, ctx, choice) => {
+      const cardId = Array.isArray(choice) ? (choice[0] ?? "") : choice;
+      if (!cardId) {
+        logText(state, `${ctx.effectId} 未选择插入目标，跳过（费用不退）`);
+        return;
+      }
+      const p = getPlayer(state, ctx);
+      p.zones.chips[cardId] = "014";
+      logText(state, `${p.name} 将仿制印章插入 ${cardId}`);
+    },
+  });
+  // 014【对决阶段】：持有仿制印章的玩家选择出牌区的另一张牌，本牌视为其 rank/suit
+  registerEffect({
+    id: "market:014:during:duel",
+    source: "blackMarket",
+    phase: "duel",
+    timing: "during",
+    run: (state) => {
+      const holder = chipHolders(state, "014")[0];
+      if (!holder || state.pendingPrompt) return;
+      const chipCardId = Object.entries(holder.zones.chips).find(([, v]) => v === "014")?.[0];
+      if (!chipCardId) return;
+      // 如果仿制印章对应的牌不在出牌区，无法生效
+      const inPlay = holder.zones.play.some((c) => c.id === chipCardId);
+      if (!inPlay) return;
+      // 选另一张出牌区牌作为目标
+      const otherCards = holder.zones.play.filter((c) => c.id !== chipCardId);
+      if (otherCards.length === 0) return;
+      if (otherCards.length === 1) {
+        // 只有一个候选时直接使用
+        const target = otherCards[0]!;
+        holder.zones.chips[chipCardId] = "014"; // already set, just log
+        // 将 copyRankSuit 写入 declarations，供 resolveDuel 消费
+        holder.declarations = { ...(holder.declarations ?? {}), "chip:014": target.id };
+        logText(state, `${holder.name} 使用仿制印章，${chipCardId} 视为 ${target.id}`);
+        return;
+      }
+      promptChooseCard(state, "market:014:during:duel", holder.id, otherCards.map((c) => c.id), "play", "选择本回合视为哪张牌的 rank/suit（仿制印章）");
+    },
+    resolve: (state, ctx, choice) => {
+      const holder = chipHolders(state, "014")[0];
+      if (!holder) return;
+      const chipCardId = Object.entries(holder.zones.chips).find(([, v]) => v === "014")?.[0];
+      if (!chipCardId) return;
+      const targetId = Array.isArray(choice) ? (choice[0] ?? "") : choice;
+      if (!targetId) return;
+      holder.declarations = { ...(holder.declarations ?? {}), "chip:014": targetId };
+      logText(state, `${holder.name} 使用仿制印章，${chipCardId} 视为 ${targetId}`);
+    },
+  });
 
   // ── 秘密交易：黄边 ────────────────────────────────────────────────
   registerEffect(cheapDelete()); // 027 廉价删除
@@ -927,6 +1003,71 @@ export function registerMarketEffects(): void {
       const targetId = Array.isArray(choice) ? choice[0]! : choice;
       spendChips(1)(state, { ...ctx, playerId: targetId });
       gainChips(1)(state, { ...ctx, playerId: holder.id });
+    },
+  });
+  // 024 屏蔽器【对决阶段】：令一位玩家的1张强化芯片失效（消磁枪 051 同效果但不限时机）
+  registerEffect({
+    id: "market:024:during:duel",
+    source: "blackMarket",
+    phase: "duel",
+    timing: "during",
+    run: (state) => {
+      const holder = chipHolders(state, "024")[0];
+      if (!holder || state.pendingPrompt) return;
+      const opponents = state.players.filter((p) => p.id !== holder.id);
+      // 收集对手的带芯片牌
+      const chipsWithOp = opponents
+        .flatMap((op) => Object.keys(op.zones.chips).map((cardId) => ({ player: op, cardId })))
+        .filter((x) => x.cardId in op.zones.chips);
+      if (chipsWithOp.length === 0) return;
+      if (chipsWithOp.length === 1) {
+        chipsWithOp[0]!.player.disabledChipCards = [
+          ...(chipsWithOp[0]!.player.disabledChipCards ?? []),
+          chipsWithOp[0]!.cardId,
+        ];
+        logText(state, `${holder.name} 使用屏蔽器令 ${chipsWithOp[0]!.player.name} 的芯片失效`);
+        return;
+      }
+      promptChooseOption(
+        state,
+        "market:024:during:duel",
+        holder.id,
+        chipsWithOp.map((x) => ({ id: `${x.player.id}|${x.cardId}`, label: `令 ${x.player.name} 的 ${x.cardId} 失效` })),
+        "选择要失效的芯片",
+      );
+    },
+    resolve: (state, ctx, choice) => {
+      const holder = chipHolders(state, "024")[0];
+      if (!holder) return;
+      const choiceStr = String(choice);
+      const sep = choiceStr.indexOf("|");
+      if (sep === -1) return;
+      const playerId = choiceStr.slice(0, sep);
+      const cardId = choiceStr.slice(sep + 1);
+      const target = state.players.find((x) => x.id === playerId);
+      if (!target) return;
+      target.disabledChipCards = [...(target.disabledChipCards ?? []), cardId];
+      logText(state, `${holder.name} 使用屏蔽器令 ${target.name} 的 ${cardId} 失效`);
+    },
+  });
+  // 016 磁力线圈【重整阶段前】：重洗前可将弃牌堆中带此芯片的牌挑出放抽牌堆顶
+  registerEffect({
+    id: "market:016:before:reshape",
+    source: "blackMarket",
+    phase: "reshape",
+    timing: "before",
+    run: (state) => {
+      const holder = chipHolders(state, "016")[0];
+      if (!holder || state.pendingPrompt) return;
+      const cardWithChip = Object.entries(holder.zones.chips)
+        .find(([, chipDefId]) => chipDefId === "016")?.[0];
+      if (!cardWithChip) return;
+      const cardInDiscard = holder.zones.discard.find((c) => c.id === cardWithChip);
+      if (!cardInDiscard) return;
+      // 直接执行：抽出放抽牌堆顶
+      holder.zones.discard = holder.zones.discard.filter((c) => c.id !== cardWithChip);
+      holder.zones.draw.unshift(cardInDiscard);
+      logText(state, `${holder.name} 使用磁力线圈，将 ${cardWithChip} 放在抽牌堆顶`);
     },
   });
   // 008-012/017 的声明已由 chipViewFromChips 在判定阶段消费（见 mergeChipView），
