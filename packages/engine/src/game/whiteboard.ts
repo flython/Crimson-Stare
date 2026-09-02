@@ -610,7 +610,10 @@ export function reduce(state: GameState, action: Action, config: GameConfig): Ga
       if (moving.length !== action.cardIds.length) throw new Error("手牌中找不到待出的牌");
       if (moving.length === 0) throw new Error("出牌区不能为空");
 
-      // 六/七条放宽：上限 = 5 + 可造额外条数（六条 +six / 七条 +seven），受手牌张数约束（票据 24 核对修复）
+      // 六/七条放宽：上限 = 5 + 可造额外条数（六条 +six / 七条 +seven），受手牌张数约束（票据 24 核对修复）。
+      // 017 双生镜片口径（票据 35 固化）：卡面「对决将此牌视为 2 张」不放松出牌阶段至少 5 张实体牌的下限——
+      // 手牌不足 5 张时选所有手牌出（下方 minPlay 已按 hand.length 截断天然允许），其余时刻必须恰好 5 张；
+      // 双生镜片仅影响对决判定计数（该牌按 2 张计入张数/点数），不影响出牌下限。
       const { six, seven } = countSixSeven(moving);
       const maxPlay = Math.min(5 + six + seven, p.zones.hand.length);
       const minPlay = Math.min(5, config.handLimit);

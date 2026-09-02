@@ -102,6 +102,8 @@ export function roleTurnSetup(p: PlayerState): void {
 /**
  * 购买价格修正（票据 20）：吉祥物每回合首次购买半价。
  * 卡面示例「3 血筹的牌以 1 血筹购入」= 向下取整（与"向上取整"四字冲突，按示例实现，见票据 20 Answer）。
+ * 吉祥物口径（票据 35 固化）：卡面「价格优惠一半（向上取整）。例 3→1」——
+ * 「优惠一半」的优惠额向上取整 = 价格向下取整，与下方 Math.floor(price/2) 一致，卡面文字与示例无矛盾。
  */
 export function characterPurchasePrice(p: PlayerState, price: number): number {
   if (p.characterId === "role:11" && !p.skillDisabled && !p.purchasedThisTurn) {
