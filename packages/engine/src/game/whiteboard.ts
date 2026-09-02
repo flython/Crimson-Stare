@@ -8,7 +8,7 @@
 import type { Card } from "../cards.js";
 import { card, joker, SUITS } from "../cards.js";
 import type { GameConfig } from "../core/config.js";
-import type { GameState, PlayerState, PhaseId, Suspended } from "../core/state.js";
+import type { GameState, PlayerState, PhaseId, Suspended, SetupDeleteEntry } from "../core/state.js";
 import { shuffle } from "../core/rng.js";
 import { evaluateHand, compareHands, HandCategory, countSixSeven } from "../hand-evaluator.js";
 import type { ChipView } from "../hand-evaluator.js";
@@ -414,6 +414,29 @@ function handlePurchase(state: GameState, p: PlayerState, defId: string, subtype
   log(state, `效果未实现: market:${defId}`);
 }
 
+/**
+ * 处理开局删除队列（createGame 发牌后调用）。
+ * 从手牌中删除满足 rank 条件的牌（role:05 删除手牌中的 2）；
+ * 手牌不足时删现有手牌（不补抽）。
+ */
+export function processSetupDeleteQueue(state: GameState): void {
+  const queue = state.setupDeleteQueue ?? [];
+  state.setupDeleteQueue = [];
+  for (const entry of queue) {
+    const p = state.players.find((x) => x.id === entry.playerId);
+    if (!p) continue;
+    const toDelete = (entry.rank !== undefined
+      ? p.zones.hand.filter((c) => c.rank === entry.rank)
+      : [...p.zones.hand]);
+    const actual = toDelete.slice(0, entry.count);
+    if (actual.length === 0) continue;
+    const ids = new Set(actual.map((c) => c.id));
+    p.zones.hand = p.zones.hand.filter((c) => !ids.has(c.id));
+    p.zones.deleted.push(...actual);
+    log(state, `${p.name} 开局删除 ${actual.length} 张${entry.rank !== undefined ? entry.rank : ""}（${actual.map((c) => c.rank + c.suit).join(" ")})`);
+  }
+}
+
 /** 创建一局（M2）：发牌、随机决定临时特权证、可选注入卡池（黑市供应堆/简易过滤）与角色（roleSetup），进入第一回合 */
 export function createGame(
   playerInfos: { id: string; name: string; characterId?: string }[],
@@ -446,6 +469,7 @@ export function createGame(
     log: [],
     finished: false,
     winners: [],
+    setupDeleteQueue: [],
   };
 
   // 卡池注入：黑市供应堆（按 count 展开；简易模式仅黄边）→ 填满栏位
@@ -481,6 +505,11 @@ export function createGame(
   for (const p of state.players) {
     p.zones.draw = shuffle(state, buildDeck(p.seat, state.simple));
   }
+  // 发初始手牌（每人 6 张），再处理开局删除队列（role:05 等需手牌已到位才能执行）
+  for (const p of state.players) {
+    drawToHandLimit(state, p, config);
+  }
+  processSetupDeleteQueue(state);
   // 临时特权证（规则 4.4，票据 24 核对修复）：所有玩家掷骰比点数，最高者持证；平手取先座
   let bestSeat = 0;
   let bestRoll = 0;

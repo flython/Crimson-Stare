@@ -6,7 +6,7 @@
  * - 交互/机制缺失角色占位验证（不抛错 + 日志降级提示）。
  */
 import { describe, it, expect } from "vitest";
-import { createGame, reduce } from "../src/game/whiteboard.js";
+import { createGame, reduce, processSetupDeleteQueue } from "../src/game/whiteboard.js";
 import { DEFAULT_GAME_CONFIG } from "../src/core/config.js";
 import { card } from "../src/cards.js";
 import type { GameState } from "../src/core/state.js";
@@ -83,11 +83,25 @@ describe("roleSetup(游戏开始常驻效果)", () => {
     expect(a.swapLeft).toBe(base + 1);
   });
 
-  it("role:05 / role:21 setup 占位:开局日志降级提示", () => {
-    for (const roleId of ["role:05", "role:21"]) {
-      const g = makeGame(roleId);
-      expect(g.log.some((l) => l.text.includes(`效果未实现: setup:${roleId}`))).toBe(true);
-    }
+  it("role:05 特型演员:开局删除手牌中的 2", () => {
+    const g = makeGame("role:05");
+    const a = g.players[0]!;
+    // 将 rank 2 的牌塞入手牌（seed 42 的随机发牌恰好没发到 2，直接覆盖手牌验证删除逻辑）
+    a.zones.hand = [card(2, "H", "t1"), card(2, "D", "t2"), card(7, "S", "t3")];
+    // 手动续触发 setupDeleteQueue（role:05 setup 在 createGame 时已正确写入）
+    g.setupDeleteQueue = [{ playerId: a.id, count: 2, rank: 2 }];
+    processSetupDeleteQueue(g);
+    // 删除了 2 张 2，手牌剩 1 张（7S）
+    expect(a.zones.hand.length).toBe(1);
+    expect(a.zones.hand[0]!.rank).toBe(7);
+    // deleted 区有 2 张 rank 2
+    expect(a.zones.deleted.length).toBe(2);
+    expect(a.zones.deleted.every((c) => c.rank === 2)).toBe(true);
+  });
+
+  it("role:21 黑客:开局删除占位（等飞飞确认初始构筑规则）", () => {
+    const g = makeGame("role:21");
+    expect(g.log.some((l) => l.text.includes("效果未实现: setup:role:21"))).toBe(true);
   });
 });
 

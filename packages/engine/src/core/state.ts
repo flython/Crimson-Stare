@@ -269,4 +269,19 @@ export interface GameState {
   permanentPassHolder?: boolean;
   /** 无面人(38)：角色牌堆（开局构建，每回合抽2选1） */
   role38CharacterDeck?: Card[];
+  /**
+   * 开局删除队列（createGame 发牌后处理）。
+   * role:05 特型演员：开局删除手牌中的2；role:21 黑客：初始构筑删除（等飞飞确认文字后实现）。
+   * 每项处理后清空；本字段仅在 createGame 返回前有意义。
+   */
+  setupDeleteQueue?: SetupDeleteEntry[];
+}
+
+/** 开局删除队列条目 */
+export interface SetupDeleteEntry {
+  playerId: string;
+  /** 删除几张 */
+  count: number;
+  /** 仅删除此 rank 的牌（省略则不限） */
+  rank?: number;
 }

@@ -36,7 +36,7 @@ import { promptChooseCard, promptChooseOption, promptChoosePlayer } from "./inte
 import { shuffle } from "../core/rng.js";
 import type { EffectContext } from "../core/effects.js";
 import { registerActionHook, registerEffect } from "../core/effects.js";
-import type { GameState, PlayerState } from "../core/state.js";
+import type { GameState, PlayerState, SetupDeleteEntry } from "../core/state.js";
 import type { Card } from "../cards.js";
 import type { ChipView } from "../hand-evaluator.js";
 
@@ -168,8 +168,14 @@ export const roleSetup: Record<string, EffectBody> = {
     p.chips += 12;
   },
   // —— 以下需要开局后牌堆，需 createGame/whiteboard 处理的，roleSetup 仅设标记 ——
-  "role:05": placeholderEffect, // TODO: 特型演员 开局删除 2 张 2
-  "role:21": placeholderEffect, // TODO: 黑客 初始构筑改为从全牌库挑 8 张删除
+  "role:05": (s, c) => {
+    // 特型演员：开局删除手牌中的 2（role:05 chipView 已处理"2 可视为 5"的判定映射）
+    const p = getPlayer(s, c);
+    const entry: SetupDeleteEntry = { playerId: p.id, count: 2, rank: 2 };
+    if (!s.setupDeleteQueue) s.setupDeleteQueue = [];
+    s.setupDeleteQueue.push(entry);
+  },
+  "role:21": placeholderEffect, // TODO: 黑客 初始构筑删除（等飞飞确认："初始构筑时从全牌库/抽牌堆/手牌中选8张删除"？）
   // role:26 飞车党：开局删 J/Q/K/A + 跳过初始构筑 → createGame 处理
   // role:27/28 双生子：找双生镜片 → createGame 处理
   // role:38 无面人：构建角色牌堆 → createGame 处理
