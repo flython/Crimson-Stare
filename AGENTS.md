@@ -14,11 +14,12 @@ Default five canonical roles (`needs-triage`, `needs-info`, `ready-for-agent`, `
 
 Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
-## 工作流要求（硬性约定）
 
-1. **需求文档化 + 票据化**：开始实际开发前，总时/to-spec、/to-tickets、/wayfider 并尝试subagent并行
+## 迭代流程（硬规则）
 
-2. **提交底线（每个交付即提交）**：完成一个 issue **立即 git commit**
+- 进行代码开发任务前先写 spec（`.scratch/<feature-slug>/spec.md`）并票据化（`issues/NN-<slug>.md`，标 `Status: ready-for-agent`），经用户确认后才动手写码
+- 每完成一个 issue 单独 git commit；完成即把该 issue 置 `Status: resolved`
+- **提交底线（每个交付即提交）**：完成一个 issue **立即 git commit**
 
 
 # Ponytail, lazy senior dev mode
