@@ -19,7 +19,7 @@
     ],
     "effectId": "role:01",
     "effectText": "【结算阶段】你的牌型的总点数+20。",
-    "image": "assets/cards/role/01.png",
+    "image": "assets/cards/role/01.jpg",
     "note": "台词：欢迎光临，祝你好运。"
   },
   {
@@ -42,7 +42,7 @@
     ],
     "effectId": "role:02",
     "effectText": "【重整阶段】获得2血筹。游戏开始时，额外获得2血筹。",
-    "image": "assets/cards/role/02.png",
+    "image": "assets/cards/role/02.jpg",
     "note": "台词：请保管好你的存折。"
   },
   {
@@ -60,7 +60,7 @@
     "triggers": [],
     "effectId": "role:03",
     "effectText": "你的手牌上限+1。",
-    "image": "assets/cards/role/03.png",
+    "image": "assets/cards/role/03.jpg",
     "note": "台词：敬请欣赏奇迹时刻。"
   },
   {
@@ -83,7 +83,7 @@
     ],
     "effectId": "role:04",
     "effectText": "【换牌阶段】你的换牌次数+1，当剩余可换牌次数为0时，获得1血筹。",
-    "image": "assets/cards/role/04.png",
+    "image": "assets/cards/role/04.jpg",
     "note": "台词：今夜不醉不归。"
   },
   {
@@ -106,7 +106,7 @@
     ],
     "effectId": "role:05",
     "effectText": "【对决阶段】你的2可视为5。游戏开始时，删除2张2。",
-    "image": "assets/cards/role/05.png",
+    "image": "assets/cards/role/05.jpg",
     "note": "台词：认清自己的长处，明智地加以利用。"
   },
   {
@@ -129,7 +129,7 @@
     ],
     "effectId": "role:06",
     "effectText": "【对决阶段】若你打出的牌均为黑色，则获得3血筹。",
-    "image": "assets/cards/role/06.png",
+    "image": "assets/cards/role/06.jpg",
     "note": "台词：矿工的日子，昼夜颠倒。"
   },
   {
@@ -152,7 +152,7 @@
     ],
     "effectId": "role:07",
     "effectText": "【对决阶段】你的6可视为9，9可视为6。",
-    "image": "assets/cards/role/07.png",
+    "image": "assets/cards/role/07.jpg",
     "note": "台词：看我七十二变。"
   },
   {
@@ -176,7 +176,7 @@
     ],
     "effectId": "role:08",
     "effectText": "【购买阶段】前，你可以抢劫1位对手，其必须选择[放弃]或[抵抗]。若[放弃]，则交给你2血筹（不足则全给）；若[抵抗]则与你轮流掷骰。若你的点数更大，则抢夺其至多4血筹，否则无事发生。",
-    "image": "assets/cards/role/08.png",
+    "image": "assets/cards/role/08.jpg",
     "note": "台词：交出宝藏，饶你不死。"
   },
   {
@@ -199,7 +199,7 @@
     ],
     "effectId": "role:09",
     "effectText": "【购买阶段】结束时，若你剩余0血筹，则获得3血筹。",
-    "image": "assets/cards/role/09.png",
+    "image": "assets/cards/role/09.jpg",
     "note": "台词：低买高卖，稳赚不亏。"
   },
   {
@@ -222,7 +222,7 @@
     ],
     "effectId": "role:10",
     "effectText": "【换牌阶段】你的每次换牌：可先抽牌，再弃牌。但每次最多抽2张再弃2张牌。",
-    "image": "assets/cards/role/10.png",
+    "image": "assets/cards/role/10.jpg",
     "note": "台词：命运的指针指引着你。"
   },
   {
@@ -245,7 +245,7 @@
     ],
     "effectId": "role:11",
     "effectText": "每回合【购买阶段】当你第一次购买时，价格优惠一半（向上取整）。例：价格3血筹的牌以1血筹购入。",
-    "image": "assets/cards/role/11.png",
+    "image": "assets/cards/role/11.jpg",
     "note": "台词：米有，我是吉祥物BB。"
   },
   {
@@ -272,7 +272,7 @@
     ],
     "effectId": "role:12",
     "effectText": "【换牌阶段】你可花费1血筹，并抽1张牌（无次数限制）。【结算阶段】结束时，你可用1血筹删除1张本回合打出的牌（最多3张）。",
-    "image": "assets/cards/role/12.png",
+    "image": "assets/cards/role/12.jpg",
     "note": "台词：炸鸡要现炸的才香。"
   },
   {
@@ -296,7 +296,7 @@
     ],
     "effectId": "role:13",
     "effectText": "任何时候，当重洗牌库时，获得1血筹。【重整阶段】若选择不重洗牌库，则额外获得2血筹。",
-    "image": "assets/cards/role/13.png",
+    "image": "assets/cards/role/13.jpg",
     "note": "台词：衣服要常洗，霉运要常除。"
   },
   {
@@ -319,7 +319,7 @@
     ],
     "effectId": "role:14",
     "effectText": "【换牌阶段】每次换牌，可选择任意数量的牌（而非至多3张）。若一次弃了4张或者更多的牌，获得1血筹。",
-    "image": "assets/cards/role/14.png",
+    "image": "assets/cards/role/14.jpg",
     "note": "台词：出道即巅峰，人人爱QueenQueen。"
   },
   {
@@ -347,7 +347,7 @@
     ],
     "effectId": "role:15",
     "effectText": "【换牌阶段】每当你弃置1张3时，可展示之并获得1血筹。【对决阶段】你每打出1张3，获得1血筹。任意时候，每当你或你的队伍删除1张3，获得4血筹。",
-    "image": "assets/cards/role/15.png",
+    "image": "assets/cards/role/15.jpg",
     "note": "台词：三珍海味，一锅端平。"
   },
   {
@@ -371,7 +371,7 @@
     ],
     "effectId": "role:16",
     "effectText": "【对决阶段】前，你可将出牌区的牌全部弃置（牌型视为高牌，点数为0），获得2血筹，并可执行一次删牌。",
-    "image": "assets/cards/role/16.png",
+    "image": "assets/cards/role/16.jpg",
     "note": "台词：青春没有期限，考试才是噩梦。"
   },
   {
@@ -398,7 +398,7 @@
     ],
     "effectId": "role:17",
     "effectText": "【对决阶段】你可将4视为小丑。【结算阶段】结束时，将本回合视为小丑的4删除。",
-    "image": "assets/cards/role/17.png",
+    "image": "assets/cards/role/17.jpg",
     "note": "台词：不百发百中，不配做枪手。"
   },
   {
@@ -421,7 +421,7 @@
     ],
     "effectId": "role:18",
     "effectText": "【重整阶段】结束时，可从全牌库删除1张牌。若删除的是抽牌堆的牌，则重洗抽牌堆。",
-    "image": "assets/cards/role/18.png",
+    "image": "assets/cards/role/18.jpg",
     "note": "台词：车厢再脏，也抵不过人心更脏。"
   },
   {
@@ -448,7 +448,7 @@
     ],
     "effectId": "role:19",
     "effectText": "【对决阶段】前，你可以猜测本回合【临时特权证】的玩家（可以猜自己）。【结算阶段】若猜对，则获得（人数+2）血筹。",
-    "image": "assets/cards/role/19.png",
+    "image": "assets/cards/role/19.jpg",
     "note": "台词：十赌九输，我十赌十赢。"
   },
   {
@@ -471,7 +471,7 @@
     ],
     "effectId": "role:20",
     "effectText": "【结算阶段】你额外获得本回合获得的【车票】数量的血筹。",
-    "image": "assets/cards/role/20.png",
+    "image": "assets/cards/role/20.jpg",
     "note": "台词：武士之魂，宁折不弯。"
   },
   {
@@ -494,7 +494,7 @@
     ],
     "effectId": "role:21",
     "effectText": "你的初始构筑改为从全牌库中挑选8张牌删除。【删牌阶段】你可以额外免费删除1张牌。",
-    "image": "assets/cards/role/21.png",
+    "image": "assets/cards/role/21.jpg",
     "note": "台词：数据为王，密码即钥匙。"
   },
   {
@@ -516,8 +516,8 @@
       }
     ],
     "effectId": "role:22",
-    "effectText": "你没有个人牌堆，必须跳过初始构筑。其他玩家【换牌阶段】结束时，你开始【抽牌阶段】和【换牌阶段】，当你需要抽牌时，必须从任意对手的抽牌堆中抽牌（自选数量与目标），弃置的牌放入你的弃牌区（你的弃牌区始终对其他人可见）。【结算阶段】若你的出牌区有【】玩家的牌，你获得1【★】。【购买阶段】前，每位对手可支付你1【血筹】，从你的牌库中拿回所有属于自己的牌，并放到自己的弃牌堆中。你必须跳过【重整阶段】。你的技能无法被无效。",
-    "image": "assets/cards/role/22.png",
+    "effectText": "你没有个人牌堆，必须跳过初始构筑。其他玩家【换牌阶段】结束时，你开始【抽牌阶段】和【换牌阶段】，当你需要抽牌时，必须从任意对手的抽牌堆中抽牌（自选数量与目标），弃置的牌放入你的弃牌区（你的弃牌区始终对其他人可见）。【结算阶段】若你的出牌区有【临时特权证】玩家的牌，你获得1【车票】。【购买阶段】前，每位对手可支付你1【血筹】，从你的牌库中拿回所有属于自己的牌，并放到自己的弃牌堆中。你必须跳过【重整阶段】。你的技能无法被无效。",
+    "image": "assets/cards/role/22.jpg",
     "note": "台词：这是什么呀？真好玩！"
   },
   {
@@ -540,7 +540,7 @@
     ],
     "effectId": "role:24",
     "effectText": "【换牌阶段】你可随时展示手中的5置于你的角色牌下（此牌视为在游戏外），并抽1张牌，获得1【血筹】。【换牌阶段】结束时，你可以将角色卡下任意数量的5置入手中。",
-    "image": "assets/cards/role/24.png",
+    "image": "assets/cards/role/24.jpg",
     "note": "台词：领域展开！"
   },
   {
@@ -559,7 +559,7 @@
     ],
     "effectId": "role:25",
     "effectText": "【对决阶段】你的♥=♠。你必须跳过【删牌阶段】。",
-    "image": "assets/cards/role/25.png",
+    "image": "assets/cards/role/25.jpg",
     "note": "台词：主人，请问您有什么吩咐？"
   },
   {
@@ -578,7 +578,7 @@
     ],
     "effectId": "role:26",
     "effectText": "游戏开始时，删除所有的J，Q，K，A，但跳过初始构筑。【删牌阶段】你只可支付【血筹】进行删牌。",
-    "image": "assets/cards/role/26.png",
+    "image": "assets/cards/role/26.jpg",
     "note": "台词：——"
   },
   {
@@ -597,7 +597,7 @@
     ],
     "effectId": "role:27",
     "effectText": "初始构筑结束后，从黑市牌堆中找出[双生镜片]并插入弃牌区的1张牌中，挑出此牌并重洗牌库，然后将此牌放在抽牌堆顶。接下来的游戏中，在【结算阶段】你获得的【血筹】-2（最低为0）。",
-    "image": "assets/cards/role/27.png",
+    "image": "assets/cards/role/27.jpg",
     "note": "台词：哥哥，你怎么也来了？"
   },
   {
@@ -616,7 +616,7 @@
     ],
     "effectId": "role:28",
     "effectText": "初始构筑结束后，从黑市牌堆中找出[双生镜片]并插入弃牌区的1张牌中，挑出此牌并重洗牌库，然后将此牌放在抽牌堆顶。接下来的游戏中，【删牌阶段】你只可支付【血筹】进行删牌。",
-    "image": "assets/cards/role/28.png",
+    "image": "assets/cards/role/28.jpg",
     "note": "台词：弟弟，你怎么也来了？"
   },
   {
@@ -634,7 +634,7 @@
     "triggers": [],
     "effectId": "role:29",
     "effectText": "游戏开始时，获得12【血筹】。",
-    "image": "assets/cards/role/29.png",
+    "image": "assets/cards/role/29.jpg",
     "note": "台词：我，即是神。"
   },
   {
@@ -657,7 +657,7 @@
     ],
     "effectId": "role:30",
     "effectText": "【换牌阶段】若你一次性弃置了至少2张点数相同的牌，公示并获得3【血筹】（每回合1次）。",
-    "image": "assets/cards/role/30.png",
+    "image": "assets/cards/role/30.jpg",
     "note": "台词：今天的直播要开始啦！"
   },
   {
@@ -680,7 +680,7 @@
     ],
     "effectId": "role:31",
     "effectText": "【购买阶段】前，你可以指定黑市区的1张牌，本回合你购买此牌价格-2【血筹】；若有玩家想购买此牌，则需先交给你2【血筹】，否则无法购买。",
-    "image": "assets/cards/role/31.png",
+    "image": "assets/cards/role/31.jpg",
     "note": "台词：这个东西我要了，但也不是不能让给你。"
   },
   {
@@ -703,7 +703,7 @@
     ],
     "effectId": "role:32",
     "effectText": "【对决阶段】若你的出牌区存在3种花色，则获得2【血筹】；若存在4种花色，则再获得1【血筹】。",
-    "image": "assets/cards/role/32.png",
+    "image": "assets/cards/role/32.jpg",
     "note": "台词：世界是由美丽的颜色构成的。"
   },
   {
@@ -722,7 +722,7 @@
     ],
     "effectId": "role:33",
     "effectText": "【换牌阶段】结束时，你可查看每一位玩家的手牌，之后你可额外执行一次换牌行动，或获得1【血筹】。",
-    "image": "assets/cards/role/33.png",
+    "image": "assets/cards/role/33.jpg",
     "note": "台词：我要验牌，牌没有问题。"
   },
   {
@@ -741,7 +741,7 @@
     ],
     "effectId": "role:34",
     "effectText": "【重整阶段】若你选择不重洗牌库（并获得2【血筹】），则可以从弃牌区中选择1张牌公示后放到抽牌堆顶。若重洗牌库，则获得1【血筹】。",
-    "image": "assets/cards/role/34.png",
+    "image": "assets/cards/role/34.jpg",
     "note": "台词：这节车厢的秘密，比你们手里的牌还要多。"
   },
   {
@@ -760,7 +760,7 @@
     ],
     "effectId": "role:35",
     "effectText": "【换牌阶段】结束时，你可以选择一位玩家，其随机弃置1张牌并摸1张牌，或你再额外进行1次换牌（不可兑换成【血筹】）。",
-    "image": "assets/cards/role/35.png",
+    "image": "assets/cards/role/35.jpg",
     "note": "台词：敬请养精蓄锐。"
   },
   {
@@ -778,8 +778,8 @@
       }
     ],
     "effectId": "role:36",
-    "effectText": "【结算阶段】若你本回合⊘【】（被划叉），则可以向【】玩家支付3【血筹】，强制购买其1【★】。",
-    "image": "assets/cards/role/36.png",
+    "effectText": "【结算阶段】若你本回合不持有【临时特权证】，则可以向【临时特权证】玩家支付3【血筹】，强制购买其1【车票】。",
+    "image": "assets/cards/role/36.jpg",
     "note": "台词：自由往往是有标价的，就看你付不付得起了。"
   },
   {
@@ -798,7 +798,7 @@
     ],
     "effectId": "role:37",
     "effectText": "【抽牌阶段】前，可将弃牌区的1张牌放到抽牌堆顶，或将弃牌区的至多3张牌放到抽牌堆底（均需公示后放置）。若未如此做，则获得1【血筹】。",
-    "image": "assets/cards/role/37.png",
+    "image": "assets/cards/role/37.jpg",
     "note": "台词：真相往往藏在被丢弃的角落。"
   },
   {
@@ -817,7 +817,7 @@
     ],
     "effectId": "role:38",
     "effectText": "游戏开始及每回合【抽牌阶段】前，你从角色牌堆中抽取2张牌，并须选择其中1张获得其技能（持续至下个【抽牌阶段】开始前）。若你当前持有某角色技能（即便已抽角色牌但尚未进行2选1抉择），你可令[无面人]永久转化为该角色。此转化不可逆转。",
-    "image": "assets/cards/role/38.png",
+    "image": "assets/cards/role/38.jpg",
     "note": "台词：这个世界没有我，又或者人人都是我。"
   },
   {
@@ -836,7 +836,7 @@
     ],
     "effectId": "role:39",
     "effectText": "【对决阶段】前可宣告自己出牌区每一张牌的点数、花色与牌型，从持有☠的玩家开始顺时针依次选择是否质疑（自己除外）。若无人质疑，则将出牌区的牌弃置并按宣告的牌进行牌局对决。若有人质疑，则【对决阶段】检查出牌区的牌是否与宣告均一致，若一致，则质疑的玩家均交给你1【血筹】；若不一致，则质疑的玩家获得1【血筹】。",
-    "image": "assets/cards/role/39.png",
+    "image": "assets/cards/role/39.jpg",
     "note": "台词：你信吗？猪猪看呐~"
   },
   {
@@ -855,7 +855,7 @@
     ],
     "effectId": "role:40",
     "effectText": "【换牌阶段】若你是第一位宣告换牌结束的玩家，则获得3【血筹】。",
-    "image": "assets/cards/role/40.png",
+    "image": "assets/cards/role/40.jpg",
     "note": "台词：我必须赶紧逃出去——"
   },
   {
@@ -874,7 +874,7 @@
     ],
     "effectId": "role:41",
     "effectText": "【换牌阶段】结束时，你可以将弃牌区洗混，并从中随机抽取至多2张牌加入手牌。",
-    "image": "assets/cards/role/41.png",
+    "image": "assets/cards/role/41.jpg",
     "note": "台词：创造美好回忆。"
   },
   {
@@ -893,7 +893,7 @@
     ],
     "effectId": "role:42",
     "effectText": "游戏开始时，你将一种牌型的名称改为你自定义的名称（例：将「两对」改为「咕咕嘎嘎」），游戏过程中每当有玩家（包括自己）打出此牌型时，你获得2【血筹】。若有玩家在【对决阶段】宣告牌型时未按你设定的名称宣告，则需交给你2【血筹】。",
-    "image": "assets/cards/role/42.png",
+    "image": "assets/cards/role/42.jpg",
     "note": "台词：我是谁？我在哪？我的名字是？"
   },
   {
@@ -912,7 +912,7 @@
     ],
     "effectId": "role:43",
     "effectText": "【购买阶段】前，你可查看黑市牌堆顶的2张牌，选择其中1张暗置在桌面上，另1张放回原处。并由你开始顺时针一轮叫价（不可超过其目前持有的【血筹】），出价最高的玩家花费相应【血筹】，获得此牌。若得牌者不为你，你获得2【血筹】。",
-    "image": "assets/cards/role/43.png",
+    "image": "assets/cards/role/43.jpg",
     "note": "台词：真相往往藏在谎言之中。"
   },
   {
@@ -934,8 +934,8 @@
       }
     ],
     "effectId": "role:44",
-    "effectText": "你始终可以查看抽牌堆顶的1张牌。第一回合【购买阶段】前，你将黑市牌堆顶的7张牌暗置在你身边，称为「天意」，你可随时查看天意。【购买阶段】你可购买「天意」，每张价格-2【血筹】。若「天意」均被购买，则被天意侵蚀，【★】归0。",
-    "image": "assets/cards/role/44.png",
+    "effectText": "你始终可以查看抽牌堆顶的1张牌。第一回合【购买阶段】前，你将黑市牌堆顶的7张牌暗置在你身边，称为「天意」，你可随时查看天意。【购买阶段】你可购买「天意」，每张价格-2【血筹】。若「天意」均被购买，则被天意侵蚀，【车票】归0。",
+    "image": "assets/cards/role/44.jpg",
     "note": "台词：风从虎，云从龙，龙虎英雄傲苍穹。"
   },
   {
@@ -954,7 +954,7 @@
     ],
     "effectId": "role:45",
     "effectText": "整局游戏你最多只可同时拥有3张[强化芯片]（若获得更多则直接弃置新获得的[强化芯片]）。【购买阶段】你购买[强化芯片]价格-2【血筹】。【购买阶段】结束时，若你购买过黑市牌，则获得2【血筹】。",
-    "image": "assets/cards/role/45.png",
+    "image": "assets/cards/role/45.jpg",
     "note": "台词：只要曹孟德一息尚存，他就战无不胜！"
   },
   {
@@ -972,8 +972,8 @@
       }
     ],
     "effectId": "role:46",
-    "effectText": "【删牌阶段】你可用1【血筹】删除1张牌（无次数限制）。任何时候，若你【★】达到目标数量一半，且把整副牌（54张牌）全部删除，你直接获得胜利，你只可以此方法获胜。",
-    "image": "assets/cards/role/46.png",
+    "effectText": "【删牌阶段】你可用1【血筹】删除1张牌（无次数限制）。任何时候，若你【车票】达到目标数量一半，且把整副牌（54张牌）全部删除，你直接获得胜利，你只可以此方法获胜。",
+    "image": "assets/cards/role/46.jpg",
     "note": "台词：三军听令，自刎归天！"
   },
   {
@@ -990,8 +990,8 @@
     "count": 1,
     "triggers": [],
     "effectId": "role:47",
-    "effectText": "你始终拥有【特权证】（对手无法以任意方式获得临时特权证），当你时，获得2【血筹】。",
-    "image": "assets/cards/role/47.png",
+    "effectText": "你始终拥有【临时特权证】（对手无法以任意方式获得临时特权证），当你持有【临时特权证】时，获得2【血筹】。",
+    "image": "assets/cards/role/47.jpg",
     "note": "台词：这江东到底你是主，还是我是主？"
   },
   {
@@ -1005,7 +1005,7 @@
     "triggers": [],
     "effectId": "role:48",
     "effectText": "在任意时刻，你可大喊一声“我要控制不住自己了！”并将手拍在桌面上，其他玩家也需将手拍在你的手上，最晚的玩家需交给你2【血筹】，若与上回合为同一玩家，则改为交给你1【血筹】（每回合限一次）。（投稿人：郭沅昌）",
-    "image": "assets/cards/role/48.png",
+    "image": "assets/cards/role/48.jpg",
     "note": "台词：我---快要控制不住自己了---"
   },
   {
@@ -1028,7 +1028,7 @@
     ],
     "effectId": "role:49",
     "effectText": "【换牌阶段】前可掷一次骰子，若点数≥3则本回合默认可换牌次数（即3次）调整为该点数；若点数<3，则获得该点数的【血筹】。",
-    "image": "assets/cards/role/49.png",
+    "image": "assets/cards/role/49.jpg",
     "note": "台词：过一个「换牌」检定！"
   },
   {
@@ -1051,7 +1051,7 @@
     ],
     "effectId": "role:50",
     "effectText": "【换牌阶段】结束时，你可以依次选择任意位玩家并交给其任意【血筹】，该玩家选择：1.收下【血筹】，丢弃所有手牌并抽取等量的牌。并说：“不愧是顾家。”2.拒绝换牌，支付双倍【血筹】给你，并说：“你顾家算什么东西。”（投稿人：刘锴铎）",
-    "image": "assets/cards/role/50.png",
+    "image": "assets/cards/role/50.jpg",
     "note": "台词：三分钟，我要她的全部资料。"
   },
   {
@@ -1074,7 +1074,7 @@
     ],
     "effectId": "role:51",
     "effectText": "【换牌阶段】结束时，你可从任意对手的抽牌区抽取总计2张牌加入自己的手牌（对手抽牌区至少有2张牌）。【对决阶段】你出牌区每有1张对手的牌，则该对手必须给你1【血筹】。【结算阶段】结束时，将牌库中对手的牌放入其弃牌区。",
-    "image": "assets/cards/role/51.png",
+    "image": "assets/cards/role/51.jpg",
     "note": "台词：寄生虫，不是生来的身份，而是困住心灵的无形枷锁。"
   },
   {
@@ -1093,7 +1093,7 @@
     ],
     "effectId": "role:52",
     "effectText": "【对决阶段】若打出的牌总点数恰好等于50，获得5【血筹】。否则跳过本回合的【购买阶段】与【删牌阶段】。（投稿人：伍拾）",
-    "image": "assets/cards/role/52.png",
+    "image": "assets/cards/role/52.jpg",
     "note": "卡面印刷编号被遮挡，据姓名「伍拾」与全表缺号推断为 52，待核对。台词：不要温柔地走入那个良夜。"
   },
   {
@@ -1115,8 +1115,8 @@
       }
     ],
     "effectId": "role:53",
-    "effectText": "当你使用过技能后，必须将弃牌堆翻面切换人格。游戏开始时为常时人格。常时人格（弃牌堆背面朝上）：【对决阶段】若你打出的牌均为黑色，获得3【血筹】。躁狂人格（弃牌堆正面朝上，其他玩家可查看）：【对决阶段】若你打出的牌均为红色，获得1【★】。（投稿人：枫世）",
-    "image": "assets/cards/role/53.png",
+    "effectText": "当你使用过技能后，必须将弃牌堆翻面切换人格。游戏开始时为常时人格。常时人格（弃牌堆背面朝上）：【对决阶段】若你打出的牌均为黑色，获得3【血筹】。躁狂人格（弃牌堆正面朝上，其他玩家可查看）：【对决阶段】若你打出的牌均为红色，获得1【车票】。（投稿人：枫世）",
+    "image": "assets/cards/role/53.jpg",
     "note": "台词：烫伤有好转些了嘛？/炸弹会自己到你的嘴里去吗？"
   },
   {
@@ -1139,7 +1139,7 @@
     ],
     "effectId": "role:54",
     "effectText": "【换牌阶段】你的每次换牌可改为[特殊换牌]：将至多3张手牌置于角色牌上，然后从弃牌区随机抽取等量的牌。【换牌阶段】结束时，将在角色牌上的所有牌置入弃牌区。若你未执行过[特殊换牌]，则获得2【血筹】。（投稿人：薄荷糖）",
-    "image": "assets/cards/role/54.png",
+    "image": "assets/cards/role/54.jpg",
     "note": "台词：那些冠冕堂皇的活人，没有死人更善于言表。"
   },
   {
@@ -1158,7 +1158,7 @@
     ],
     "effectId": "role:55",
     "effectText": "【删牌阶段】你可以选择一位玩家，该玩家进行掷骰，并删除其抽牌堆顶的（X-1）张牌（X为本次掷骰点数），若抽牌堆不足（X-1）张，则删除抽牌堆剩余的牌。（投稿人：井中月）",
-    "image": "assets/cards/role/55.png",
+    "image": "assets/cards/role/55.jpg",
     "note": "台词：汪汪汪（接下来这一骰会很疯狂！）"
   },
   {
@@ -1181,7 +1181,7 @@
     ],
     "effectId": "role:56",
     "effectText": "【出牌阶段】结束时，你可指定一位玩家，询问是否愿意与你交换出牌区的所有牌，若其拒绝，则必须给你2【血筹】；【结算阶段】结束时，双方归还交换的牌。（投稿人：刘光宇）",
-    "image": "assets/cards/role/56.png",
+    "image": "assets/cards/role/56.jpg",
     "note": "台词：倾城妆花黄，暗香魂断肠~"
   },
   {
@@ -1204,7 +1204,7 @@
     ],
     "effectId": "role:57",
     "effectText": "每回合【购买阶段】当你第一次购买1张原价格不小于3【血筹】的黑市牌时，免费获得1张黑市牌堆顶的黑市牌。（投稿人：JCの小树林）",
-    "image": "assets/cards/role/57.png",
+    "image": "assets/cards/role/57.jpg",
     "note": "台词：中杯，大杯，超大杯---"
   },
   {
@@ -1226,8 +1226,8 @@
       }
     ],
     "effectId": "role:58",
-    "effectText": "【结算阶段】若你，可以抢夺一位♂角色3【血筹】。若（划除），可以抢夺一位♀角色1【血筹】（?同时视为♂与♀）。若无法抢夺则改为获得等量【血筹】。（投稿人：梁海峰）",
-    "image": "assets/cards/role/58.png",
+    "effectText": "【结算阶段】若你持有【临时特权证】，可以抢夺一位♂角色3【血筹】。若不持有【临时特权证】，可以抢夺一位♀角色1【血筹】（?同时视为♂与♀）。若无法抢夺则改为获得等量【血筹】。（投稿人：梁海峰）",
+    "image": "assets/cards/role/58.jpg",
     "note": "台词：小哥哥，你真帅，要不要一起「玩」？"
   },
   {
@@ -1246,7 +1246,7 @@
     ],
     "effectId": "role:59",
     "effectText": "【换牌阶段】前，你可宣称0-2中1个数字X，并获得X【血筹】。【结算阶段】结束时，其他玩家必须随机删除X张本回合打出的牌，你必须随机删除(X+1)张本回合打出的牌。（投稿人：司马如象）",
-    "image": "assets/cards/role/59.png",
+    "image": "assets/cards/role/59.jpg",
     "note": "台词：我要和你们同归于尽！"
   },
   {
@@ -1263,8 +1263,8 @@
     "count": 1,
     "triggers": [],
     "effectId": "role:60",
-    "effectText": "每个阶段结束时，你可以用1【★】兑换4【血筹】，或8【血筹】兑换1【★】（次数不限）。（投稿人：江秧茸）",
-    "image": "assets/cards/role/60.png",
+    "effectText": "每个阶段结束时，你可以用1【车票】兑换4【血筹】，或8【血筹】兑换1【车票】（次数不限）。（投稿人：江秧茸）",
+    "image": "assets/cards/role/60.jpg",
     "note": "台词：即使这条绳子将成为绞死我的那条，现在我依然要将它卖给你。"
   },
   {
@@ -1287,7 +1287,7 @@
     ],
     "effectId": "role:61",
     "effectText": "【购买阶段】结束时，若你剩余0【血筹】，则获得3【血筹】。",
-    "image": "assets/cards/role/61.png",
+    "image": "assets/cards/role/61.jpg",
     "note": "台词：我的胜，你已经见过了，我的败。"
   },
   {
@@ -1306,7 +1306,7 @@
     ],
     "effectId": "role:62",
     "effectText": "【换牌阶段】你可花费1【血筹】，并抽1张牌（无次数限制）。【结算阶段】结束时，你可用1【血筹】删除1张本回合打出的牌（最多3张）。",
-    "image": "assets/cards/role/62.png",
+    "image": "assets/cards/role/62.jpg",
     "note": "台词：淡淡的就会顺顺的。"
   },
   {
@@ -1329,7 +1329,7 @@
     ],
     "effectId": "role:63",
     "effectText": "【换牌阶段】你的每次换牌：可先抽牌，再弃牌。但每次最多抽2张再弃2张牌。",
-    "image": "assets/cards/role/63.png",
+    "image": "assets/cards/role/63.jpg",
     "note": "台词：我和魔术师的区别，他变鸽子，我变惊喜，他要你的掌声，而我要你的心甘情愿。"
   },
   {
@@ -1348,7 +1348,7 @@
     ],
     "effectId": "role:64",
     "effectText": "【购买阶段】前，你可以抢劫1位对手，其必须选择[放弃]或[抵抗]。若[放弃]，则交给你2【血筹】（不足则全给），若[抵抗]则与你轮流掷骰。若你的点数更大，则抢夺其至多4【血筹】，否则无事发生。",
-    "image": "assets/cards/role/64.png",
+    "image": "assets/cards/role/64.jpg",
     "note": "台词：你的初始力量值是10，而我，是100。"
   },
   {
@@ -1370,8 +1370,8 @@
       }
     ],
     "effectId": "role:65",
-    "effectText": "【对决阶段】你可将4视为【删牌】。【结算阶段】结束时，将本回合视为【删牌】的4删除。",
-    "image": "assets/cards/role/65.png",
+    "effectText": "【对决阶段】你可将4视为【Joker】。【结算阶段】结束时，将本回合视为【Joker】的4删除。",
+    "image": "assets/cards/role/65.jpg",
     "note": "台词：世界和胜利都由我来守护~（「4视为」后图标疑似小丑，对照 17 枪手，待核对）"
   },
   {
@@ -1394,7 +1394,7 @@
     ],
     "effectId": "role:66",
     "effectText": "【对决阶段】前，你可将出牌区的牌全部弃置（牌型视为高牌，点数为0），获得2【血筹】，并可执行一次删牌。",
-    "image": "assets/cards/role/66.png",
+    "image": "assets/cards/role/66.jpg",
     "note": "台词：想和我一起当烂泥吗？不可以噢！"
   },
   {
@@ -1417,7 +1417,7 @@
     ],
     "effectId": "role:67",
     "effectText": "【换牌阶段】每当你弃置1张3时，可展示之并获得1【血筹】。【对决阶段】你每打出1张3，获得1【血筹】。任意时候，每当你或你的队伍删除1张3，获得4【血筹】。",
-    "image": "assets/cards/role/67.png",
+    "image": "assets/cards/role/67.jpg",
     "note": "台词：准备好了吗？要开始调出超幸福的味道啦~"
   },
   {
@@ -1436,7 +1436,7 @@
     ],
     "effectId": "role:68",
     "effectText": "每回合【购买阶段】当你第一次购买时，价格优惠一半(向上取整)。例：价格3【血筹】的牌以1【血筹】购入。",
-    "image": "assets/cards/role/68.png",
+    "image": "assets/cards/role/68.jpg",
     "note": "台词：跟我赌，你们也配？"
   },
   {
@@ -1455,7 +1455,7 @@
     ],
     "effectId": "role:69",
     "effectText": "你的初始构筑改为从全牌库中挑选8张牌删除。【删牌阶段】你可以额外免费删除1张牌。",
-    "image": "assets/cards/role/69.png",
+    "image": "assets/cards/role/69.jpg",
     "note": "第二阶段徽章扫描模糊，按语义转录为【删牌阶段】，待核对。台词：且慢！"
   },
   {
@@ -1478,7 +1478,7 @@
     ],
     "effectId": "role:70",
     "effectText": "【对决阶段】你的6可视为9，9可视为6。",
-    "image": "assets/cards/role/70.png",
+    "image": "assets/cards/role/70.jpg",
     "note": "台词：来，给姐香一个~"
   },
   {
@@ -1501,7 +1501,7 @@
     ],
     "effectId": "role:71",
     "effectText": "【结算阶段】你的牌型的总点数+20。",
-    "image": "assets/cards/role/71.png",
+    "image": "assets/cards/role/71.jpg",
     "note": "台词：胜利的法则已经决定。"
   },
   {
@@ -1523,8 +1523,8 @@
       }
     ],
     "effectId": "role:72",
-    "effectText": "【结算阶段】你额外获得本回合获得的【★】数量的【血筹】。",
-    "image": "assets/cards/role/72.png",
+    "effectText": "【结算阶段】你额外获得本回合获得的【车票】数量的【血筹】。",
+    "image": "assets/cards/role/72.jpg",
     "note": "台词：红豆泥私密马赛！"
   },
   {
@@ -1547,7 +1547,7 @@
     ],
     "effectId": "role:73",
     "effectText": "【重整阶段】获得2【血筹】。游戏开始时，额外获得2【血筹】。",
-    "image": "assets/cards/role/73.png",
+    "image": "assets/cards/role/73.jpg",
     "note": "台词：好的好的，然后呢？"
   },
   {
@@ -1570,7 +1570,7 @@
     ],
     "effectId": "role:74",
     "effectText": "任何时候，当重洗牌库时，获得1【血筹】。【重整阶段】若选择不重洗牌库，则额外获得2【血筹】。",
-    "image": "assets/cards/role/74.png",
+    "image": "assets/cards/role/74.jpg",
     "note": "台词：检查过了，没有BUG。"
   },
   {
@@ -1593,7 +1593,7 @@
     ],
     "effectId": "role:75",
     "effectText": "【换牌阶段】你的换牌次数+1，当剩余可换牌次数为0时，获得1【血筹】。",
-    "image": "assets/cards/role/75.png",
+    "image": "assets/cards/role/75.jpg",
     "note": "年龄被涂黑不可辨认。台词：你什么档次的人？也配和我组乐队？"
   },
   {
@@ -1616,7 +1616,7 @@
     ],
     "effectId": "role:76",
     "effectText": "【重整阶段】结束时，可从全牌库删除1张牌。若删除的是抽牌堆的牌，则重洗抽牌堆。",
-    "image": "assets/cards/role/76.png",
+    "image": "assets/cards/role/76.jpg",
     "note": "台词：我最爱的桌游是狼人杀。"
   },
   {
@@ -1638,8 +1638,8 @@
       }
     ],
     "effectId": "role:77",
-    "effectText": "【对决阶段】你的2视为【5】。游戏开始时，删除2张2。",
-    "image": "assets/cards/role/77.png",
+    "effectText": "【对决阶段】你的2视为【Joker】。游戏开始时，删除2张2。",
+    "image": "assets/cards/role/77.jpg",
     "note": "「视为」后的图标扫描不可辨认，参照 05 特型演员推断为 5，待核对。台词：开门！领取一下你的炸弹快递！"
   },
   {
@@ -1662,7 +1662,7 @@
     ],
     "effectId": "role:78",
     "effectText": "【对决阶段】若你打出的牌均为黑色，则获得3【血筹】。",
-    "image": "assets/cards/role/78.png",
+    "image": "assets/cards/role/78.jpg",
     "note": "台词：来吧！一起玩更多桌游！"
   },
   {
@@ -1676,7 +1676,7 @@
     "triggers": [],
     "effectId": "role:79",
     "effectText": "你的手牌上限+1。",
-    "image": "assets/cards/role/79.png",
+    "image": "assets/cards/role/79.jpg",
     "note": "台词：我可以让你得到一切你想要的。"
   }
 ]

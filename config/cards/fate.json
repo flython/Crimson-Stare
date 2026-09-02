@@ -9,7 +9,7 @@
     "triggerText": "",
     "effectId": "fate:F1",
     "effectText": "【对决阶段】：玩家的牌型下降×级（×=骰子点数）最低至高牌。",
-    "image": "assets/cards/fate/F1.png",
+    "image": "assets/cards/fate/F1.jpg",
     "fateData": {
       "dealerHand": "5♣ 6♣ 7♦ 8♦ ?♠",
       "diceMapping": "A,2,3 → 高牌；4 → 顺子；5,6 → 对子"
@@ -25,7 +25,7 @@
     "triggerText": "",
     "effectId": "fate:F2",
     "effectText": "【结算阶段】结束时：玩家选择并删除1张本回合打出过的带[强化芯片]的牌，若无合法目标则无事发生。",
-    "image": "assets/cards/fate/F2.png",
+    "image": "assets/cards/fate/F2.jpg",
     "fateData": {
       "dealerHand": "2♠ 3♠ 4♥ 5♥ ?♣",
       "diceMapping": "A → 高牌；2,3,4,5 → 对子；6 → 顺子"
@@ -41,7 +41,7 @@
     "triggerText": "",
     "effectId": "fate:F3",
     "effectText": "【结算阶段】结束时：玩家选择并删除1张本回合打出过的带[强化芯片]的牌，若无合法目标则无事发生。",
-    "image": "assets/cards/fate/F3.png",
+    "image": "assets/cards/fate/F3.jpg",
     "fateData": {
       "dealerHand": "A♣ A♦ 6♣ 6♦ ?♥",
       "diceMapping": "A,6 → 葫芦；2,3,4,5 → 两对"
@@ -57,7 +57,7 @@
     "triggerText": "",
     "effectId": "fate:F4",
     "effectText": "【对决阶段】：玩家强制抽1张牌（若抽牌堆无牌则重洗牌库），替换玩家出牌区的1张牌，被替换的牌置入弃牌区。",
-    "image": "assets/cards/fate/F4.png",
+    "image": "assets/cards/fate/F4.jpg",
     "fateData": {
       "dealerHand": "4♠ 5♥ 6♣ ?♦ ?♦",
       "diceMapping": "A,2,3 → 对子；4,5,6 → 三条"
@@ -73,7 +73,7 @@
     "triggerText": "",
     "effectId": "fate:F5",
     "effectText": "本回合玩家的所有[强化芯片]无效。",
-    "image": "assets/cards/fate/F5.png",
+    "image": "assets/cards/fate/F5.jpg",
     "fateData": {
       "dealerHand": "2♠ 3♠ 4♥ 5♥ ?♣",
       "diceMapping": "A → 高牌；2,3,4,5 → 对子；6 → 顺子"
@@ -89,7 +89,7 @@
     "triggerText": "",
     "effectId": "fate:F6",
     "effectText": "【结算阶段】结束时：玩家丢弃×【血筹】（×=骰子点数）。",
-    "image": "assets/cards/fate/F6.png",
+    "image": "assets/cards/fate/F6.jpg",
     "fateData": {
       "dealerHand": "10♦ J♦ Q♦ K♦ ?♦",
       "diceMapping": "A → 同花顺；2,3,4,5,6 → 同花"
@@ -105,7 +105,7 @@
     "triggerText": "",
     "effectId": "fate:F7",
     "effectText": "【结算阶段】结束时：玩家必须将出牌区点数最小的牌（若有多张则由玩家选择）保留在出牌区，下回合 【出牌阶段】 少出1张牌。",
-    "image": "assets/cards/fate/F7.png",
+    "image": "assets/cards/fate/F7.jpg",
     "fateData": {
       "dealerHand": "6♠ 6♥ 6♣ ?♦ ?♦",
       "diceMapping": "A,2,3,4,5 → 葫芦；6 → 五条"
@@ -121,7 +121,7 @@
     "triggerText": "",
     "effectId": "fate:F8",
     "effectText": "【结算阶段】结束时，机械荷官获得【特权证】。",
-    "image": "assets/cards/fate/F8.png",
+    "image": "assets/cards/fate/F8.jpg",
     "fateData": {
       "dealerHand": "6♠ 6♥ 6♣ 6♦ ?♥",
       "diceMapping": "A,2,3,4,5 → 四条；6 → 五条"
@@ -137,7 +137,7 @@
     "triggerText": "",
     "effectId": "fate:F9",
     "effectText": "本回合机械荷官技能失效。",
-    "image": "assets/cards/fate/F9.png",
+    "image": "assets/cards/fate/F9.jpg",
     "fateData": {
       "dealerHand": "?♠ ?♥ ?♣ ?♦ ?♠",
       "diceMapping": "A,2,3,4,5,6 → 五条"
@@ -153,7 +153,7 @@
     "triggerText": "",
     "effectId": "fate:F10",
     "effectText": "本回合玩家技能失效。",
-    "image": "assets/cards/fate/F10.png",
+    "image": "assets/cards/fate/F10.jpg",
     "fateData": {
       "dealerHand": "2♦ 3♦ 4♦ 5♦ ?♦",
       "diceMapping": "A,2,3,4,5 → 同花；6 → 同花顺"
@@ -169,7 +169,7 @@
     "triggerText": "",
     "effectId": "fate:F11",
     "effectText": "【结算阶段】结束时：玩家获得×【血筹】（×=骰子点数）。",
-    "image": "assets/cards/fate/F11.png",
+    "image": "assets/cards/fate/F11.jpg",
     "fateData": {
       "dealerHand": "6♣ 6♣ 6♣ ?♣ ?♣",
       "diceMapping": "A,2,3,4,5 → 同花葫芦；6 → 同花五条"
@@ -185,7 +185,7 @@
     "triggerText": "",
     "effectId": "fate:F12",
     "effectText": "【结算阶段】结束时：玩家获得×【血筹】（×=命运牌弃牌区数量）。",
-    "image": "assets/cards/fate/F12.png",
+    "image": "assets/cards/fate/F12.jpg",
     "fateData": {
       "dealerHand": "?♥ ?♥ ?♥ ?♥ ?♥",
       "diceMapping": "A,2,3,4,5,6 → 同花五条"
@@ -201,7 +201,7 @@
     "triggerText": "",
     "effectId": "fate:F13",
     "effectText": "【对决阶段】：玩家本回合的牌型提升3级，最高至七条。",
-    "image": "assets/cards/fate/F13.png",
+    "image": "assets/cards/fate/F13.jpg",
     "fateData": {
       "dealerHand": "?♠ ?♥ ?♣ ?♦ ?♠ ?♥",
       "diceMapping": "A,2,3,4,5,6 → 六条"
@@ -217,7 +217,7 @@
     "triggerText": "",
     "effectId": "fate:F14",
     "effectText": "【对决阶段】：玩家本回合的牌型提升×级（×=骰子点数）最高至七条。",
-    "image": "assets/cards/fate/F14.png",
+    "image": "assets/cards/fate/F14.jpg",
     "fateData": {
       "dealerHand": "?♠ ?♠ ?♠ ?♠ ?♠ ?♠",
       "diceMapping": "A,2,3,4,5,6 → 同花六条"
@@ -233,7 +233,7 @@
     "triggerText": "",
     "effectId": "fate:F15",
     "effectText": "【对决阶段】：玩家本回合的牌型提升×级（×=命运牌弃牌区数量）最高至七条。",
-    "image": "assets/cards/fate/F15.png",
+    "image": "assets/cards/fate/F15.jpg",
     "fateData": {
       "dealerHand": "?♠ ?♥ ?♣ ?♦ ?♠ ?♥ ?♣",
       "diceMapping": "A,2,3,4,5,6 → 七条"
